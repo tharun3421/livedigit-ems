@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { dummyProfileData } from "../assets/assets"
 import Loading from "../components/Loading"
 import { Lock } from "lucide-react"
 import ProfileForm from "../components/ProfileForm"

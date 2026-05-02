@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import {useParams} from "react-router-dom"
-import { dummyPayslipData } from "../assets/assets";
 import Loading from "../components/Loading";
 import { format } from "date-fns";
 import api from "../api/axios";

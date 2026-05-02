@@ -4,6 +4,7 @@ import { Plus, Search, X } from "lucide-react";
 import EmployeeCard from "../components/EmployeeCard";
 import EmployeeForm from "../components/EmployeeForm";
 import api from "../api/axios";
+import { DEPARTMENTS } from "../assets/assets";
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);

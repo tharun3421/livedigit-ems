@@ -3,46 +3,6 @@ import Employee from "../models/Employee.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 
 
-
-// export const createLeave = async (req,res)=>{
-//     try {
-//         const session = req.session;
-//         const employee = await Employee.findOne({userId: session.userId})
-//         if(!employee)return res.status(404).json({error:"Employee not found"})
-//         if(employee.isDeleted){
-//             return res.status(403).json({error:"Your account id deactivated. You cannot apply for leave."})
-//         }
-
-//         const {type,startDate, endDate, reason} =req.body;
-
-//         if(!type || !startDate || !endDate || !reason){
-//             return res.status(400).json({error:"Missing fields"});
-//         }
-
-//         const todayStr = today.toISOString().split('T')[0];
-
-// if(startDate <= todayStr || endDate <= todayStr){
-//     return res.status(400).json({error:"Leave dates must be in the future"})
-// }
-// if(endDate < startDate){
-//     return res.status(400).json({error:"End date cannot be before start date"})
-// }
-//         const leave = await LeaveApplication.create({
-//             employeeId:employee._id,
-//             type,
-//             startDate: new Date(startDate),
-//             endDate: new Date(endDate),
-//             reason,
-//             status:"PENDING"
-//         })
-       
-        
-//     } catch (error) {
-//         return res.status(500).json({error:"Failed"})
-//     }
-// }
-
-
 export const createLeave = async (req, res) => {
     try {
         const session = req.session;
@@ -103,17 +63,29 @@ export const getLeaves = async (req,res)=>{
             const status = req.query.status;
             const where = status? {status}:{};
             const leaves = await LeaveApplication.find(where)
-  .populate("employeeId")
-  .sort({ createdAt: -1 });
-            const data = leaves.map((l)=>{
-                const obj = l.toObject();
-                return{
-                    ...obj,
-                    id:obj._id.toString(),
-                    employee:obj.employeeId,
-                    employeeId:obj.employeeId?._id?.toString(),
-                }
-            })
+            .populate("employeeId")
+            .sort({ createdAt: -1 });
+            // const data = leaves.map((l)=>{
+            //     const obj = l.toObject();
+            //     return{
+            //         ...obj,
+            //         id:obj._id.toString(),
+            //         employee:obj.employeeId,
+            //         employeeId:obj.employeeId?._id?.toString(),
+            //     }
+            // })
+
+            const data = leaves
+        .filter((l) => l.employeeId && !l.employeeId.isDeleted)
+        .map((l) => {
+        const obj = l.toObject();
+        return {
+            ...obj,
+            id: obj._id.toString(),
+            employee: obj.employeeId,
+            employeeId: obj.employeeId?._id?.toString(),
+        }
+    })
             return res.json({data})
         }else{
             const employee = await Employee.findOne({

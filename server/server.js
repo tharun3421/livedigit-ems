@@ -31,6 +31,9 @@ app.use("/api/dashboard",dashboardRouter)
 app.use("/api/inngest", serve({ client: inngest, functions }));
 
 
+app.get("/", (req, res) => {
+   res.send("Server running successfully");
+});
 
 await connectDB()
 app.listen(PORT, ()=>{

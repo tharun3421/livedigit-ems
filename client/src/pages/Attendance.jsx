@@ -52,7 +52,7 @@ const Attendance = () => {
             <p>You can no longer clock in or out because your employee records have been marked as deleted.</p>
         </div>):(
           <div className="mb-8">
-            <CheckinButton todayRecord={todayRecord} onAction={fetchDate}/>
+            <CheckinButton todayRecord={todayRecord} onAction={fetchData}/>
           </div>
         )}
         <AttendanceStats history={history}/>

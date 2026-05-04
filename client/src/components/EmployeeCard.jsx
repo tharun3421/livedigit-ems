@@ -44,8 +44,12 @@ const EmployeeCard = ({ employee, onDelete, onEdit }) => {
             </div>
 
             {!employee.isDeleted && (
-                <div className={`absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity flex items-end justify-center pb-6 gap-3
-                    ${showActions ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                <div
+                    className={`absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity flex items-end justify-center pb-6 gap-3
+                        ${showActions
+                            ? "opacity-100"                                    // toggled on (mobile tap)
+                            : "opacity-0 sm:group-hover:opacity-100"          // desktop hover only
+                        }`}
                 >
                     <button
                         onClick={() => onEdit(employee)}

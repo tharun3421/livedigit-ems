@@ -18,7 +18,11 @@ const PORT = process.env.PORT || 4000;
 
 
 app.use(cors({
-    origin: "https://livedigit-ems.vercel.app",
+    origin:  [
+  "http://localhost:5173",
+  "https://livedigit-ems.vercel.app"
+],
+    
     credentials: true
 }))
 

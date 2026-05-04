@@ -6,7 +6,7 @@
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-            "dist/**"
+          "dist/**"
         ]
       }
     }
@@ -16,5 +16,8 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "env": {
+    "TZ": "Asia/Kolkata"
+  }
 }

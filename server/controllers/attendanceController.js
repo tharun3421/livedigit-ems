@@ -13,12 +13,17 @@ export const clockInOut = async (req,res)=>{
     if(employee.isDeleted){
         return res.status(403).json({error:"Your account id deactivated. You cannot clock in/out."})
     }
-    const today = new Date()
-    today.setHours(0,0,0,0);
+    // const today = new Date()
+    // today.setHours(0,0,0,0);
+
+     const startOfDay = new Date()
+        startOfDay.setUTCHours(0, 0, 0, 0)
+        const endOfDay = new Date()
+        endOfDay.setUTCHours(23, 59, 59, 999)
 
     const existing = await Attendance.findOne({
         employeeId: employee._id,
-        date:today
+        date:{$gte:startOfDay, $lte: endOfDay}
     })
 
     const now = new Date();
@@ -27,7 +32,7 @@ export const clockInOut = async (req,res)=>{
         const isLate = now.getHours() >= 10;
         const attendance = await Attendance.create({
             employeeId: employee._id,
-            date: today,
+            date: startOfDay,
             checkIn: now,
             status: isLate ? "LATE" : "PRESENT"
         })

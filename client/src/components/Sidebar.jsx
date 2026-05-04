@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {data, href, Link, useLocation} from "react-router-dom"
-import {CalendarIcon, ChevronRightIcon, DollarSignIcon, FileTextIcon, LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon, UserIcon, XIcon} from "lucide-react"
+import {CalendarIcon, ChevronRightIcon, DollarSignIcon, FileTextIcon, IndianRupeeIcon, LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon, UserIcon, XIcon} from "lucide-react"
 import { useAuth } from "../context/authContext";
 import api from "../api/axios";
 
@@ -34,7 +34,7 @@ const Sidebar = () => {
             name:"Leave",href:"/leave",icon: FileTextIcon
         },
         {
-            name:"Payslips",href:"/payslips",icon: DollarSignIcon
+            name:"Payslips",href:"/payslips",icon: IndianRupeeIcon
         },
         {
             name:"Settings",href:"/settings",icon: SettingsIcon

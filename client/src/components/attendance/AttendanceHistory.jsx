@@ -1,6 +1,6 @@
 import React from 'react'
 import {format} from "date-fns"
-import { getDayTypeDisplay } from '../../assets/assets.js'
+import { getDayTypeDisplay,getWorkingHoursDisplay } from '../../assets/assets.js'
 
 const AttendanceHistory = ({history}) => {
   return (

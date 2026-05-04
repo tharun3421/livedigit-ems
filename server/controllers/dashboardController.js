@@ -88,12 +88,18 @@ export const getDashboard = async (req, res) => {
 
         if (session.role === "ADMIN") {
             const today = getToday()
+            console.log("Query date:", today.toISOString())
+
+            
 
             const [totalEmployees, totalAttendance, pendingLeaves] = await Promise.all([
                 Employee.countDocuments({ isDeleted: { $ne: true } }),
                 Attendance.countDocuments({ date: today }),
                 LeaveApplication.countDocuments({ status: "PENDING" })
             ])
+
+            const count = await Attendance.countDocuments({ date: today })
+console.log("Attendance count:", count)
 
             return res.json({
                 role: "ADMIN",

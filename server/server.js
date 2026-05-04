@@ -17,12 +17,20 @@ const app = express()
 const PORT = process.env.PORT || 4000;
 
 
+// server.js or app.js
+const allowedOrigins = [
+    "https://livedigit-ems.vercel.app",
+    "http://localhost:5173"
+]
+
 app.use(cors({
-    origin:  [
-  "http://localhost:5173",
-  "https://livedigit-ems.vercel.app"
-],
-    
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true)
+        } else {
+            callback(new Error("Not allowed by CORS"))
+        }
+    },
     credentials: true
 }))
 

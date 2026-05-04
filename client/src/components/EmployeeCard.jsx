@@ -30,6 +30,24 @@ const EmployeeCard = ({ employee, onDelete, onEdit }) => {
                         </span>
                     </div>
                 </div>
+
+                {/* Desktop hover overlay — hidden on mobile */}
+                {!employee.isDeleted && (
+                    <div className="absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity flex items-end justify-center pb-6 gap-3 opacity-0 group-hover:opacity-100 hidden sm:flex">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(employee); }}
+                            className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-indigo-600 rounded-xl shadow-lg transition-all hover:scale-105"
+                        >
+                            <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                            className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-rose-600 rounded-xl shadow-lg transition-all hover:scale-105"
+                        >
+                            <Trash2Icon className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="absolute top-3 left-3 flex gap-2">
@@ -43,33 +61,30 @@ const EmployeeCard = ({ employee, onDelete, onEdit }) => {
                 )}
             </div>
 
-            {!employee.isDeleted && (
-                <div
-                    className={`absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity flex items-end justify-center pb-6 gap-3
-                        ${showActions
-                            ? "opacity-100"                                    // toggled on (mobile tap)
-                            : "opacity-0 sm:group-hover:opacity-100"          // desktop hover only
-                        }`}
-                >
-                    <button
-                        onClick={() => onEdit(employee)}
-                        className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-indigo-600 rounded-xl shadow-lg transition-all hover:scale-105"
-                    >
-                        <PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-rose-600 rounded-xl shadow-lg transition-all hover:scale-105"
-                    >
-                        <Trash2Icon className="w-4 h-4" />
-                    </button>
-                </div>
-            )}
-
             <div className="p-5">
                 <h3 className="text-slate-900">{employee.firstName} {employee.lastName}</h3>
                 <p className="text-xs text-slate-500">{employee.position}</p>
             </div>
+
+            {/* Mobile action buttons — shown on tap, hidden on desktop */}
+            {!employee.isDeleted && (
+                <div className={`sm:hidden flex border-t border-slate-100 divide-x divide-slate-100 transition-all duration-200 overflow-hidden ${showActions ? "max-h-14 opacity-100" : "max-h-0 opacity-0"}`}>
+                    <button
+                        onClick={() => onEdit(employee)}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                        Edit
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                    >
+                        <Trash2Icon className="w-4 h-4" />
+                        Delete
+                    </button>
+                </div>
+            )}
         </div>
     )
 }

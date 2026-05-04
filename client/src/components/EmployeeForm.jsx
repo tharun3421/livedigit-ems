@@ -1,10 +1,10 @@
 
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2Icon } from "lucide-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
+import {DEPARTMENTS} from "../assets/assets.js"
 
 const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
   const navigate = useNavigate();
@@ -69,8 +69,8 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
               name="date"
               required
               defaultValue={
-                initialData?.joinDate                                  // ← joinData → joinDate
-                  ? new Date(initialData.joinDate).toISOString().split("T")[0]  // ← intialData → initialData
+                initialData?.joinDate                                  
+                  ? new Date(initialData.joinDate).toISOString().split("T")[0]  
                   : ""
               }
             />
@@ -108,8 +108,8 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
             <input type="number" name="allowances" required min="0" step="0.01" defaultValue={initialData?.allowances || 0} />
           </div>
           <div>
-            <label className="block mb-2">Deductions</label>  {/* ← Deducations → Deductions */}
-            <input type="number" name="deductions" required min="0" step="0.01" defaultValue={initialData?.deductions || 0} />  {/* ← deducations → deductions */}
+            <label className="block mb-2">Deductions</label>  
+            <input type="number" name="deductions" required min="0" step="0.01" defaultValue={initialData?.deductions || 0} /> 
           </div>
           {isEditMode && (
             <div>
@@ -140,7 +140,7 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
           {isEditMode && (
             <div>
               <label className="block mb-2">Change Password (Optional)</label>
-              <input type="password" name="password" placeholder="Leave blank to keep current" />  {/* ← removed required */}
+              <input type="password" name="password" placeholder="Leave blank to keep current" /> 
             </div>
           )}
           <div>
@@ -154,13 +154,13 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
       </div>
 
       {/* Buttons */}
-      <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">  {/* ← removed onClick from div */}
+      <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2"> 
         <button
           className="btn-secondary"
           type="button"
           onClick={() => (onCancel ? onCancel() : navigate(-1))} 
         >
-          Cancel  {/* ← Cancle → Cancel */}
+          Cancel 
         </button>
         <button className="btn-primary flex items-center justify-center" type="submit" disabled={loading}>
           {loading && <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />}

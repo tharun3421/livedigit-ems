@@ -13,7 +13,7 @@ export const clockInOut = async (req, res) => {
             return res.status(403).json({ error: "Your account is deactivated. You cannot clock in/out." })
         }
 
-        // ✅ Simple local time — works correctly with TZ=Asia/Kolkata
+        //  Simple local time — works correctly with TZ=Asia/Kolkata
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
@@ -25,7 +25,7 @@ export const clockInOut = async (req, res) => {
         })
 
         if (!existing) {
-            // ✅ Simple hour check works now since server is in IST
+            // Simple hour check works now since server is in IST
             const isLate = now.getHours() >= 10;
             const attendance = await Attendance.create({
                 employeeId: employee._id,

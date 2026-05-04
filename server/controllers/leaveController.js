@@ -65,15 +65,6 @@ export const getLeaves = async (req,res)=>{
             const leaves = await LeaveApplication.find(where)
             .populate("employeeId")
             .sort({ createdAt: -1 });
-            // const data = leaves.map((l)=>{
-            //     const obj = l.toObject();
-            //     return{
-            //         ...obj,
-            //         id:obj._id.toString(),
-            //         employee:obj.employeeId,
-            //         employeeId:obj.employeeId?._id?.toString(),
-            //     }
-            // })
 
             const data = leaves
         .filter((l) => l.employeeId && !l.employeeId.isDeleted)

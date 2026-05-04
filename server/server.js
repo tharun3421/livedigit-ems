@@ -17,7 +17,6 @@ const app = express()
 const PORT = process.env.PORT || 4000;
 
 
-// server.js or app.js
 const allowedOrigins = [
     "https://livedigit-ems.vercel.app",
     "http://localhost:5173"

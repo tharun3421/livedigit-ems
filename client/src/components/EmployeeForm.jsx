@@ -17,16 +17,14 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
 
     const formData = new FormData(e.currentTarget);
 
-    // Build plain JSON object instead of sending FormData directly
+    
     const body = Object.fromEntries(formData.entries());
 
-    // Rename `date` → `joinDate` to match backend
     if (body.date) {
       body.joinDate = body.date;
       delete body.date;
     }
 
-    // Remove blank password in edit mode
     if (isEditMode && !body.password) {
       delete body.password;
     }
@@ -56,7 +54,7 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
           </div>
           <div>
             <label className="block mb-2">Last Name</label>
-            <input name="lastName" required defaultValue={initialData?.lastName} />  {/* ← LastName → lastName */}
+            <input name="lastName" required defaultValue={initialData?.lastName} />  
           </div>
           <div>
             <label className="block mb-2">Phone Number</label>

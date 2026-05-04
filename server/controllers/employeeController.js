@@ -91,7 +91,7 @@ export const updateEmployee = async (req, res) => {
     const userUpdate = { email };
     if (role) userUpdate.role = role;
     if (password) userUpdate.password = await bcrypt.hash(password, 10);
-    await User.findByIdAndUpdate(employee.userId, userUpdate); // ← employee.userId, not user._id
+    await User.findByIdAndUpdate(employee.userId, userUpdate); 
 
     return res.json({ success: true });
   } catch (error) {
@@ -110,7 +110,7 @@ export const deleteEmployee = async (req, res) => {
     if (!employee) return res.status(404).json({ error: "Employee not found" });
 
     employee.isDeleted = true;
-    employee.employmentStatus = "INACTIVE"; // ← fixed typo
+    employee.employmentStatus = "INACTIVE"; 
     await employee.save();
 
     return res.json({ success: true });

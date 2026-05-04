@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CalendarIcon, DollarSignIcon, FileTextIcon } from "lucide-react";
+import { ArrowRightIcon, CalendarIcon, FileTextIcon, IndianRupeeIcon } from "lucide-react";
 import {Link} from "react-router-dom"
 
 
@@ -19,7 +19,7 @@ const EmployeeDashboard = ({ data }) => {
       subtitle: "Awaiting approval",
     },
     {
-      icon: DollarSignIcon,
+      icon: IndianRupeeIcon,
       value: data.latestPayslip
         ? `$${data.latestPayslip.netSalary?.toLocaleString()}`
         : "N/A",

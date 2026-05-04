@@ -1,10 +1,8 @@
 import { PencilIcon, Trash2Icon } from "lucide-react"
-import { useState } from "react"
 import api from "../api/axios";
 import toast from "react-hot-toast";
 
 const EmployeeCard = ({ employee, onDelete, onEdit }) => {
-    const [showActions, setShowActions] = useState(false)
 
     const handleDelete = async () => {
         if (!confirm("Are you sure want to delete this employee?")) return;
@@ -18,10 +16,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit }) => {
 
     return (
         <div className="group relative card card-hover overflow-hidden">
-            <div
-                className="relative aspect-4/3 w-full overflow-hidden bg-linear-to-br from-slate-100 to-slate-50 cursor-pointer"
-                onClick={() => setShowActions((prev) => !prev)}
-            >
+            <div className="relative aspect-4/3 w-full overflow-hidden bg-linear-to-br from-slate-100 to-slate-50">
                 <div className="w-full h-full flex items-center justify-center">
                     <div className="w-20 h-20 rounded-full bg-linear-to-br from-indigo-100 to-slate-100 flex items-center justify-center">
                         <span className="text-2xl font-medium text-indigo-400">
@@ -31,18 +26,18 @@ const EmployeeCard = ({ employee, onDelete, onEdit }) => {
                     </div>
                 </div>
 
-                {/* Desktop hover overlay — hidden on mobile */}
+                {/* Desktop hover overlay */}
                 {!employee.isDeleted && (
-                    <div className="absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity flex items-end justify-center pb-6 gap-3 opacity-0 group-hover:opacity-100 hidden sm:flex">
+                    <div className="absolute inset-0 bg-black/30 transition-opacity flex items-end justify-center pb-6 gap-3 opacity-0 group-hover:opacity-100">
                         <button
-                            onClick={(e) => { e.stopPropagation(); onEdit(employee); }}
-                            className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-indigo-600 rounded-xl shadow-lg transition-all hover:scale-105"
+                            onClick={() => onEdit(employee)}
+                            className="p-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-lg transition-all hover:scale-105"
                         >
                             <PencilIcon className="w-4 h-4" />
                         </button>
                         <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-                            className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-rose-600 rounded-xl shadow-lg transition-all hover:scale-105"
+                            onClick={handleDelete}
+                            className="p-2.5 bg-rose-500 text-white hover:bg-rose-600 rounded-xl shadow-lg transition-all hover:scale-105"
                         >
                             <Trash2Icon className="w-4 h-4" />
                         </button>
@@ -61,28 +56,28 @@ const EmployeeCard = ({ employee, onDelete, onEdit }) => {
                 )}
             </div>
 
+            {/* Mobile: always-visible action icons in top-right corner */}
+            {!employee.isDeleted && (
+                <div className="absolute top-3 right-3 flex gap-2 sm:hidden">
+                    <button
+                        onClick={() => onEdit(employee)}
+                        className="p-2 bg-indigo-600 text-white rounded-lg shadow-md"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        className="p-2 bg-rose-500 text-white rounded-lg shadow-md"
+                    >
+                        <Trash2Icon className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             <div className="p-5">
                 <h3 className="text-slate-900">{employee.firstName} {employee.lastName}</h3>
                 <p className="text-xs text-slate-500">{employee.position}</p>
             </div>
-
-           {/* Desktop hover overlay — hidden on mobile */}
-{!employee.isDeleted && (
-    <div className="absolute inset-0 bg-black/30 transition-opacity flex items-end justify-center pb-6 gap-3 opacity-0 group-hover:opacity-100 hidden sm:flex">
-        <button
-            onClick={(e) => { e.stopPropagation(); onEdit(employee); }}
-            className="p-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-lg transition-all hover:scale-105"
-        >
-            <PencilIcon className="w-4 h-4" />
-        </button>
-        <button
-            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-            className="p-2.5 bg-rose-500 text-white hover:bg-rose-600 rounded-xl shadow-lg transition-all hover:scale-105"
-        >
-            <Trash2Icon className="w-4 h-4" />
-        </button>
-    </div>
-)}
         </div>
     )
 }

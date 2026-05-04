@@ -1,4 +1,4 @@
-import { use, useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Loading from "../components/Loading";
 import CheckinButton from "../components/attendance/CheckinButton";
 import AttendanceStats from "../components/attendance/AttendanceStats";
@@ -12,7 +12,7 @@ const Attendance = () => {
   const [loading,setLoading]=useState(true);
   const [isDeleted,setDeleted]= useState(false);
 
-  const fetchDate= useCallback(async ()=>{
+  const fetchData= useCallback(async ()=>{
     try {
       const res = await api.get("/attendance")
       const json = res.data;
@@ -25,14 +25,22 @@ const Attendance = () => {
     }
   },[])
   useEffect(()=>{
-    fetchDate()
-  },[fetchDate])
+    fetchData()
+  },[fetchData])
 
 
   if(loading )return <Loading/>
   const today =new Date()
   today.setHours(0,0,0,0)
-  const todayRecord = history.find((r)=> new Date(r.date).toDateString()=== today.toDateString())
+  // const todayRecord = history.find((r)=> new Date(r.date).toDateString()=== today.toDateString())
+  const todayRecord = history.find((r) => {
+  const recordDate = new Date(r.date);
+  return (
+    recordDate.getUTCFullYear() === today.getUTCFullYear() &&
+    recordDate.getUTCMonth() === today.getUTCMonth() &&
+    recordDate.getUTCDate() === today.getUTCDate()
+  );
+});
   return (
     <div className="animate-fade-in"> 
         <div className="page-header">

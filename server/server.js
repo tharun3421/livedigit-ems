@@ -12,6 +12,7 @@ import payslipRouter from "./routes/payslipRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import { serve } from "inngest/express";
 import { inngest, functions } from "./inngest/index.js"
+import Attendance from "./models/Attendance.js";
 
 const app = express()
 const PORT = process.env.PORT || 4000;

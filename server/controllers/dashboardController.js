@@ -68,8 +68,6 @@
 // }
 
 
-
-
 import { DEPARTMENTS } from "../constants/departments.js";
 import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
@@ -77,9 +75,11 @@ import LeaveApplication from "../models/LeaveApplication.js";
 import Payslip from "../models/Payslip.js";
 
 const getToday = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return today
+    const start = new Date()
+    start.setUTCHours(0, 0, 0, 0)
+    const end = new Date()
+    end.setUTCHours(23, 59, 59, 999)
+    return { start, end }
 }
 
 export const getDashboard = async (req, res) => {
@@ -87,19 +87,13 @@ export const getDashboard = async (req, res) => {
         const session = req.session;
 
         if (session.role === "ADMIN") {
-            const today = getToday()
-            console.log("Query date:", today.toISOString())
-
-            
+            const { start, end } = getToday()
 
             const [totalEmployees, totalAttendance, pendingLeaves] = await Promise.all([
                 Employee.countDocuments({ isDeleted: { $ne: true } }),
-                Attendance.countDocuments({ date: today }),
+                Attendance.countDocuments({ date: { $gte: start, $lte: end } }),
                 LeaveApplication.countDocuments({ status: "PENDING" })
             ])
-
-            const count = await Attendance.countDocuments({ date: today })
-console.log("Attendance count:", count)
 
             return res.json({
                 role: "ADMIN",
@@ -114,8 +108,8 @@ console.log("Attendance count:", count)
             if (!employee) return res.status(404).json({ error: "Employee not found" })
 
             const now = new Date()
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+            const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+            const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
 
             const [currentMonthAttendance, pendingLeaves, latestPayslip] = await Promise.all([
                 Attendance.countDocuments({

@@ -51,6 +51,36 @@ app.get("/", (req, res) => {
    res.send("Server running successfully");
 });
 
+
+
+
+// add this temporarily in your server.js
+app.get("/api/debug", async (req, res) => {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date()
+    end.setHours(23, 59, 59, 999)
+
+    const all = await Attendance.find({}).sort({ date: -1 }).limit(5).lean()
+    const count = await Attendance.countDocuments({ date: { $gte: start, $lte: end } })
+    const exactCount = await Attendance.countDocuments({ date: new Date("2026-05-04T00:00:00.000Z") })
+
+    return res.json({
+        serverTime: new Date().toISOString(),
+        queryStart: start.toISOString(),
+        queryEnd: end.toISOString(),
+        rangeCount: count,
+        exactCount,
+        last5Records: all.map(a => ({
+            date: a.date,
+            checkIn: a.checkIn,
+            status: a.status
+        }))
+    })
+})
+
+
+
 await connectDB()
 app.listen(PORT, ()=>{
     console.log(`server running on port ${PORT}`);

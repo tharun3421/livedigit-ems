@@ -10,17 +10,17 @@ export const getDashboard = async (req,res)=>{
         if(session.role === "ADMIN"){
             const [totalEmployees, todayAttendance, pendingLeaves] = await Promise.all([
                 Employee.countDocuments({isDeleted:{ $ne:true}}),
-                Attendance.countDocuments({date:{
-                    $gte:new Date(new Date().setHours(0,0,0,0)),
-                    $lt: new Date(new Date().setHours(24,0,0,0)),
-                }}),
+               Attendance.countDocuments({date:{
+    $gte:new Date(new Date().setHours(0,0,0,0)),
+    $lte: new Date(new Date().setHours(23,59,59,999)),
+}}),
                 LeaveApplication.countDocuments({status:"PENDING"})
             ])
             return res.json({
                 role:"ADMIN",
                 totalEmployees,
                 totalDepartments: DEPARTMENTS.length,
-                todayAttendance,
+                totalAttendance: todayAttendance,
                 pendingLeaves
             })
         }else{

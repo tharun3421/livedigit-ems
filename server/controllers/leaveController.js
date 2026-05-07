@@ -98,6 +98,13 @@ export const getLeaves = async (req,res)=>{
     }
 }
 
+
+
+
+
+
+
+
 export const updateLeaveStatus = async (req,res)=>{
     try {
         const {status} = req.body

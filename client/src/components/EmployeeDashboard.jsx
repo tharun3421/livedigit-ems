@@ -21,7 +21,7 @@ const EmployeeDashboard = ({ data }) => {
     {
       icon: IndianRupeeIcon,
       value: data.latestPayslip
-        ? `$${data.latestPayslip.netSalary?.toLocaleString()}`
+        ? `₹ ${data.latestPayslip.netSalary?.toLocaleString()}`
         : "N/A",
       titel: "Latest payslip",
       subtitle: "Most recent payout",

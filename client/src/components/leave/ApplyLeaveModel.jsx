@@ -52,7 +52,7 @@ const ApplyLeaveModel = ({open, onClose, onSuccess}) => {
               <select name="type" required>
                  <option value="SICK">Sick Leave</option>
                  <option value="CASUAL">Casual Leave</option>
-                 <option value="ANNUAL">Annual Leave</option>
+                 <option value="ANNUAL">Loss of Pay </option>
               </select>
             </div>
             {/* duration */}

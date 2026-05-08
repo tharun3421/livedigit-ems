@@ -16,6 +16,7 @@ const employeeSchema = new mongoose.Schema({
   isDeleted:        { type: Boolean, default: false },
   bio:              { type: String, default: "" },
   department:       { type: String, enum: DEPARTMENTS, default: "Engineering" },
+  
 }, { timestamps: true });
 
 const Employee = mongoose.models.Employee || mongoose.model("Employee", employeeSchema);

@@ -199,11 +199,13 @@ export const getAttendance = async (req, res) => {
             return res.status(404).json({ error: "Employee not found" });
         }
 
-        const limit = parseInt(req.query.limit) || 30;
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const history = await Attendance.find({ employeeId: employee._id })
-            .sort({ date: -1 })
-            .limit(limit);
+        const history = await Attendance.find({
+            employeeId: employee._id,
+            date: { $gte: startOfMonth },
+        }).sort({ date: -1 });
 
         return res.json({
             data: history,

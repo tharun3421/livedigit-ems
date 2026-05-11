@@ -37,12 +37,12 @@ const Employees = () => {
   );
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in ">
       {/* header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1>Employees</h1>
-          <p>Manage your team members</p>
+          <h1 className="text-3xl text-slate-100">Employees</h1>
+          <p className="text-slate-500">Manage your team members</p>
         </div>
         <button onClick={()=> setShowCreateModel(true)} className="btn-primary flex items-center gap-2 w-full sm:w-auto justify-center">
           <Plus size={16} /> Add Employee
@@ -64,11 +64,11 @@ const Employees = () => {
         <select
           value={selectedDept}
           onChange={(e) => setSelectedDept(e.target.value)}
-          className="max-w-40"
+          className="max-w-40 text-slate-400"
         >
           <option value="">All Departments</option>
           {DEPARTMENTS.map((deptName) => (
-            <option key={deptName} value={deptName}>
+            <option key={deptName} value={deptName} className="text-slate-800">
               {deptName}
             </option>
           ))}
@@ -97,13 +97,13 @@ const Employees = () => {
       {showCreateModel && (
         <div className="fixed bg-black/40 backdrop-blur-sm inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={()=> setShowCreateModel(false)}>
           <div className="fixed inset-0"/>
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl animate-fade-in " onClick={(e)=> e.stopPropagation()}>
+          <div className="relative bg-white/[0.07] border border-white/10 rounded-2xl shadow-2xl w-full max-w-3xl animate-fade-in " onClick={(e)=> e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 pb-0">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Add New Employee</h2>
+                  <h2 className="text-lg font-semibold text-slate-100">Add New Employee</h2>
                   <p  className="text-sm text-slate-500 mt-0.5">Create a user account and employee Profile</p>
                 </div>
-                <button onClick={()=> setShowCreateModel(false)} className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
+                <button onClick={()=> setShowCreateModel(false)} className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-100 hover:text-slate-600">
                   <X className="w-5 h-5"/>
                 </button>
               </div>

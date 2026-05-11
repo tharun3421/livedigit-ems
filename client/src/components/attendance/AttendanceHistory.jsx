@@ -4,13 +4,13 @@ import { getDayTypeDisplay,getWorkingHoursDisplay } from '../../assets/assets.js
 
 const AttendanceHistory = ({history}) => {
   return (
-    <div className='card overflow-hidden'>
+    <div className='card overflow-hidden '>
         <div className='px-6 py-4 border-b border-slate-100'>
             <h3 className='font-semibold text-slate-900'>Recent Activity</h3>
-        </div>
-        <div className='overflow-x-auto'>
-            <table className='table-modern'>
-                <thead>
+        </div>  
+        <div className='overflow-x-auto '>
+            <table className='table-modern '>
+                <thead >
                     <tr>
                         <th className='px-6 py-4'>Date</th>
                         <th className='px-6 py-4'>Check In</th>
@@ -30,7 +30,7 @@ const AttendanceHistory = ({history}) => {
                             const dayType = getDayTypeDisplay(record)
                             return(
                                 <tr key={record._id || record.id}>
-                                    <td className='px-6 py-4 font-medium text-slate-900'>{format(new Date(record.date), "MMM dd,yyyy")}</td>
+                                    <td className='px-6 py-4 font-medium text-slate-600'>{format(new Date(record.date), "MMM dd,yyyy")}</td>
                                     <td className='px-6 py-4  text-slate-600'>{record.checkIn? format(new Date(record.checkIn), "hh : mm,a"): "-"}</td>
                                     <td className='px-6 py-4  text-slate-600'>{record.checkOut? format(new Date(record.checkOut), "hh : mm,a"): "-"}</td>
                                     <td className='px-6 py-4 font-medium  text-slate-600'>{getWorkingHoursDisplay(record)}</td>

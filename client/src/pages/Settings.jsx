@@ -37,9 +37,9 @@ const Settings = () => {
   if(loading) return <Loading/>
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in ">
       <div className="page-header">
-        <h1 className="page-title">Settings</h1>
+        <h1 className="text-3xl text-slate-100">Settings</h1>
         <p className="page-subtitle">Manage your account and preferences</p>
       </div>
       {profile && <ProfileForm initialData={profile} onSuccess={fetchProfile}/>}
@@ -50,7 +50,7 @@ const Settings = () => {
             <Lock className="w-4 h-4 text-slate-600"/>
           </div>
           <div>
-            <p className="font-medium text-slate-900">Password</p>
+            <p className="font-medium text-slate-100">Password</p>
             <p className="text-sm text-slate-500">Update your account password</p>
           </div>
         </div>

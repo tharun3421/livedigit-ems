@@ -8,16 +8,16 @@
 @layer utilities {
     /* Card styles */
     .card {
-        @apply bg-white rounded-lg border border-slate-200/70;
+        @apply bg-indigo-500/8 border border-indigo-500/15 rounded-2xl text-slate-100;
     }
     .card-hover {
-        @apply hover:-translate-y-0.5 transition-all duration-300;
+        @apply hover:-translate-y-0.5 transition-all duration-300 bg-cyan-500/5;
     }
 
     /* Button styles */
     .btn-primary {
-        @apply bg-linear-to-r from-indigo-600 to-indigo-500 text-white px-5 py-2.5 rounded-md text-sm
-            hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 shadow-md shadow-indigo-500/25
+        @apply bg-linear-to-r from-indigo-800 to-indigo-700 text-white px-5 py-2.5 rounded-md text-sm
+            hover:from-indigo-800 hover:to-indigo-600 transition-all duration-200 shadow-md shadow-indigo-500/25
             active:scale-[0.98];
     }
     .btn-secondary {
@@ -29,7 +29,7 @@
     input,
     select,
     textarea {
-        @apply w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-md
+        @apply w-full px-4 py-2.5  border border-slate-200 rounded-md
             focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400
             transition-all duration-200 text-sm placeholder:text-slate-400;
     }
@@ -48,7 +48,7 @@
         @apply divide-y divide-slate-100;
     }
     .table-modern tbody tr {
-        @apply hover:bg-slate-50/50 transition-colors duration-150;
+        @apply hover:bg-white/[0.07] transition-colors duration-150;
     }
     .table-modern tbody td {
         @apply px-6 py-4;
@@ -73,7 +73,7 @@
         @apply mb-8;
     }
     .page-title {
-        @apply text-2xl font-medium text-slate-900 tracking-tight;
+        @apply text-2xl font-medium text-slate-100 tracking-tight;
     }
     .page-subtitle {
         @apply text-slate-500 text-sm mt-1;

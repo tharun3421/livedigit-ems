@@ -22,7 +22,7 @@ const LeaveHistory = ({leaves,isAdmin,onUpdate}) => {
      <div className='card overflow-hidden'>
             <div className='overflow-x-auto'>
                 <table className='table-modern'>
-                    <thead className='bg-slate-200'>
+                    <thead className='bg-white/[0.07] '>
                         <tr>
                             {isAdmin && <th>Employee</th>}
                             <th>Type</th>
@@ -43,7 +43,7 @@ const LeaveHistory = ({leaves,isAdmin,onUpdate}) => {
                                 return(
                                     <tr key={leave._id || leave.id}>
                                     {isAdmin && (
-                                            <td className='text-slate-900'>{leave.employee?.firstName} {leave.employee?.lastName}</td>
+                                            <td className='text-slate-400'>{leave.employee?.firstName} {leave.employee?.lastName}</td>
                                         )}
                                       
                                         <td className='badge  text-slate-600 ' ><span>{leave.type}</span></td>
@@ -58,7 +58,7 @@ const LeaveHistory = ({leaves,isAdmin,onUpdate}) => {
                                                 {leave.status === "PENDING" && (
                                                     <div className='flex justify-center gap-2'>
                                                         <button onClick={()=> handleStatusUpdate(leave._id || leave.id,"APPROVED")} disabled={!!processing} className='p-1.5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors'>{processing === (leave._id || leave.id)?<Loader2 className='w-4 h-4'/>:<Check className='w-4 h-4'/>}</button>
-                                                        <button onClick={()=> handleStatusUpdate(leave._id || leave.id,"REJECTED")} disabled={!!processing} className='p-1.5 rounded-md bg-rose-50-50 text-rose-600 hover:bg-rose-100 transition-colors'>{processing === (leave._id || leave.id)?<Loader2 className='w-4 h-4'/>:<X className='w-4 h-4'/>}</button>
+                                                        <button onClick={()=> handleStatusUpdate(leave._id || leave.id,"REJECTED")} disabled={!!processing} className='p-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors'>{processing === (leave._id || leave.id)?<Loader2 className='w-4 h-4'/>:<X className='w-4 h-4'/>}</button>
                                                         
                                                     </div>
                                                 )}

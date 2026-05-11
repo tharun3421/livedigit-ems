@@ -34,7 +34,7 @@ const AdminDashboard = ({data}) => {
         },
     ]
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in ">
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <p className='page-subtitle'>

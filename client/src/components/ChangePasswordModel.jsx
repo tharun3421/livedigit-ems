@@ -30,10 +30,10 @@ const ChangePasswordModel = ({open , onClose}) => {
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 ">
         <div  className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in " onClick={(e)=> e.stopPropagation()}>
+        <div className="relative bg-indigo-500/8 border border-indigo-500/15 rounded-2xl shadow-2xl w-full max-w-md animate-fade-in " onClick={(e)=> e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 pb-0">
-                <h2 className="text-lg font-medium text-slate-900 flex items-center gap-2">
-                    <LockIcon className="w-5 h-5 text-slate-400"/>Change Password
+                <h2 className="text-lg font-medium text-slate-100 flex items-center gap-2">
+                    <LockIcon className="w-5 h-5 text-slate-100"/>Change Password
                 </h2>
                 <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
                     <X className="w-5 h-5"/>
@@ -46,12 +46,12 @@ const ChangePasswordModel = ({open , onClose}) => {
                     </div>
                 )}
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Current Password</label>
-                    <input type="password"  name="currentPassword" required/>
+                    <label className="block text-sm font-medium text-slate-100 mb-2 ">Current Password</label>
+                    <input type="password"  name="currentPassword" required className="bg-white/[0.07]"/>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">New Password</label>
-                    <input type="password"  name="newPassword" required/>
+                    <label className="block text-sm font-medium text-slate-100 mb-2">New Password</label>
+                    <input type="password"  name="newPassword" required className="bg-white/[0.07]"/>
                 </div>
                 <div className="flex gap-3 pt-2">
                     <button type="button" onClick={onClose} className="btn-secondary flex-1">

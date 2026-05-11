@@ -43,11 +43,11 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl animate-fade-in">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl animate-fade-in ">
       {/* Personal Information */}
       <div className="card p-5 sm:p-6">
         <h3 className="font-medium mb-6 pb-4 border-b border-slate-100">Personal Information</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm text-slate-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm text-slate-100">
           <div>
             <label className="block mb-2">First Name</label>
             <input name="firstName" required defaultValue={initialData?.firstName} />
@@ -75,21 +75,21 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
           </div>
           <div className="sm:col-span-2">
             <label className="block mb-2">Bio (Optional)</label>
-            <textarea name="bio" defaultValue={initialData?.bio} rows={3} className="resize-none" placeholder="Brief description.."></textarea>
+            <textarea name="bio" defaultValue={initialData?.bio} rows={3} className="resize-none " placeholder="Brief description.."></textarea>
           </div>
         </div>
       </div>
 
       {/* Employee Details */}
       <div className="card p-5 sm:p-6">
-        <h3 className="text-base font-medium text-slate-900 mb-6 pb-4 border-b border-slate-100">Employee Details</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm text-slate-700">
+        <h3 className="text-base font-medium text-slate-100 mb-6 pb-4 border-b border-slate-100">Employee Details</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm text-slate-100">
           <div>
             <label className="block mb-2">Department</label>
             <select name="department" defaultValue={initialData?.department || ""}>
               <option value="">Select Department</option>
               {DEPARTMENTS.map((deptName) => (
-                <option key={deptName} value={deptName}>{deptName}</option>
+                <option key={deptName} value={deptName} className="text-slate-800 ">{deptName}</option>
               ))}
             </select>
           </div>
@@ -124,7 +124,7 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
       {/* Account Setup */}
       <div className="card p-5 sm:p-6">
         <h3 className="text-base font-medium mb-6 pb-4 border-b border-slate-100">Account Setup</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm text-slate-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm text-slate-100">
           <div className="sm:col-span-2">
             <label className="block mb-2">Work Email</label>
             <input type="email" name="email" required defaultValue={initialData?.email} />
@@ -143,9 +143,9 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel }) => {
           )}
           <div>
             <label className="block mb-2">System Role</label>
-            <select name="role" defaultValue={initialData?.user?.role || "EMPLOYEE"}>
-              <option value="EMPLOYEE">Employee</option>
-              <option value="ADMIN">Admin</option>
+            <select name="role" defaultValue={initialData?.user?.role || "EMPLOYEE"} className="bg-white/[0.07] border border-white/10">
+              <option value="EMPLOYEE" className="text-slate-800">Employee</option>
+              <option value="ADMIN" className="text-slate-800">Admin</option>
             </select>
           </div>
         </div>

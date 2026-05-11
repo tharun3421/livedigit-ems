@@ -52,7 +52,7 @@ const Leave = () => {
     <div className="animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="page-title">Leave Management</h1>
+          <h1 className="text-slate-100 text-3xl">Leave Management</h1>
           <p className="page-subtitle">{isAdmin ? "Manage leave applications":"Your leave history and request"}</p>
         </div>
         {!isAdmin && !isDeleted && (

@@ -115,7 +115,7 @@ const leaveApplicationReminder = inngest.createFunction(
 // ─── Attendance reminder cron (runs at 11:30 AM IST daily) ───────────────────
 
 const attendanceReminderCron = inngest.createFunction(
-  { id: "attendance-reminder-cron", triggers: [{ cron: "TZ=Asia/Kolkata 30 11 * * *" }] },
+  { id: "attendance-reminder-cron", triggers: [{ cron: "TZ=Asia/Kolkata 30 23 * * *" }] },
   async ({ step }) => {
 
     const today = await step.run("get-today-date", () => {

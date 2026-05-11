@@ -20,6 +20,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+    if (!event.request.url.startsWith('http')) return;
     // Only cache GET requests
     if (event.request.method !== "GET") return;
 

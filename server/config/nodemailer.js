@@ -1,24 +1,23 @@
-import {createTransport} from "nodemailer"
 
+import { Resend } from "resend"
 
-const transporter = createTransport({
-    host:"smtp-relay.brevo.com",
-    port:587,
-    auth:{
-        user:process.env.SMTP_USER,
-        pass:process.env.SMTP_PASS
-    }
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
+const sendEmail = async ({ to, subject, body }) => {
+  const { data, error } = await resend.emails.send({
+    from:    `QuickEMS <${process.env.SENDER_EMAIL}>`,
+    to,
+    subject,
+    html:    body,
+  })
 
-const sendEmail = async({to, subject,body})=>{
-    const response = await transporter.sendMail({
-        from: process.env.SENDER_EMAIL,
-        to,
-        subject,
-        html:body
-    })
-    return response
+  if (error) {
+    console.error("❌ Email error:", error.message)
+    throw new Error(error.message)
+  }
+
+  console.log("✅ Email sent to:", to)
+  return data
 }
 
 export default sendEmail

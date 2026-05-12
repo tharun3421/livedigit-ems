@@ -43,7 +43,7 @@ const GeneratePayslipForm = ({employees,onSuccess}) => {
                 <div>
                     <label className='block text-sm font-medium text-slate-400 mb-2'>Employee</label>
                     <select name="employeeId" required> {employees.map((e)=>(
-                        <option key={e._id} value={e._id}>
+                        <option key={e._id} value={e._id} className='text-slate-800'>
     {e.firstName} {e.lastName} ({e.position})
 </option>
                     ))}</select>

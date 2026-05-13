@@ -87,7 +87,7 @@ const Employees = () => {
               No employees found
             </p>
           ) : (
-            filtered.map((emp) => <EmployeeCard key={emp.id} employee={emp} onDelete={fetchEmployees} onEdit={(e)=> setEditEmployee(e)}/>)
+            filtered.map((emp) => <EmployeeCard isAdmin={true} key={emp.id} employee={emp} onDelete={fetchEmployees} onEdit={(e)=> setEditEmployee(e)}/>)
           )}
         </div>
       )}
@@ -135,7 +135,7 @@ const Employees = () => {
                 </button>
                 </div>
                 <div className="p-6">
-                   <EmployeeForm initialData={editEmployee} 
+                   <EmployeeForm isAdmin={true} initialData={editEmployee} 
                    onSuccess={()=> {
                     setEditEmployee(null);
                     fetchEmployees();

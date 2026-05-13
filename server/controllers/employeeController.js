@@ -2,6 +2,8 @@ import Employee from "../models/Employee.js";
 import bcrypt from "bcrypt";
 import User from "../models/User.js";
 import mongoose from "mongoose";
+import Attendance from "../models/Attendance.js";
+import LeaveApplication from "../models/LeaveApplication.js";
 
 // ─── GET ALL EMPLOYEES ────────────────────────────────────────────────────────
 // export const getEmployee = async (req, res) => {
@@ -172,6 +174,54 @@ export const deleteEmployee = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Delete employee error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const getEmployeeDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await Employee.findById(id)
+      .populate("userId", "email role")
+      .lean();
+
+    if (!employee) return res.status(404).json({ error: "Employee not found" });
+
+    // Attendance summary
+    const attendanceRaw = await Attendance.aggregate([
+      { $match: { employeeId: employee._id } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    const attendance = { PRESENT: 0, ABSENT: 0, LATE: 0 };
+    attendanceRaw.forEach(({ _id, count }) => {
+      if (_id in attendance) attendance[_id] = count;
+    });
+
+    // Leave summary — only APPROVED leaves
+    const leavesRaw = await LeaveApplication.aggregate([
+      { $match: { employeeId: employee._id, status: "APPROVED" } },
+      { $group: { _id: "$type", count: { $sum: 1 } } },
+    ]);
+
+    const leaves = { SICK: 0, CASUAL: 0, LOSS_OF_PAY: 0 };
+    leavesRaw.forEach(({ _id, count }) => {
+      if (_id in leaves) leaves[_id] = count;
+    });
+
+    return res.json({
+      ...employee,
+      id: employee._id.toString(),
+      user: employee.userId
+        ? { email: employee.userId.email, role: employee.userId.role }
+        : null,
+      attendanceSummary: attendance,
+      leaveSummary: leaves,
+    });
+
+  } catch (error) {
+    console.error("getEmployeeDetail error:", error.message);
     return res.status(500).json({ error: error.message });
   }
 };

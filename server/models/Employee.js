@@ -11,12 +11,21 @@ const employeeSchema = new mongoose.Schema({
   basicSalary:      { type: Number, default: 0 },
   allowances:       { type: Number, default: 0 },
   deductions:       { type: Number, default: 0 },
-  employmentStatus: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" }, 
+  employmentStatus: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
   joinDate:         { type: Date, required: true },
   isDeleted:        { type: Boolean, default: false },
   bio:              { type: String, default: "" },
-  department:       { type: String, enum: DEPARTMENTS, default: "Engineering" },
-  
+  department:       { type: String, enum: DEPARTMENTS, default: "Technical" },
+
+  // ── Bank Details ──────────────────────────────────────────────
+  bankDetails: {
+    accountHolderName: { type: String, default: "" },
+    bankName:          { type: String, default: "" },
+    accountNumber:     { type: String, default: "" },
+    ifscCode:          { type: String, default: "" },      // use routingNumber if US
+    accountType:       { type: String, default: "" },
+  },
+
 }, { timestamps: true });
 
 const Employee = mongoose.models.Employee || mongoose.model("Employee", employeeSchema);

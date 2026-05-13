@@ -161,7 +161,7 @@ const Sidebar = () => {
     api.get("/profile").then(({ data }) => {
       if (data.firstName) setUserName(`${data.firstName} ${data.lastName || ""}`.trim());
     });
-  });
+  },[]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -169,15 +169,27 @@ const Sidebar = () => {
 
   const role = user?.role;
 
+  // const navItems = [
+  //   { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
+  //   role === "ADMIN"
+  //     ? { name: "Employees", href: "/employees", icon: UserIcon }
+  //     : { name: "Attendance", href: "/attendance", icon: CalendarIcon },
+  //   { name: "Leave", href: "/leave", icon: FileTextIcon },
+  //   { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
+  //   { name: "Settings", href: "/settings", icon: SettingsIcon },
+  // ];
+
+
   const navItems = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
-    role === "ADMIN"
-      ? { name: "Employees", href: "/employees", icon: UserIcon }
-      : { name: "Attendance", href: "/attendance", icon: CalendarIcon },
-    { name: "Leave", href: "/leave", icon: FileTextIcon },
-    { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
-    { name: "Settings", href: "/settings", icon: SettingsIcon },
-  ];
+  { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
+  ...(role === "ADMIN"
+    ? [{ name: "Employees", href: "/employees", icon: UserIcon }]
+    : [{ name: "Attendance", href: "/attendance", icon: CalendarIcon }]
+  ),
+  { name: "Leave",     href: "/leave",     icon: FileTextIcon    },
+  { name: "Payslips",  href: "/payslips",  icon: IndianRupeeIcon },
+  { name: "Settings",  href: "/settings",  icon: SettingsIcon    },
+];
 
   const handleLogout = () => {
     logout();

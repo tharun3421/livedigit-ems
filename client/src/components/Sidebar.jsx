@@ -142,7 +142,7 @@
 
 
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   CalendarIcon, ChevronRightIcon, FileTextIcon, IndianRupeeIcon,
@@ -180,16 +180,16 @@ const Sidebar = () => {
   // ];
 
 
-  const navItems = [
+ const navItems = useMemo(() => [
   { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
   ...(role === "ADMIN"
     ? [{ name: "Employees", href: "/employees", icon: UserIcon }]
     : [{ name: "Attendance", href: "/attendance", icon: CalendarIcon }]
   ),
-  { name: "Leave",     href: "/leave",     icon: FileTextIcon    },
-  { name: "Payslips",  href: "/payslips",  icon: IndianRupeeIcon },
-  { name: "Settings",  href: "/settings",  icon: SettingsIcon    },
-];
+  { name: "Leave",    href: "/leave",    icon: FileTextIcon    },
+  { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
+  { name: "Settings", href: "/settings", icon: SettingsIcon    },
+], [role]); 
 
   const handleLogout = () => {
     logout();

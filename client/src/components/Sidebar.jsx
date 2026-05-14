@@ -102,7 +102,7 @@ const Sidebar = () => {
                     <div className="sb-logo">
                         <div className="sb-logo-icon"><UserIcon /></div>
                         <div>
-                            <div className="sb-logo-name">LIVEDIGIT.</div>
+                            <div className="sb-logo-name">LIVEDIGIT</div>
                             <div className="sb-logo-sub">Management System</div>
                         </div>
                     </div>

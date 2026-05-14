@@ -32,8 +32,8 @@ const GeneratePayslipForm = ({employees,onSuccess}) => {
     }
   return (
     <div className='fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4'>
-        <div className='card max-w-lg w-full p-6 animate-slide-up'>
-            <div className='flex justify-between items-center mb-6'><h3 className='text-lg font-bold text-slate-300'>Generate Monthly Payslip</h3>
+        <div className='bg-white rounded-2xl max-w-lg w-full p-6 animate-slide-up'>
+            <div className='flex justify-between items-center mb-6'><h3 className='text-lg font-bold text-slate-900'>Generate Monthly Payslip</h3>
             <button onClick={()=> setIsopen(false)} className='text-slate-100 hover:text-slate-600 p-1'>
                 <X size={20}/>
             </button>
@@ -41,7 +41,7 @@ const GeneratePayslipForm = ({employees,onSuccess}) => {
             <form onSubmit={handleSubmit} className='space-y-4'>
                 {/* select employee */}
                 <div>
-                    <label className='block text-sm font-medium text-slate-400 mb-2'>Employee</label>
+                    <label className='block text-sm font-medium text-slate-800 mb-2'>Employee</label>
                     <select name="employeeId" required> {employees.map((e)=>(
                         <option key={e._id} value={e._id} className='text-slate-800'>
     {e.firstName} {e.lastName} ({e.position})
@@ -51,7 +51,7 @@ const GeneratePayslipForm = ({employees,onSuccess}) => {
                 {/* select month & year */}
                 <div className='grid grid-cols-2 gap-4'>
                     <div>
-                        <label className='block text-sm font-medium text-slate-400 mb-2'>Month</label>
+                        <label className='block text-sm font-medium text-slate-800 mb-2'>Month</label>
                     <select name="month" >
                         {Array.from({length:12},(_,i)=>i +1).map((m)=>(
                             <option key={m} value={m} className='text-slate-800'>
@@ -61,24 +61,24 @@ const GeneratePayslipForm = ({employees,onSuccess}) => {
                     </select>
                     </div>
                      <div>
-                        <label className='block text-sm font-medium text-slate-400 mb-2'>Year</label>
+                        <label className='block text-sm font-medium text-slate-800 mb-2'>Year</label>
                         <input type="number" name='year' defaultValue={new Date().getFullYear()}/>
                     </div>
 
                 </div>
                 {/* Basic salary */}
                     <div>
-                        <label className='block text-sm font-medium text-slate-400 mb-2'>Basic Salary</label>
+                        <label className='block text-sm font-medium text-slate-800 mb-2'>Basic Salary</label>
                         <input type="number" name='basicSalary' placeholder='5000' required />
                     </div>
                 {/* Allowanx=ces & Deducations */}
                 <div className='grid grid-cols-2 gap-4'>
                     <div>
-                        <label className='block text-sm font-medium text-slate-400 mb-2'> Allowances</label>
+                        <label className='block text-sm font-medium text-slate-800 mb-2'> Allowances</label>
                         <input type="number" name='allowances' defaultValue={0} />
                     </div>
                     <div>
-                        <label className='block text-sm font-medium text-slate-400 mb-2'> Deducations</label>
+                        <label className='block text-sm font-medium text-slate-800 mb-2'> Deducations</label>
                         <input type="number" name='deducations' defaultValue={0} />
                     </div>
                 </div>

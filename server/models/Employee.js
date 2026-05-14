@@ -23,6 +23,16 @@ const employeeSchema = new mongoose.Schema({
         ifscCode:          { type: String, default: "" },
         accountType:       { type: String, default: "" },
     },
+
+    // ── Geofencing — assigned by admin ───────────────────────────────────────
+    // If null, the employee is not restricted to any location (can clock in from anywhere)
+    assignedLocation: {
+        label:        { type: String, default: "" },          // e.g. "Head Office", "Warehouse"
+        latitude:     { type: Number, default: null },
+        longitude:    { type: Number, default: null },
+        radiusMeters: { type: Number, default: 100 },         // allowed radius, default 100m
+    },
+
 }, { timestamps: true })
 
 const Employee = mongoose.models.Employee || mongoose.model("Employee", employeeSchema)

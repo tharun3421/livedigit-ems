@@ -1,92 +1,232 @@
-
-import { CalendarDays, CalendarDaysIcon, FileText, Loader2, Send, X } from 'lucide-react';
-import React, { useState } from 'react'
+import { CalendarDays, FileText, Loader2, Send, X, AlertTriangleIcon, InfoIcon } from 'lucide-react';
+import { useState } from 'react'
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
-const ApplyLeaveModel = ({open, onClose, onSuccess}) => {
-
-  const [loading, setLoading] = useState(false);
-  const today = new Date();
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate()+1);
-
-  const minDate =tomorrow.toISOString().split('T')[0];
-
-  const handleSubmit = async (e)=>{
-    e.preventDefault();
-    setLoading(true)
-    const formData = new FormData(e.currentTarget)
-    const data = Object.fromEntries(formData.entries())
-
-    try {
-      await api.post('/leave',data)
-      onSuccess()
-      onClose()
-    } catch (err) {
-      toast.error(err.response?.data?.error || err?.message)
-    }finally {
-  setLoading(false)  
+// ─── helpers ──────────────────────────────────────────────────────────────────
+const countDays = (start, end) => {
+    if (!start || !end) return 0
+    return Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1
 }
-  }
-  if(!open )return null
 
-  return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm' onClick={onClose}>
-        <div className='card relative rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in' onClick={(e)=> e.stopPropagation()}>
-         <div className='flex items-center justify-between p-6 pb-0'>
-           <div>
-            <h2 className='text-lg font-semibold text-slate-100'>Apply for Leave</h2>
-            <p className='text-sm text-slate-400 mt-0.5'>Submit your leave request for approval</p>
-          </div>
-          <button onClick={onClose} className='p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600'>
-            <X className='w-5 h-5'/>
-          </button>
-         </div>
-         <form  onSubmit={handleSubmit} className='p-6 space-y-5 '>
-            {/* leave type */}
-            <div>
-              <label className='flex items-center gap-2 text-sm font-medium text-slate-100 mb-2 '>
-                <FileText className='w-4 h-4 text-slate-100  bg-cyan-500/5'/>Leave Type
-              </label>
-              <select name="type" required className='text-slate-600' >
-                 <option value="SICK">Sick Leave</option>
-                 <option value="CASUAL">Casual Leave</option>
-                 <option value="ANNUAL">Loss of Pay </option>
-              </select>
-            </div>
-            {/* duration */}
-            <div>
-              <label className='flex items-center gap-2 text-sm font-medium text-slate-100 mb-2 bg-cyan-500/5 '>
-                <CalendarDays className='w-4 h-4 text-slate-100 '/>Duration
-              </label>
-              <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <span className='block text-xs text-slate-400 mb-1'>From</span>
-                  <input type="date" name='startDate' required min={minDate} className='bg-cyan-500/5 text-slate-100'/>
+const LEAVE_TYPES = [
+    { value: "SICK",        label: "Sick Leave"   },
+    { value: "CASUAL",      label: "Casual Leave" },
+    { value: "LOSS_OF_PAY", label: "Loss of Pay"  },
+]
+
+// ─── Component ────────────────────────────────────────────────────────────────
+// Props:
+//   open         — boolean
+//   onClose      — fn
+//   onSuccess    — fn
+//   leaveBalance — { SICK: { used, remaining, limit }, CASUAL: {...}, LOSS_OF_PAY: { used, remaining: null, limit: null } }
+
+const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
+    const [loading,   setLoading]   = useState(false)
+    const [type,      setType]      = useState("SICK")
+    const [startDate, setStartDate] = useState("")
+    const [endDate,   setEndDate]   = useState("")
+
+    const today    = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    const minDate = tomorrow.toISOString().split("T")[0]
+
+    // Derived info
+    const selectedBalance = leaveBalance?.[type]
+    const isLOP           = type === "LOSS_OF_PAY"
+    const requestedDays   = countDays(startDate, endDate)
+    const isExhausted     = !isLOP && selectedBalance && selectedBalance.remaining === 0
+    const willExceed      = !isLOP && selectedBalance && requestedDays > selectedBalance.remaining
+
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        if (isExhausted) return toast.error("You have no remaining days for this leave type.")
+        if (willExceed)  return toast.error(`You only have ${selectedBalance.remaining} day(s) remaining.`)
+
+        setLoading(true)
+        const formData = new FormData(e.currentTarget)
+        const data     = Object.fromEntries(formData.entries())
+
+        try {
+            await api.post("/leave", data)
+            onSuccess()
+            onClose()
+            // reset
+            setType("SICK"); setStartDate(""); setEndDate("")
+        } catch (err) {
+            toast.error(err.response?.data?.error || err?.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    if (!open) return null
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <div
+                className="card relative rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 pb-0">
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-100">Apply for Leave</h2>
+                        <p className="text-sm text-slate-400 mt-0.5">Submit your leave request for approval</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
-                <div>
-                  <span className='block text-xs text-slate-400 mb-1'>To</span>
-                  <input type="date" name='endDate' required min={minDate} className='bg-cyan-500/5 text-slate-100'/>
-                </div>
-              </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+                    {/* Leave Type */}
+                    <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-100 mb-2">
+                            <FileText className="w-4 h-4" /> Leave Type
+                        </label>
+                        <select
+                            name="type"
+                            required
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                            className="text-slate-600"
+                        >
+                            {LEAVE_TYPES.map(({ value, label }) => {
+                                const bal       = leaveBalance?.[value]
+                                const exhausted = bal && bal.remaining === 0 && value !== "LOSS_OF_PAY"
+                                const suffix    = value === "LOSS_OF_PAY"
+                                    ? " (salary deducted)"
+                                    : bal
+                                        ? ` — ${bal.remaining}/${bal.limit} days left`
+                                        : ""
+                                return (
+                                    <option key={value} value={value} disabled={exhausted}>
+                                        {label}{suffix}{exhausted ? " (exhausted)" : ""}
+                                    </option>
+                                )
+                            })}
+                        </select>
+
+                        {/* Balance pill */}
+                        {leaveBalance && (
+                            <div className="mt-2">
+                                {isLOP ? (
+                                    <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">
+                                        <AlertTriangleIcon className="w-3.5 h-3.5" />
+                                        Each LOP day is deducted from your salary (basic ÷ 26 × days)
+                                    </span>
+                                ) : selectedBalance ? (
+                                    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+                                        isExhausted
+                                            ? "bg-rose-100 text-rose-600"
+                                            : "bg-green-100 text-green-700"
+                                    }`}>
+                                        <InfoIcon className="w-3.5 h-3.5" />
+                                        {isExhausted
+                                            ? "No days remaining"
+                                            : `${selectedBalance.remaining} of ${selectedBalance.limit} days remaining`
+                                        }
+                                    </span>
+                                ) : null}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Duration */}
+                    <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-100 mb-2">
+                            <CalendarDays className="w-4 h-4" /> Duration
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="block text-xs text-slate-400 mb-1">From</span>
+                                <input
+                                    type="date" name="startDate" required
+                                    min={minDate}
+                                    value={startDate}
+                                    onChange={(e) => {
+                                        setStartDate(e.target.value)
+                                        if (endDate && e.target.value > endDate) setEndDate("")
+                                    }}
+                                    className="bg-cyan-500/5 text-slate-100"
+                                />
+                            </div>
+                            <div>
+                                <span className="block text-xs text-slate-400 mb-1">To</span>
+                                <input
+                                    type="date" name="endDate" required
+                                    min={startDate || minDate}
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="bg-cyan-500/5 text-slate-100"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Day count + exceed warning */}
+                        {requestedDays > 0 && (
+                            <div className="mt-2 space-y-1">
+                                <p className="text-xs text-slate-400">
+                                    Requesting <span className="font-semibold text-slate-200">{requestedDays} day{requestedDays > 1 ? "s" : ""}</span>
+                                    {isLOP && (
+                                        <span className="ml-1 text-amber-500">
+                                            — approx. deduction: ₹{
+                                                // frontend estimate (actual is calculated on backend)
+                                                "calculated on approval"
+                                            }
+                                        </span>
+                                    )}
+                                </p>
+                                {willExceed && (
+                                    <p className="text-xs text-rose-500 flex items-center gap-1">
+                                        <AlertTriangleIcon className="w-3.5 h-3.5" />
+                                        Exceeds your remaining {selectedBalance.remaining} day(s)
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Reason */}
+                    <div>
+                        <label className="text-sm font-medium text-slate-100 mb-2 block">Reason</label>
+                        <textarea
+                            name="reason" required rows={3}
+                            className="resize-none bg-cyan-500/5"
+                            placeholder="Briefly describe why you need this leave…"
+                        />
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="btn-secondary flex-1">
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading || isExhausted}
+                            className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading
+                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
+                                : <><Send className="w-4 h-4" /> Submit</>
+                            }
+                        </button>
+                    </div>
+                </form>
             </div>
-            {/* reason */}
-            <div>
-              <label className=' text-sm font-medium text-slate-100 mb-2 block '>
-               Reason
-              </label>
-              <textarea name="reason" required rows={3} className='resize-none bg-cyan-500/5' placeholder='Briefly describe why you need this leave ... '></textarea>
-            </div>
-            {/* button */}
-            <div className='flex gap-3 pt-2'>
-              <button onClick={onClose} type='button' className='btn-secondary flex-1'>Cancel</button>
-              <button  disabled={loading} type='submit' className='btn-primary flex-1 flex items-center justify-center gap-2'>{loading ? <Loader2 className='w-4 h-4 animate-spin'/>: <Send className='w-4 h-4 '/>} {loading ? "Submitting...":"Submit"}</button>
-            </div>
-         </form>
         </div>
-    </div>
-  )
+    )
 }
 
 export default ApplyLeaveModel

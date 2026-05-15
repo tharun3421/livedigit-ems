@@ -16,6 +16,7 @@ const employeeSchema = new mongoose.Schema({
     isDeleted:        { type: Boolean, default: false },
     bio:              { type: String, default: "" },
     department:       { type: String, enum: DEPARTMENTS, default: "Technical" },
+
     bankDetails: {
         accountHolderName: { type: String, default: "" },
         bankName:          { type: String, default: "" },
@@ -24,13 +25,23 @@ const employeeSchema = new mongoose.Schema({
         accountType:       { type: String, default: "" },
     },
 
-    // ── Geofencing — assigned by admin ───────────────────────────────────────
-    // If null, the employee is not restricted to any location (can clock in from anywhere)
+    // ── Work Schedule (set by admin) ──────────────────────────────────────────
+    workSchedule: {
+        shiftStart:  { type: String, default: "" },   // e.g. "09:00"
+        shiftEnd:    { type: String, default: "" },   // e.g. "18:00"
+        breakStart:  { type: String, default: "" },   // e.g. "13:00"
+        breakEnd:    { type: String, default: "" },   // e.g. "13:30"
+        lunchStart:  { type: String, default: "" },   // e.g. "13:30"
+        lunchEnd:    { type: String, default: "" },   // e.g. "14:00"
+        weekOff:     { type: [String], default: ["Saturday", "Sunday"] },
+    },
+
+    // ── Geofencing (set by admin) ─────────────────────────────────────────────
     assignedLocation: {
-        label:        { type: String, default: "" },          // e.g. "Head Office", "Warehouse"
+        label:        { type: String, default: "" },
         latitude:     { type: Number, default: null },
         longitude:    { type: Number, default: null },
-        radiusMeters: { type: Number, default: 100 },         // allowed radius, default 100m
+        radiusMeters: { type: Number, default: 100  },
     },
 
 }, { timestamps: true })

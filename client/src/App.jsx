@@ -10,6 +10,7 @@ import Settings from "./pages/Settings"
 import Layout from "./pages/Layout"
 import PrintPayslip from "./pages/PrintPayslip"
 import LoginForm from "./components/LoginForm"
+import MyProfile from "./pages/MyProfile"
 
 
 const App = () => {
@@ -27,6 +28,7 @@ const App = () => {
             <Route path="/leave" element={<Leave/>}/>
             <Route path="/payslips" element={<Payslips/>}/>
             <Route path="/settings" element={<Settings/>}/>
+            <Route path="/my-profile" element={<MyProfile />} />
         </Route>
         <Route path="/print/payslips/:id" element={<PrintPayslip/>}/>
         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>

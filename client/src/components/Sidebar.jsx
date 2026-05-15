@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
     CalendarIcon, ChevronRightIcon, FileTextIcon, IndianRupeeIcon,
-    LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon, UserIcon, XIcon
+    LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon,
+    UserIcon, XIcon, UserCircleIcon
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
 
 const Sidebar = () => {
     const { pathname } = useLocation()
-    const [userName, setUserName]   = useState("")
+    const [userName, setUserName]     = useState("")
     const [mobileOpen, setMobileOpen] = useState(false)
-    const { user, loading, logout } = useAuth()
+    const { user, loading, logout }   = useAuth()
 
     useEffect(() => {
         api.get("/profile").then(({ data }) => {
@@ -19,9 +20,7 @@ const Sidebar = () => {
         })
     }, [])
 
-    useEffect(() => {
-        setMobileOpen(false)
-    }, [pathname])
+    useEffect(() => { setMobileOpen(false) }, [pathname])
 
     const role = user?.role
 
@@ -29,17 +28,17 @@ const Sidebar = () => {
         { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
         ...(role === "ADMIN"
             ? [{ name: "Employees", href: "/employees", icon: UserIcon }]
-            : [{ name: "Attendance", href: "/attendance", icon: CalendarIcon }]
+            : [
+                { name: "Attendance", href: "/attendance",  icon: CalendarIcon    },
+                { name: "My Profile", href: "/my-profile",  icon: UserCircleIcon  },  // ← employee only
+              ]
         ),
         { name: "Leave",    href: "/leave",    icon: FileTextIcon    },
         { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
         { name: "Settings", href: "/settings", icon: SettingsIcon    },
     ], [role])
 
-    const handleLogout = () => {
-        logout()
-        window.location.href = "/login"
-    }
+    const handleLogout = () => { logout(); window.location.href = "/login" }
 
     const sidebarContent = (
         <>
@@ -172,7 +171,7 @@ const Sidebar = () => {
                 <div
                     onClick={() => setMobileOpen(false)}
                     className="lg:hidden"
-                    style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+                    style={{ position:"fixed", inset:0, zIndex:40, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(4px)" }}
                 />
             )}
 
@@ -183,7 +182,7 @@ const Sidebar = () => {
             <aside
                 className="lg:hidden"
                 style={{
-                    position: "fixed", inset: "0 auto 0 0", width: "272px", zIndex: 50,
+                    position:"fixed", inset:"0 auto 0 0", width:"272px", zIndex:50,
                     transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
                     transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)",
                 }}

@@ -8,7 +8,7 @@ import api from "../api/axios.js"
 import toast from "react-hot-toast"
 
 // Leave limits — keep in sync with leaveController.js
-const LEAVE_LIMITS = { SICK: 6, CASUAL: 6, LOSS_OF_PAY: 6 }
+const LEAVE_LIMITS = { SICK: 6, CASUAL: 6, LOSS_OF_PAY: 365 }
 
 const Leave = () => {
     const { user } = useAuth()

@@ -214,7 +214,7 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                         </select>
                     </div>
                     <div><label className="block mb-2">Position</label><input name="position" required defaultValue={initialData?.position} /></div>
-                    <div><label className="block mb-2">Basic Salary</label><input type="number" name="basicSalary" required min="0" step="0.01" defaultValue={initialData?.basicSalary || 0} /></div>
+                    <div><label className="block mb-2">Salary</label><input type="number" name="basicSalary" required min="0" step="0.01" defaultValue={initialData?.basicSalary || 0} /></div>
                     <div><label className="block mb-2">Allowances</label><input type="number" name="allowances" required min="0" step="0.01" defaultValue={initialData?.allowances || 0} /></div>
                     <div><label className="block mb-2">Deductions</label><input type="number" name="deductions" required min="0" step="0.01" defaultValue={initialData?.deductions || 0} /></div>
                     {isEditMode && (
@@ -234,11 +234,11 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                 <h3 className="text-base font-medium mb-6 pb-4 border-b border-slate-100 text-slate-900">Account Setup</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
                     <div className="sm:col-span-2 text-slate-900"><label className="block mb-2">Work Email</label><input type="email" name="email" required defaultValue={initialData?.email} /></div>
-                    {!isEditMode && <div><label className="block mb-2 text-slate-900">Temporary Password</label><input type="password" name="password" required /></div>}
+                    {!isEditMode && <div><label className="block mb-2 text-slate-900">Temporary Password</label><input type="password" name="password" required className="text-slate-900"/></div>}
                     {isEditMode  && <div><label className="block mb-2 text-slate-900">Change Password (Optional)</label><input type="password" name="password" placeholder="Leave blank to keep current" /></div>}
                     <div>
                         <label className="block mb-2 text-slate-900">System Role</label>
-                        <select name="role" defaultValue={initialData?.user?.role || "EMPLOYEE"}>
+                        <select className="text-slate-900" name="role" defaultValue={initialData?.user?.role || "EMPLOYEE"}>
                             <option value="EMPLOYEE">Employee</option>
                             <option value="ADMIN">Admin</option>
                         </select>
@@ -288,6 +288,22 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                             </div>
                         </div>
 
+                        
+                        {/* Lunch timings */}
+                        <div>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Lunch Timings</p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block mb-2">Lunch Start</label>
+                                    <input type="time" value={workSchedule.lunchStart} onChange={(e) => setWorkSchedule((p) => ({ ...p, lunchStart: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="block mb-2">Lunch End</label>
+                                    <input type="time" value={workSchedule.lunchEnd} onChange={(e) => setWorkSchedule((p) => ({ ...p, lunchEnd: e.target.value }))} />
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Break timings */}
                         <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Break Timings</p>
@@ -303,20 +319,6 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                             </div>
                         </div>
 
-                        {/* Lunch timings */}
-                        <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Lunch Timings</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block mb-2">Lunch Start</label>
-                                    <input type="time" value={workSchedule.lunchStart} onChange={(e) => setWorkSchedule((p) => ({ ...p, lunchStart: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <label className="block mb-2">Lunch End</label>
-                                    <input type="time" value={workSchedule.lunchEnd} onChange={(e) => setWorkSchedule((p) => ({ ...p, lunchEnd: e.target.value }))} />
-                                </div>
-                            </div>
-                        </div>
 
                         {/* Week off */}
                         <div>

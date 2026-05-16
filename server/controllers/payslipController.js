@@ -1,10 +1,11 @@
 import Employee from "../models/Employee.js";
 import Payslip from "../models/Payslip.js";
 import LeaveApplication from "../models/LeaveApplication.js";
+import Attendance from "../models/Attendance.js";
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 
-/** Working days in a month excluding weekoff days */
+/** Scheduled working days in a month excluding weekoff days */
 const getWorkingDays = (year, month, weekOffDays = []) => {
     const totalDays = new Date(year, month, 0).getDate()
     let working = 0
@@ -13,6 +14,19 @@ const getWorkingDays = (year, month, weekOffDays = []) => {
         if (!weekOffDays.includes(dayName)) working++
     }
     return working
+}
+
+/** Actual days worked = attendance records with status PRESENT or LATE for that month */
+const getActualDaysWorked = async (employeeId, month, year) => {
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd   = new Date(year, month, 0, 23, 59, 59)
+
+    const count = await Attendance.countDocuments({
+        employeeId,
+        date:   { $gte: monthStart, $lte: monthEnd },
+        status: { $in: ["PRESENT", "LATE"] },
+    })
+    return count
 }
 
 /** Total approved LOP days for an employee in a specific month — clamped to that month */
@@ -51,38 +65,40 @@ export const createPayslip = async (req, res) => {
         const m = Number(month)
         const y = Number(year)
 
-        // Salary components — admin can override allowances, rest comes from employee record
-        const basicSalary  = employee.basicSalary || 0
-        const allowances   = customAllowances !== undefined
+        // Salary components
+        const basicSalary = employee.basicSalary || 0
+        const allowances  = customAllowances !== undefined
             ? Number(customAllowances)
             : (employee.allowances || 0)
 
-        // Working days
-        const weekOffDays  = employee.workSchedule?.weekOff ?? ["Saturday", "Sunday"]
+        // Scheduled working days (from work schedule / weekoffs)
+        const weekOffDays   = employee.workSchedule?.weekOff ?? ["Saturday", "Sunday"]
         const totalWorkDays = getWorkingDays(y, m, weekOffDays)
+
+        // Actual days worked from attendance
+        const daysWorked = await getActualDaysWorked(employeeId, m, y)
 
         // LOP
         const lopDays   = await getLopDaysForMonth(employeeId, m, y)
         const lopAmount = parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
 
-        // Deductions = employee base deductions + LOP amount
+        // Deductions = base + LOP
         const baseDeductions  = employee.deductions || 0
         const totalDeductions = parseFloat((baseDeductions + lopAmount).toFixed(2))
 
-        const daysWorked = totalWorkDays - lopDays
-        const netSalary  = parseFloat((basicSalary + allowances - totalDeductions).toFixed(2))
+        const netSalary = parseFloat((basicSalary + allowances - totalDeductions).toFixed(2))
 
         const payslip = await Payslip.create({
             employeeId,
-            month:         m,
-            year:          y,
+            month:  m,
+            year:   y,
             basicSalary,
             allowances,
             deductions:    totalDeductions,
             lopDays,
             lopAmount,
             totalWorkDays,
-            daysWorked,
+            daysWorked,    // ← from actual attendance, not formula
             netSalary,
         });
 

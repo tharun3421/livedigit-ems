@@ -57,11 +57,26 @@ const ProfileForm = ({initialData,onSuccess}) => {
                 </div>
             </div>
             <div>
-                <label className="block text-sm font-medium text-slate-100 mb-2">Bio</label>
-                <textarea name="bio" disabled={initialData.isDeleted} defaultValue={initialData.bio || "" } placeholder="Write a bio..." className={`resize-none ${initialData.isDeleted ? "bg-white/[0.07] text-slate-400  cursor-not-allowed":""}`}/> 
-                <p className="text-xs text-slate-400 mt-1.5">This will be displayed on your profile.</p>
+  <label className="block text-sm font-medium text-slate-100 mb-2">
+    Bio
+  </label>
 
-            </div>
+  <textarea
+    name="bio"
+    disabled={initialData.isDeleted}
+    defaultValue={initialData.bio || ""}
+    placeholder="Write a bio..."
+    className={`resize-none text-slate-100 placeholder:text-slate-400 ${
+      initialData.isDeleted
+        ? "bg-white/[0.07] text-slate-400 cursor-not-allowed"
+        : ""
+    }`}
+  />
+
+  <p className="text-xs text-slate-400 mt-1.5">
+    This will be displayed on your profile.
+  </p>
+</div>
             {initialData.isDeleted ?(
                 <div className="pt-2">
                     <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center">

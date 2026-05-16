@@ -3,6 +3,37 @@ import bcrypt from "bcrypt"
 import User from "../models/User.js"
 import Attendance from "../models/Attendance.js"
 import LeaveApplication from "../models/LeaveApplication.js"
+import { OFFICE_LOCATIONS } from "../constants/offices.js"
+
+
+
+
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+const getOfficeLocation = (office) => {
+  if (!office) {
+    return {
+      office: null,
+      label: "",
+      latitude: null,
+      longitude: null,
+      radiusMeters: 150,
+    }
+  }
+
+  return (
+    OFFICE_LOCATIONS[office] || {
+      office: null,
+      label: "",
+      latitude: null,
+      longitude: null,
+      radiusMeters: 150,
+    }
+  )
+}
+
+
+
 
 // ─── GET ALL EMPLOYEES ────────────────────────────────────────────────────────
 export const getEmployee = async (req, res) => {

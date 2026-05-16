@@ -1,40 +1,25 @@
 import mongoose from "mongoose";
 
 const leaveApplicationSchema = new mongoose.Schema({
-    employeeId:{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Employee",
-        required: true
+    employeeId: {
+        type:     mongoose.Schema.Types.ObjectId,
+        ref:      "Employee",
+        required: true,
     },
-
-    type:{
-        type: String,
-        enum: ["SICK","CASUAL","LOSS_OF_PAY"],
-        required: true
+    type: {
+        type:     String,
+        enum:     ["SICK", "CASUAL", "LOSS_OF_PAY", "EARNED"],  // ← EARNED added
+        required: true,
     },
-
-    startDate:{
-        type: Date,
-        required: true
+    startDate: { type: Date, required: true },
+    endDate:   { type: Date, required: true },
+    reason:    { type: String, required: true },
+    status: {
+        type:    String,
+        enum:    ["PENDING", "APPROVED", "REJECTED"],
+        default: "PENDING",
     },
-
-    endDate:{
-        type: Date,
-        required: true
-    },
-
-    reason:{
-        type: String,
-        required: true
-    },
-
-    status:{
-        type: String,
-        enum:["PENDING","APPROVED","REJECTED"],
-        default:"PENDING"
-    }
-
-},{timestamps:true})
+}, { timestamps: true })
 
 const LeaveApplication =
     mongoose.models.LeaveApplication ||

@@ -236,7 +236,7 @@ const LoginLeftSide = () => {
           </div>
 
           <h1 className="ls-brand">
-            LIVE<span className="ls-brand-grad">DIGIT.</span>
+            LIVE<span className="ls-brand-grad">DIGIT</span>
           </h1>
           <p className="ls-sub">Employee Management System</p>
 

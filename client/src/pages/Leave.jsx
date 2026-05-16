@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useState } from "react"
 import Loading from "../components/Loading"
-import { PalmtreeIcon, PlusIcon, ThermometerIcon, UmbrellaIcon } from "lucide-react"
+import { PalmtreeIcon, PlusIcon, ThermometerIcon, UmbrellaIcon, StarIcon } from "lucide-react"
 import LeaveHistory from "../components/leave/LeaveHistory"
 import ApplyLeaveModel from "../components/leave/ApplyLeaveModel"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios.js"
 import toast from "react-hot-toast"
 
-// Leave limits — keep in sync with leaveController.js
-const LEAVE_LIMITS = { SICK: 6, CASUAL: 6, LOSS_OF_PAY: 365 }
-
 const Leave = () => {
     const { user } = useAuth()
 
     const [leaves,       setLeaves]       = useState([])
-    const [leaveBalance, setLeaveBalance] = useState(null)   // { SICK, CASUAL, LOSS_OF_PAY }
+    const [leaveBalance, setLeaveBalance] = useState(null)
     const [loading,      setLoading]      = useState(true)
     const [showModel,    setShowModel]    = useState(false)
     const [isDeleted,    setIsDeleted]    = useState(false)
@@ -38,47 +35,59 @@ const Leave = () => {
 
     if (loading) return <Loading />
 
-    // ── Stats (used for admin view — count approved only) ─────────────────────
+    // Fallback counts from local data
     const approvedLeaves = leaves.filter((l) => l.status === "APPROVED")
-    const sickUsed       = approvedLeaves.filter((l) => l.type === "SICK").length
-    const casualUsed     = approvedLeaves.filter((l) => l.type === "CASUAL").length
-    const lopUsed        = approvedLeaves.filter((l) => l.type === "LOSS_OF_PAY").length
 
-    // ── Leave stat cards for employee ─────────────────────────────────────────
     const leaveStats = [
         {
             label:     "Sick Leave",
             type:      "SICK",
             icon:      ThermometerIcon,
-            used:      leaveBalance?.SICK?.used      ?? sickUsed,
-            remaining: leaveBalance?.SICK?.remaining ?? (LEAVE_LIMITS.SICK - sickUsed),
-            limit:     LEAVE_LIMITS.SICK,
+            used:      leaveBalance?.SICK?.used      ?? approvedLeaves.filter((l) => l.type === "SICK").length,
+            remaining: leaveBalance?.SICK?.remaining ?? null,
+            limit:     leaveBalance?.SICK?.limit     ?? 6,
+            unlimited: false,
             color:     "blue",
         },
         {
             label:     "Casual Leave",
             type:      "CASUAL",
             icon:      UmbrellaIcon,
-            used:      leaveBalance?.CASUAL?.used      ?? casualUsed,
-            remaining: leaveBalance?.CASUAL?.remaining ?? (LEAVE_LIMITS.CASUAL - casualUsed),
-            limit:     LEAVE_LIMITS.CASUAL,
+            used:      leaveBalance?.CASUAL?.used      ?? approvedLeaves.filter((l) => l.type === "CASUAL").length,
+            remaining: leaveBalance?.CASUAL?.remaining ?? null,
+            limit:     leaveBalance?.CASUAL?.limit     ?? 6,
+            unlimited: false,
             color:     "indigo",
+        },
+        {
+            label:     "Earned Leave",
+            type:      "EARNED",
+            icon:      StarIcon,
+            used:      leaveBalance?.EARNED?.used        ?? approvedLeaves.filter((l) => l.type === "EARNED").length,
+            remaining: leaveBalance?.EARNED?.remaining   ?? null,
+            accumulated: leaveBalance?.EARNED?.accumulated ?? null,
+            perMonth:  leaveBalance?.EARNED?.perMonth    ?? 2,
+            unlimited: false,
+            earned:    true,   // special rendering
+            color:     "green",
         },
         {
             label:     "Loss of Pay",
             type:      "LOSS_OF_PAY",
             icon:      PalmtreeIcon,
-            used:      leaveBalance?.LOSS_OF_PAY?.used      ?? lopUsed,
-            remaining: leaveBalance?.LOSS_OF_PAY?.remaining ?? (LEAVE_LIMITS.LOSS_OF_PAY - lopUsed),
-            limit:     LEAVE_LIMITS.LOSS_OF_PAY,
+            used:      leaveBalance?.LOSS_OF_PAY?.used ?? approvedLeaves.filter((l) => l.type === "LOSS_OF_PAY").length,
+            remaining: null,
+            limit:     null,
+            unlimited: true,
             color:     "rose",
         },
     ]
 
     const colorMap = {
-        blue:  { bar: "bg-blue-500",   text: "text-blue-600",   bg: "bg-blue-50"   },
-        indigo: { bar: "bg-indigo-500", text: "text-indigo-600", bg: "bg-indigo-50" },
-        rose:  { bar: "bg-rose-500",   text: "text-rose-600",   bg: "bg-rose-50"   },
+        blue:   { bar: "bg-blue-500",   text: "text-blue-500",   bg: "bg-blue-500/10",   border: "border-blue-500/20"   },
+        indigo: { bar: "bg-indigo-500", text: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
+        green:  { bar: "bg-green-500",  text: "text-green-400",  bg: "bg-green-500/10",  border: "border-green-500/20"  },
+        rose:   { bar: "bg-rose-500",   text: "text-rose-400",   bg: "bg-rose-500/10",   border: "border-rose-500/20"   },
     }
 
     return (
@@ -103,20 +112,19 @@ const Leave = () => {
 
             {/* Leave Balance Cards — employee only */}
             {!isAdmin && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
                     {leaveStats.map((s) => {
-                        const c          = colorMap[s.color]
-                        const pct        = Math.round((s.used / s.limit) * 100)
-                        const isExhausted = s.remaining === 0
+                        const c           = colorMap[s.color]
+                        const pct         = s.limit ? Math.round((s.used / s.limit) * 100) : 0
+                        const isExhausted = !s.unlimited && !s.earned && s.remaining === 0
+                        const elExhausted = s.earned && s.remaining === 0 && s.accumulated > 0
 
                         return (
-                            <div
-                                key={s.label}
-                                className="card p-5 sm:p-6 relative overflow-hidden group"
-                            >
-                                {/* Left accent bar */}
+                            <div key={s.label} className="card p-5 relative overflow-hidden group">
+                                {/* Left accent */}
                                 <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-r-full ${c.bar} opacity-60 group-hover:opacity-100 transition-opacity`} />
 
+                                {/* Icon + label + badge */}
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
                                         <div className={`p-2.5 rounded-lg ${c.bg}`}>
@@ -125,34 +133,83 @@ const Leave = () => {
                                         <p className="text-sm font-medium text-slate-400">{s.label}</p>
                                     </div>
                                     {isExhausted && (
-                                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 font-medium">
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 font-medium">
                                             Exhausted
+                                        </span>
+                                    )}
+                                    {elExhausted && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 font-medium">
+                                            Used all
+                                        </span>
+                                    )}
+                                    {s.unlimited && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
+                                            Deducted
+                                        </span>
+                                    )}
+                                    {s.earned && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">
+                                            +{s.perMonth}/mo
                                         </span>
                                     )}
                                 </div>
 
                                 {/* Numbers */}
-                                <div className="flex items-end justify-between mb-3">
-                                    <div>
-                                        <p className="text-2xl font-bold text-slate-100">
-                                            {s.remaining}
-                                            <span className="text-sm font-normal text-slate-400 ml-1">remaining</span>
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-0.5">
-                                            {s.used} of {s.limit} days used
-                                        </p>
-                                    </div>
+                                <div className="mb-3">
+                                    {s.unlimited ? (
+                                        <>
+                                            <p className="text-2xl font-bold text-slate-100">
+                                                {s.used}
+                                                <span className="text-sm font-normal text-slate-400 ml-1">days taken</span>
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">Unlimited — salary deducted per day</p>
+                                        </>
+                                    ) : s.earned ? (
+                                        <>
+                                            <p className="text-2xl font-bold text-slate-100">
+                                                {s.remaining ?? 0}
+                                                <span className="text-sm font-normal text-slate-400 ml-1">remaining</span>
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {s.used} used · {s.accumulated ?? 0} accumulated total
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-2xl font-bold text-slate-100">
+                                                {s.remaining ?? (s.limit - s.used)}
+                                                <span className="text-sm font-normal text-slate-400 ml-1">remaining</span>
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {s.used} of {s.limit} days used
+                                            </p>
+                                        </>
+                                    )}
                                 </div>
 
-                                {/* Progress bar */}
-                                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full transition-all duration-500 ${
-                                            isExhausted ? "bg-rose-500" : c.bar
-                                        }`}
-                                        style={{ width: `${pct}%` }}
-                                    />
-                                </div>
+                                {/* Progress bar — for limited and earned types */}
+                                {!s.unlimited && s.accumulated !== null && s.accumulated > 0 && (
+                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                isExhausted || elExhausted ? "bg-rose-500" : c.bar
+                                            }`}
+                                            style={{
+                                                width: s.earned
+                                                    ? `${Math.min(100, Math.round((s.used / s.accumulated) * 100))}%`
+                                                    : `${pct}%`
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                                {!s.unlimited && !s.earned && s.limit && (
+                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${isExhausted ? "bg-rose-500" : c.bar}`}
+                                            style={{ width: `${pct}%` }}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )
                     })}
@@ -165,7 +222,7 @@ const Leave = () => {
                 open={showModel}
                 onClose={() => setShowModel(false)}
                 onSuccess={fetchLeaves}
-                leaveBalance={leaveBalance}   // ← pass balance so modal can disable exhausted types
+                leaveBalance={leaveBalance}
             />
         </div>
     )

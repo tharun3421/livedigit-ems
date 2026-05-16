@@ -11,6 +11,8 @@ import Layout from "./pages/Layout"
 import PrintPayslip from "./pages/PrintPayslip"
 import LoginForm from "./components/LoginForm"
 import MyProfile from "./pages/MyProfile"
+import IndianCalendar from "./pages/Indiancalendar"
+
 
 
 const App = () => {
@@ -29,6 +31,7 @@ const App = () => {
             <Route path="/payslips" element={<Payslips/>}/>
             <Route path="/settings" element={<Settings/>}/>
             <Route path="/my-profile" element={<MyProfile />} />
+            <Route path="/calendar" element={<IndianCalendar />} />
         </Route>
         <Route path="/print/payslips/:id" element={<PrintPayslip/>}/>
         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>

@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import {
     CalendarIcon, ChevronRightIcon, FileTextIcon, IndianRupeeIcon,
     LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon,
-    UserIcon, XIcon, UserCircleIcon
+    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
@@ -29,13 +29,14 @@ const Sidebar = () => {
         ...(role === "ADMIN"
             ? [{ name: "Employees", href: "/employees", icon: UserIcon }]
             : [
-                { name: "Attendance", href: "/attendance",  icon: CalendarIcon    },
-                { name: "My Profile", href: "/my-profile",  icon: UserCircleIcon  },  // ← employee only
+                { name: "Attendance", href: "/attendance",  icon: CalendarIcon   },
+                { name: "My Profile", href: "/my-profile",  icon: UserCircleIcon },
               ]
         ),
-        { name: "Leave",    href: "/leave",    icon: FileTextIcon    },
-        { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
-        { name: "Settings", href: "/settings", icon: SettingsIcon    },
+        { name: "Leave",      href: "/leave",      icon: FileTextIcon     },
+        { name: "Payslips",   href: "/payslips",   icon: IndianRupeeIcon  },
+        { name: "Calendar",   href: "/calendar",   icon: CalendarDaysIcon },  // ← new, all users
+        { name: "Settings",   href: "/settings",   icon: SettingsIcon     },
     ], [role])
 
     const handleLogout = () => { logout(); window.location.href = "/login" }
@@ -96,7 +97,6 @@ const Sidebar = () => {
                 <div className="sb-orb" />
                 <div className="sb-orb2" />
 
-                {/* Brand */}
                 <div className="sb-brand">
                     <div className="sb-logo">
                         <div className="sb-logo-icon"><UserIcon /></div>
@@ -110,7 +110,6 @@ const Sidebar = () => {
                     </button>
                 </div>
 
-                {/* User card */}
                 {userName && (
                     <div className="sb-user">
                         <div className="sb-avatar">
@@ -126,12 +125,9 @@ const Sidebar = () => {
 
                 <div className="sb-section">Navigation</div>
 
-                {/* Nav */}
                 <nav className="sb-nav">
                     {loading ? (
-                        <div className="sb-loading">
-                            <Loader2 /><span>Loading...</span>
-                        </div>
+                        <div className="sb-loading"><Loader2 /><span>Loading...</span></div>
                     ) : (
                         navItems.map((item) => {
                             const isActive = pathname.startsWith(item.href)
@@ -147,7 +143,6 @@ const Sidebar = () => {
                     )}
                 </nav>
 
-                {/* Logout */}
                 <div className="sb-footer">
                     <button onClick={handleLogout} className="sb-logout">
                         <LogOutIcon /><span>Log out</span>
@@ -175,9 +170,7 @@ const Sidebar = () => {
                 />
             )}
 
-            <aside className="hidden lg:block h-full w-64 shrink-0">
-                {sidebarContent}
-            </aside>
+            <aside className="hidden lg:block h-full w-64 shrink-0">{sidebarContent}</aside>
 
             <aside
                 className="lg:hidden"

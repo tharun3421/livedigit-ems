@@ -37,12 +37,40 @@ const employeeSchema = new mongoose.Schema({
     },
 
     // ── Geofencing (set by admin) ─────────────────────────────────────────────
+    // assignedLocation: {
+    //     label:        { type: String, default: "" },
+    //     latitude:     { type: Number, default: null },
+    //     longitude:    { type: Number, default: null },
+    //     radiusMeters: { type: Number, default: 100  },
+    // },
+    
     assignedLocation: {
-        label:        { type: String, default: "" },
-        latitude:     { type: Number, default: null },
-        longitude:    { type: Number, default: null },
-        radiusMeters: { type: Number, default: 100  },
+    office: {
+        type: String,
+        enum: ["HYDERABAD", "VIZAG", null],
+        default: null,
     },
+
+    label: {
+        type: String,
+        default: "",
+    },
+
+    latitude: {
+        type: Number,
+        default: null,
+    },
+
+    longitude: {
+        type: Number,
+        default: null,
+    },
+
+    radiusMeters: {
+        type: Number,
+        default: 150,
+    },
+}
 
 }, { timestamps: true })
 

@@ -184,7 +184,7 @@ const IndianCalendar = () => {
                                     onClick={() => cell.current && setSelected(isSelected ? null : cell.day)}
                                     disabled={!cell.current}
                                     className={`
-                                        relative min-h-[60px] sm:min-h-[72px] p-1.5 sm:p-2 text-left border-b border-r border-slate-800/60
+                                        relative min-h-15 sm:min-h-18 p-1.5 sm:p-2 text-left border-b border-r border-slate-800/60
                                         transition-colors duration-150
                                         ${!cell.current ? "opacity-20 cursor-default" : "cursor-pointer hover:bg-slate-800/50"}
                                         ${isSelected ? "bg-indigo-600/20 border-indigo-500/40" : ""}

@@ -5,35 +5,11 @@ import Attendance from "../models/Attendance.js"
 import LeaveApplication from "../models/LeaveApplication.js"
 import { OFFICE_LOCATIONS } from "../constants/offices.js"
 
-
-
-
-// HELPERS
-// ─────────────────────────────────────────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 const getOfficeLocation = (office) => {
-  if (!office) {
-    return {
-      office: null,
-      label: "",
-      latitude: null,
-      longitude: null,
-      radiusMeters: 150,
-    }
-  }
-
-  return (
-    OFFICE_LOCATIONS[office] || {
-      office: null,
-      label: "",
-      latitude: null,
-      longitude: null,
-      radiusMeters: 150,
-    }
-  )
+    if (!office) return { office: null, label: "", latitude: null, longitude: null, radiusMeters: 150 }
+    return OFFICE_LOCATIONS[office] || { office: null, label: "", latitude: null, longitude: null, radiusMeters: 150 }
 }
-
-
-
 
 // ─── GET ALL EMPLOYEES ────────────────────────────────────────────────────────
 export const getEmployee = async (req, res) => {
@@ -82,7 +58,7 @@ export const getEmployeeDetail = async (req, res) => {
             { $match: { employeeId: employee._id, status: "APPROVED" } },
             { $group: { _id: "$type", count: { $sum: 1 } } },
         ])
-        const leaveSummary = { SICK: 0, CASUAL: 0, LOSS_OF_PAY: 0 }
+        const leaveSummary = { SICK: 0, CASUAL: 0, LOSS_OF_PAY: 0, EARNED: 0 }
         leavesRaw.forEach(({ _id, count }) => { if (_id in leaveSummary) leaveSummary[_id] = count })
 
         return res.json({
@@ -102,22 +78,24 @@ export const getEmployeeDetail = async (req, res) => {
 export const createEmployee = async (req, res) => {
     try {
         const {
+            employeeId, bloodGroup,                          // ← new
             firstName, lastName, email, phone, position, department,
             basicSalary, allowances, deductions, joinDate, password, role, bio,
             accountHolderName, bankName, accountNumber, ifscCode, accountType,
             workSchedule, assignedLocation,
         } = req.body
 
-        if (!email || !password || !firstName || !lastName) {
+        if (!email || !password || !firstName || !lastName)
             return res.status(400).json({ error: "Missing required fields" })
-        }
 
-        const hashed  = await bcrypt.hash(password, 10)
-        const user    = await User.create({ email, password: hashed, role: role || "EMPLOYEE" })
+        const hashed = await bcrypt.hash(password, 10)
+        const user   = await User.create({ email, password: hashed, role: role || "EMPLOYEE" })
 
         const employee = await Employee.create({
             userId:      user._id,
-            firstName,   lastName,    email,  phone,
+            employeeId:  employeeId  || "",                  // ← new
+            bloodGroup:  bloodGroup  || "",                  // ← new
+            firstName,   lastName,   email,  phone,
             position,
             department:  department  || "Technical",
             basicSalary: Number(basicSalary) || 0,
@@ -125,7 +103,13 @@ export const createEmployee = async (req, res) => {
             deductions:  Number(deductions)  || 0,
             joinDate:    new Date(joinDate),
             bio:         bio || "",
-            bankDetails: { accountHolderName: accountHolderName || "", bankName: bankName || "", accountNumber: accountNumber || "", ifscCode: ifscCode || "", accountType: accountType || "" },
+            bankDetails: {
+                accountHolderName: accountHolderName || "",
+                bankName:          bankName          || "",
+                accountNumber:     accountNumber     || "",
+                ifscCode:          ifscCode          || "",
+                accountType:       accountType       || "",
+            },
             workSchedule: {
                 shiftStart: workSchedule?.shiftStart || "",
                 shiftEnd:   workSchedule?.shiftEnd   || "",
@@ -145,7 +129,10 @@ export const createEmployee = async (req, res) => {
 
         return res.status(201).json({ success: true, employee: employee.toObject() })
     } catch (error) {
-        if (error.code === 11000) return res.status(400).json({ error: "Email already exists" })
+        if (error.code === 11000) {
+            const field = error.keyPattern?.employeeId ? "Employee ID" : "Email"
+            return res.status(400).json({ error: `${field} already exists` })
+        }
         console.error("Create employee error:", error.message)
         return res.status(500).json({ error: error.message })
     }
@@ -156,6 +143,7 @@ export const updateEmployee = async (req, res) => {
     try {
         const { id } = req.params
         const {
+            employeeId, bloodGroup,                          // ← new
             firstName, lastName, email, phone, position, department,
             basicSalary, allowances, deductions, employmentStatus, password, role, bio,
             accountHolderName, bankName, accountNumber, ifscCode, accountType,
@@ -166,14 +154,22 @@ export const updateEmployee = async (req, res) => {
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 
         await Employee.findByIdAndUpdate(id, {
-            firstName, lastName, email, phone, position,
+            employeeId:  employeeId  || "",                  // ← new
+            bloodGroup:  bloodGroup  || "",                  // ← new
+            firstName,   lastName,   email,  phone,  position,
             department:       department       || "Technical",
             basicSalary:      Number(basicSalary) || 0,
             allowances:       Number(allowances)  || 0,
             deductions:       Number(deductions)  || 0,
             employmentStatus: employmentStatus || "ACTIVE",
             bio:              bio || "",
-            bankDetails: { accountHolderName: accountHolderName || "", bankName: bankName || "", accountNumber: accountNumber || "", ifscCode: ifscCode || "", accountType: accountType || "" },
+            bankDetails: {
+                accountHolderName: accountHolderName || "",
+                bankName:          bankName          || "",
+                accountNumber:     accountNumber     || "",
+                ifscCode:          ifscCode          || "",
+                accountType:       accountType       || "",
+            },
             workSchedule: {
                 shiftStart: workSchedule?.shiftStart || "",
                 shiftEnd:   workSchedule?.shiftEnd   || "",
@@ -198,7 +194,10 @@ export const updateEmployee = async (req, res) => {
 
         return res.json({ success: true })
     } catch (error) {
-        if (error.code === 11000) return res.status(400).json({ error: "Email already exists" })
+        if (error.code === 11000) {
+            const field = error.keyPattern?.employeeId ? "Employee ID" : "Email"
+            return res.status(400).json({ error: `${field} already exists` })
+        }
         console.error("Update employee error:", error.message)
         return res.status(500).json({ error: error.message })
     }

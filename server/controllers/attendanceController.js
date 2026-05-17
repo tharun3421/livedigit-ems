@@ -189,3 +189,33 @@ export const getAttendanceSummary = async (req, res) => {
         return res.status(500).json({ error: "Failed to fetch attendance summary" })
     }
 }
+
+// ─── Today's Attendance (admin dashboard) ────────────────────────────────────
+// GET /attendance/today
+export const getTodayAttendance = async (req, res) => {
+    try {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+
+        const records = await Attendance.find({
+            date: { $gte: today, $lt: tomorrow },
+        }).populate("employeeId", "firstName lastName position department")
+          .sort({ checkIn: 1 })
+          .lean()
+
+        const data = records
+            .filter((r) => r.employeeId) // skip if employee deleted
+            .map((r) => ({
+                ...r,
+                _id:      r._id.toString(),
+                employee: r.employeeId,
+            }))
+
+        return res.json({ data })
+    } catch (error) {
+        console.error("getTodayAttendance error:", error)
+        return res.status(500).json({ error: "Failed to fetch today's attendance" })
+    }
+}

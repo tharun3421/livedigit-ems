@@ -64,13 +64,14 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
             let coords = null
 
             if (hasAssignedLocation) {
+                // ── Assigned location: verify proximity before submitting ──
                 setLocationStatus("checking")
 
                 try {
                     coords = await getCurrentPosition()
                 } catch (locationError) {
                     setLocationStatus("denied")
-                    toast.error(locationError)
+                    toast.error(locationError, { duration: 6000 })
                     return
                 }
 
@@ -94,15 +95,42 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
                 }
 
                 setLocationStatus("ok")
+            } else {
+                // ── No assigned location: still try to get coords (optional) ──
+                // Attempt silently; don't block if it fails
+                try {
+                    coords = await getCurrentPosition()
+                } catch {
+                    coords = null
+                }
             }
 
-            await api.post("/attendance", coords ?? {})
+            // FIX: only send coords if we actually have them; never send an empty {}
+            const body = coords ?? undefined
+            await api.post("/attendance", body)
             await onAction()
 
         } catch (error) {
-            const msg = error?.response?.data?.error || error?.message
-            toast.error(msg, { duration: 5000 })
-            if (error?.response?.status === 403) setLocationStatus("out-of-range")
+            const serverMsg = error?.response?.data?.error || error?.message
+            const status    = error?.response?.status
+
+            // FIX: detect server-side "location required" errors and show a clear toast
+            const isLocationError =
+                status === 400 &&
+                serverMsg &&
+                /(location|latitude|longitude|coords)/i.test(serverMsg)
+
+            if (isLocationError) {
+                setLocationStatus("denied")
+                toast.error(
+                    "Location data is required to clock in/out. Please enable location access and try again.",
+                    { duration: 6000 }
+                )
+            } else {
+                toast.error(serverMsg || "Something went wrong. Please try again.", { duration: 5000 })
+            }
+
+            if (status === 403) setLocationStatus("out-of-range")
         } finally {
             setLoading(false)
         }

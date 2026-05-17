@@ -3,12 +3,11 @@ import { useState } from "react"
 import api from "../api/axios"
 import toast from "react-hot-toast"
 
-// ── helpers ───────────────────────────────────────────────────────────────────
 const fmt12 = (time24) => {
     if (!time24) return "—"
     const [h, m] = time24.split(":").map(Number)
-    const ampm   = h >= 12 ? "PM" : "AM"
-    const hour   = h % 12 || 12
+    const ampm = h >= 12 ? "PM" : "AM"
+    const hour = h % 12 || 12
     return `${hour}:${String(m).padStart(2, "0")} ${ampm}`
 }
 
@@ -16,11 +15,15 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
     const [showDetail,    setShowDetail]    = useState(false)
     const [detail,        setDetail]        = useState(null)
     const [loadingDetail, setLoadingDetail] = useState(false)
+    const [detailError,   setDetailError]   = useState(null)
+
+    // Support both id and _id
+    const empId = employee.id || employee._id
 
     const handleDelete = async () => {
         if (!confirm("Are you sure you want to delete this employee?")) return
         try {
-            await api.delete(`/employees/${employee.id}`)
+            await api.delete(`/employees/${empId}`)
             onDelete()
         } catch (err) {
             toast.error(err.response?.data?.error || err.message)
@@ -29,14 +32,15 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
 
     const handleViewDetail = async (e) => {
         e.stopPropagation()
+        setDetailError(null)
+        setDetail(null)
         setShowDetail(true)
         setLoadingDetail(true)
         try {
-            const res = await api.get(`/employees/${employee.id}`)
+            const res = await api.get(`/employees/${empId}`)
             setDetail(res.data)
-        } catch {
-            toast.error("Failed to load employee details")
-            setShowDetail(false)
+        } catch (err) {
+            setDetailError(err.response?.data?.error || "Failed to load employee details")
         } finally {
             setLoadingDetail(false)
         }
@@ -49,7 +53,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                     <div className="w-full h-full flex items-center justify-center">
                         <div className="w-20 h-20 rounded-full bg-linear-to-br from-indigo-100 to-slate-100 flex items-center justify-center">
                             <span className="text-2xl font-medium text-indigo-400">
-                                {employee.firstName[0]}{employee.lastName[0]}
+                                {employee.firstName?.[0]}{employee.lastName?.[0]}
                             </span>
                         </div>
                     </div>
@@ -96,13 +100,13 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 </div>
 
                 <div className="p-5">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-slate-100">{employee.firstName} {employee.lastName}</h3>
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-slate-100 truncate">{employee.firstName} {employee.lastName}</h3>
                         {employee.employeeId && (
-                            <span className="text-xs text-slate-500 font-mono">{employee.employeeId}</span>
+                            <span className="text-xs text-slate-500 font-mono shrink-0">{employee.employeeId}</span>
                         )}
                     </div>
-                    <p className="text-xs text-slate-500">{employee.position}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{employee.position}</p>
                 </div>
             </div>
 
@@ -119,18 +123,34 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                             </button>
                         </div>
 
-                        {loadingDetail ? (
+                        {/* Loading */}
+                        {loadingDetail && (
                             <div className="flex items-center justify-center py-16">
                                 <Loader2Icon className="w-8 h-8 animate-spin text-indigo-500" />
                             </div>
-                        ) : detail && (
+                        )}
+
+                        {/* Error */}
+                        {!loadingDetail && detailError && (
+                            <div className="p-6">
+                                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
+                                    <p className="text-sm text-rose-600">{detailError}</p>
+                                    <button onClick={handleViewDetail} className="mt-3 text-xs text-rose-500 underline">
+                                        Try again
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Content */}
+                        {!loadingDetail && !detailError && detail && (
                             <div className="p-6 space-y-6">
 
                                 {/* Avatar + Basic Info */}
                                 <div className="flex items-center gap-4">
                                     <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                                         <span className="text-xl font-semibold text-indigo-500">
-                                            {detail.firstName[0]}{detail.lastName[0]}
+                                            {detail.firstName?.[0]}{detail.lastName?.[0]}
                                         </span>
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -144,7 +164,11 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                         </div>
                                         <p className="text-sm text-slate-500">{detail.position} · {detail.department}</p>
                                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${detail.employmentStatus === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                detail.employmentStatus === "ACTIVE"
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-600"
+                                            }`}>
                                                 {detail.employmentStatus}
                                             </span>
                                             {detail.bloodGroup && (
@@ -166,32 +190,14 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                 </Section>
 
                                 {/* Work Schedule */}
-                                {detail.workSchedule && (detail.workSchedule.shiftStart || detail.workSchedule.weekOff?.length > 0) && (
+                                {detail.workSchedule?.shiftStart && (
                                     <Section title="Work Schedule">
-                                        {detail.workSchedule.shiftStart && (
-                                            <Detail
-                                                label={<span className="flex items-center gap-1"><ClockIcon className="w-3 h-3" /> Shift</span>}
-                                                value={`${fmt12(detail.workSchedule.shiftStart)} – ${fmt12(detail.workSchedule.shiftEnd)}`}
-                                            />
-                                        )}
-                                        {detail.workSchedule.breakStart && (
-                                            <Detail
-                                                label={<span className="flex items-center gap-1"><CoffeeIcon className="w-3 h-3" /> Break</span>}
-                                                value={`${fmt12(detail.workSchedule.breakStart)} – ${fmt12(detail.workSchedule.breakEnd)}`}
-                                            />
-                                        )}
-                                        {detail.workSchedule.lunchStart && (
-                                            <Detail
-                                                label={<span className="flex items-center gap-1"><UtensilsIcon className="w-3 h-3" /> Lunch</span>}
-                                                value={`${fmt12(detail.workSchedule.lunchStart)} – ${fmt12(detail.workSchedule.lunchEnd)}`}
-                                            />
-                                        )}
+                                        <Detail label={<Row icon={ClockIcon} text="Shift" />}       value={`${fmt12(detail.workSchedule.shiftStart)} – ${fmt12(detail.workSchedule.shiftEnd)}`} />
+                                        {detail.workSchedule.breakStart && <Detail label={<Row icon={CoffeeIcon} text="Break" />}    value={`${fmt12(detail.workSchedule.breakStart)} – ${fmt12(detail.workSchedule.breakEnd)}`} />}
+                                        {detail.workSchedule.lunchStart && <Detail label={<Row icon={UtensilsIcon} text="Lunch" />}  value={`${fmt12(detail.workSchedule.lunchStart)} – ${fmt12(detail.workSchedule.lunchEnd)}`} />}
                                         {detail.workSchedule.weekOff?.length > 0 && (
                                             <div className="col-span-2">
-                                                <Detail
-                                                    label={<span className="flex items-center gap-1"><CalendarOffIcon className="w-3 h-3" /> Week Off</span>}
-                                                    value={detail.workSchedule.weekOff.join(", ")}
-                                                />
+                                                <Detail label={<Row icon={CalendarOffIcon} text="Week Off" />} value={detail.workSchedule.weekOff.join(", ")} />
                                             </div>
                                         )}
                                     </Section>
@@ -201,10 +207,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                 {detail.assignedLocation?.latitude && (
                                     <Section title="Assigned Location">
                                         <div className="col-span-2">
-                                            <Detail
-                                                label={<span className="flex items-center gap-1"><MapPinIcon className="w-3 h-3" /> Office</span>}
-                                                value={`${detail.assignedLocation.label || "Custom"} (±${detail.assignedLocation.radiusMeters}m)`}
-                                            />
+                                            <Detail label={<Row icon={MapPinIcon} text="Office" />} value={`${detail.assignedLocation.label || "Custom"} (±${detail.assignedLocation.radiusMeters}m)`} />
                                         </div>
                                     </Section>
                                 )}
@@ -226,10 +229,10 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
 
                                 {/* Leaves */}
                                 <Section title="Leave Summary">
-                                    <StatBox label="Sick"         value={detail.leaveSummary?.SICK}        color="blue"   />
-                                    <StatBox label="Casual"       value={detail.leaveSummary?.CASUAL}      color="purple" />
-                                    <StatBox label="Earned"       value={detail.leaveSummary?.EARNED}      color="green"  />
-                                    <StatBox label="Loss of Pay"  value={detail.leaveSummary?.LOSS_OF_PAY} color="red"    />
+                                    <StatBox label="Sick"        value={detail.leaveSummary?.SICK}        color="blue"   />
+                                    <StatBox label="Casual"      value={detail.leaveSummary?.CASUAL}      color="purple" />
+                                    <StatBox label="Earned"      value={detail.leaveSummary?.EARNED}      color="green"  />
+                                    <StatBox label="Loss of Pay" value={detail.leaveSummary?.LOSS_OF_PAY} color="red"    />
                                 </Section>
 
                                 {/* Bank Details */}
@@ -264,6 +267,10 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+const Row = ({ icon: Icon, text }) => (
+    <span className="flex items-center gap-1"><Icon className="w-3 h-3" />{text}</span>
+)
+
 const Section = ({ title, children }) => (
     <div>
         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{title}</h4>

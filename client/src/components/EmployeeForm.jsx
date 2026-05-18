@@ -150,17 +150,17 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                     <input name="position" required defaultValue={initialData?.position} />
                 </div>
                 <div>
-                    <label className="block mb-2">Basic Salary</label>
+                    <label className="block mb-2">Salary</label>
                     <input type="number" name="basicSalary" required min="0" step="0.01" defaultValue={initialData?.basicSalary || 0} />
                 </div>
-                <div>
+                {/* <div>
                     <label className="block mb-2">Allowances</label>
                     <input type="number" name="allowances" required min="0" step="0.01" defaultValue={initialData?.allowances || 0} />
                 </div>
                 <div>
                     <label className="block mb-2">Deductions</label>
                     <input type="number" name="deductions" required min="0" step="0.01" defaultValue={initialData?.deductions || 0} />
-                </div>
+                </div> */}
                 {isEditMode && (
                     <div>
                         <label className="block mb-2">Employment Status</label>

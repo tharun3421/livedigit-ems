@@ -11,13 +11,33 @@ const fmt12 = (time24) => {
     return `${hour}:${String(m).padStart(2, "0")} ${ampm}`
 }
 
+// ── Reusable Avatar component ─────────────────────────────────────────────────
+const Avatar = ({ src, firstName, lastName, className = "", textClass = "" }) => {
+    const [imgError, setImgError] = useState(false)
+    const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`
+
+    if (src && !imgError) {
+        return (
+            <img
+                src={src}
+                alt={`${firstName} ${lastName}`}
+                className={`object-cover ${className}`}
+                onError={() => setImgError(true)}
+            />
+        )
+    }
+
+    return (
+        <span className={`font-semibold ${textClass}`}>{initials}</span>
+    )
+}
+
 const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
     const [showDetail,    setShowDetail]    = useState(false)
     const [detail,        setDetail]        = useState(null)
     const [loadingDetail, setLoadingDetail] = useState(false)
     const [detailError,   setDetailError]   = useState(null)
 
-    // Support both id and _id
     const empId = employee.id || employee._id
 
     const handleDelete = async () => {
@@ -49,14 +69,24 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
     return (
         <>
             <div className="group relative card card-hover overflow-hidden">
-                <div className="relative aspect-4/3 w-full overflow-hidden bg-linear-to-br from-slate-100 to-slate-50">
-                    <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full bg-linear-to-br from-indigo-100 to-slate-100 flex items-center justify-center">
+
+                {/* ── Card avatar area ── */}
+                <div className="relative aspect-4/3 w-full overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                    {employee.avatar ? (
+                        <Avatar
+                            src={employee.avatar}
+                            firstName={employee.firstName}
+                            lastName={employee.lastName}
+                            className="w-full h-full"
+                            textClass="text-2xl text-indigo-400"
+                        />
+                    ) : (
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-slate-100 flex items-center justify-center">
                             <span className="text-2xl font-medium text-indigo-400">
                                 {employee.firstName?.[0]}{employee.lastName?.[0]}
                             </span>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="absolute top-3 left-3">
@@ -66,7 +96,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 </div>
 
                 {/* Desktop hover actions */}
-                <div className="absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity items-end justify-center pb-6 gap-3 hidden sm:flex opacity-0 group-hover:opacity-100">
+                <div className="absolute inset-0 bg-gradient-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity items-end justify-center pb-6 gap-3 hidden sm:flex opacity-0 group-hover:opacity-100">
                     <button onClick={handleViewDetail} className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-indigo-600 rounded-xl shadow-lg transition-all hover:scale-105" title="View Details">
                         <EyeIcon className="w-4 h-4" />
                     </button>
@@ -115,7 +145,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={() => setShowDetail(false)}>
                     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
 
-                        {/* Header */}
                         <div className="flex items-center justify-between p-6 pb-0">
                             <h2 className="text-lg font-semibold text-slate-900">Employee Details</h2>
                             <button onClick={() => setShowDetail(false)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600">
@@ -123,36 +152,37 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                             </button>
                         </div>
 
-                        {/* Loading */}
                         {loadingDetail && (
                             <div className="flex items-center justify-center py-16">
                                 <Loader2Icon className="w-8 h-8 animate-spin text-indigo-500" />
                             </div>
                         )}
 
-                        {/* Error */}
                         {!loadingDetail && detailError && (
                             <div className="p-6">
                                 <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
                                     <p className="text-sm text-rose-600">{detailError}</p>
-                                    <button onClick={handleViewDetail} className="mt-3 text-xs text-rose-500 underline">
-                                        Try again
-                                    </button>
+                                    <button onClick={handleViewDetail} className="mt-3 text-xs text-rose-500 underline">Try again</button>
                                 </div>
                             </div>
                         )}
 
-                        {/* Content */}
                         {!loadingDetail && !detailError && detail && (
                             <div className="p-6 space-y-6">
 
                                 {/* Avatar + Basic Info */}
                                 <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                                        <span className="text-xl font-semibold text-indigo-500">
-                                            {detail.firstName?.[0]}{detail.lastName?.[0]}
-                                        </span>
+                                    {/* ── Modal avatar ── */}
+                                    <div className="w-16 h-16 rounded-full overflow-hidden bg-indigo-100 flex items-center justify-center shrink-0 ring-2 ring-indigo-100">
+                                        <Avatar
+                                            src={detail.avatar}
+                                            firstName={detail.firstName}
+                                            lastName={detail.lastName}
+                                            className="w-full h-full rounded-full"
+                                            textClass="text-xl text-indigo-500"
+                                        />
                                     </div>
+
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <h3 className="text-lg font-semibold text-slate-900">{detail.firstName} {detail.lastName}</h3>
@@ -180,7 +210,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     </div>
                                 </div>
 
-                                {/* Personal Info */}
                                 <Section title="Personal Information">
                                     <Detail label="Email"     value={detail.email} />
                                     <Detail label="Phone"     value={detail.phone} />
@@ -189,7 +218,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     {detail.bio && <div className="col-span-2"><Detail label="Bio" value={detail.bio} /></div>}
                                 </Section>
 
-                                {/* Work Schedule */}
                                 {detail.workSchedule?.shiftStart && (
                                     <Section title="Work Schedule">
                                         <Detail label={<Row icon={ClockIcon} text="Shift" />}       value={`${fmt12(detail.workSchedule.shiftStart)} – ${fmt12(detail.workSchedule.shiftEnd)}`} />
@@ -203,7 +231,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     </Section>
                                 )}
 
-                                {/* Assigned Location */}
                                 {detail.assignedLocation?.latitude && (
                                     <Section title="Assigned Location">
                                         <div className="col-span-2">
@@ -212,7 +239,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     </Section>
                                 )}
 
-                                {/* Salary */}
                                 <Section title="Salary Details">
                                     <Detail label="Basic Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
                                     <Detail label="Allowances"   value={`₹${detail.allowances?.toLocaleString("en-IN")}`} />
@@ -220,14 +246,12 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     <Detail label="Net Salary"   value={`₹${((detail.basicSalary || 0) + (detail.allowances || 0) - (detail.deductions || 0)).toLocaleString("en-IN")}`} highlight />
                                 </Section>
 
-                                {/* Attendance */}
                                 <Section title="Attendance Summary">
                                     <StatBox label="Present" value={detail.attendanceSummary?.PRESENT} color="green"  />
                                     <StatBox label="Late"    value={detail.attendanceSummary?.LATE}    color="yellow" />
                                     <StatBox label="Absent"  value={detail.attendanceSummary?.ABSENT}  color="red"    />
                                 </Section>
 
-                                {/* Leaves */}
                                 <Section title="Leave Summary">
                                     <StatBox label="Sick"        value={detail.leaveSummary?.SICK}        color="blue"   />
                                     <StatBox label="Casual"      value={detail.leaveSummary?.CASUAL}      color="purple" />
@@ -235,7 +259,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     <StatBox label="Loss of Pay" value={detail.leaveSummary?.LOSS_OF_PAY} color="red"    />
                                 </Section>
 
-                                {/* Bank Details */}
                                 {detail.bankDetails?.accountNumber && (
                                     <Section title="Bank Details">
                                         <Detail label="Account Holder" value={detail.bankDetails.accountHolderName} />
@@ -246,7 +269,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     </Section>
                                 )}
 
-                                {/* Admin actions */}
                                 {isAdmin && !employee.isDeleted && (
                                     <div className="flex gap-3 pt-2">
                                         <button onClick={() => { setShowDetail(false); onEdit(employee) }} className="btn-primary flex items-center gap-2 flex-1 justify-center">

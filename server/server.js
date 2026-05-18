@@ -1,7 +1,6 @@
 import express from "express"
 import cors from "cors"
 import "dotenv/config"
-import multer from "multer"
 import connectDB from "./config/db.js"
 import authRouter from "./routes/authRoutes.js"
 import employeeRouter from "./routes/employeeRoutes.js"
@@ -32,7 +31,8 @@ app.use(cors(corsOptions))
 app.options(/.*/, cors(corsOptions))
 
 app.use(express.json())
-app.use(multer().none())
+
+
 
 app.use("/api/auth",       authRouter)
 app.use("/api/employees",  employeeRouter)

@@ -10,19 +10,24 @@ import api from "../api/axios"
 
 const Sidebar = () => {
     const { pathname } = useLocation()
-    const [userName, setUserName]     = useState("")
-    const [mobileOpen, setMobileOpen] = useState(false)
-    const { user, loading, logout }   = useAuth()
+    const [profile,     setProfile]     = useState(null)   // { firstName, lastName, avatar }
+    const [imgError,    setImgError]    = useState(false)
+    const [mobileOpen,  setMobileOpen]  = useState(false)
+    const { user, loading, logout }     = useAuth()
 
     useEffect(() => {
         api.get("/profile").then(({ data }) => {
-            if (data.firstName) setUserName(`${data.firstName} ${data.lastName || ""}`.trim())
+            if (data.firstName) setProfile(data)
         })
     }, [])
 
+    // Reset image error when profile changes (e.g. after upload)
+    useEffect(() => { setImgError(false) }, [profile?.avatar])
+
     useEffect(() => { setMobileOpen(false) }, [pathname])
 
-    const role = user?.role
+    const role     = user?.role
+    const userName = profile ? `${profile.firstName} ${profile.lastName || ""}`.trim() : ""
 
     const navItems = useMemo(() => [
         { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
@@ -33,13 +38,25 @@ const Sidebar = () => {
                 { name: "My Profile", href: "/my-profile",  icon: UserCircleIcon },
               ]
         ),
-        { name: "Leave",      href: "/leave",      icon: FileTextIcon     },
-        { name: "Payslips",   href: "/payslips",   icon: IndianRupeeIcon  },
-        { name: "Calendar",   href: "/calendar",   icon: CalendarDaysIcon },  // ← new, all users
-        { name: "Settings",   href: "/settings",   icon: SettingsIcon     },
+        { name: "Leave",    href: "/leave",    icon: FileTextIcon    },
+        { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
+        { name: "Calendar", href: "/calendar", icon: CalendarDaysIcon },
+        { name: "Settings", href: "/settings", icon: SettingsIcon    },
     ], [role])
 
     const handleLogout = () => { logout(); window.location.href = "/login" }
+
+    // ── Avatar: image or initials fallback ───────────────────────────────────
+    const avatarContent = profile?.avatar && !imgError ? (
+        <img
+            src={profile.avatar}
+            alt={userName}
+            onError={() => setImgError(true)}
+            style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px" }}
+        />
+    ) : (
+        <span>{userName.charAt(0).toUpperCase()}</span>
+    )
 
     const sidebarContent = (
         <>
@@ -63,7 +80,7 @@ const Sidebar = () => {
                 .sb-close:hover { color:#fff; background:rgba(255,255,255,0.06); }
 
                 .sb-user { margin:16px 12px 8px; padding:14px 16px; background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:14px; display:flex; align-items:center; gap:12px; position:relative; z-index:1; animation:sb-fadeIn 0.5s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
-                .sb-avatar { width:38px; height:38px; border-radius:10px; flex-shrink:0; background:rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.25); display:flex; align-items:center; justify-content:center; }
+                .sb-avatar { width:38px; height:38px; border-radius:10px; flex-shrink:0; background:rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.25); display:flex; align-items:center; justify-content:center; overflow:hidden; }
                 .sb-avatar span { font-family:'Syne',sans-serif; font-size:14px; font-weight:800; background:linear-gradient(120deg,#818cf8,#38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
                 .sb-user-name { font-size:13px; font-weight:500; color:rgba(255,255,255,0.85); line-height:1; }
                 .sb-user-role { font-size:11px; font-weight:300; color:rgba(255,255,255,0.3); margin-top:3px; }
@@ -112,8 +129,9 @@ const Sidebar = () => {
 
                 {userName && (
                     <div className="sb-user">
+                        {/* ── Sidebar avatar: image or initials ── */}
                         <div className="sb-avatar">
-                            <span>{userName.charAt(0).toUpperCase()}</span>
+                            {avatarContent}
                         </div>
                         <div>
                             <div className="sb-user-name">{userName}</div>

@@ -12,6 +12,7 @@ import PrintPayslip from "./pages/PrintPayslip"
 import LoginForm from "./components/LoginForm"
 import MyProfile from "./pages/MyProfile"
 import IndianCalendar from "./pages/Indiancalendar"
+import Announcements from "./pages/Announcements"
 
 
 
@@ -32,6 +33,7 @@ const App = () => {
             <Route path="/settings" element={<Settings/>}/>
             <Route path="/my-profile" element={<MyProfile />} />
             <Route path="/calendar" element={<IndianCalendar />} />
+            <Route path="/announcements" element={<Announcements />} />
         </Route>
         <Route path="/print/payslips/:id" element={<PrintPayslip/>}/>
         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>

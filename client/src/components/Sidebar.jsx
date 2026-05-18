@@ -3,36 +3,50 @@ import { Link, useLocation } from "react-router-dom"
 import {
     CalendarIcon, ChevronRightIcon, FileTextIcon, IndianRupeeIcon,
     LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon,
-    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon
+    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon, BellIcon
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
 
 const Sidebar = () => {
     const { pathname } = useLocation()
-    const [profile,     setProfile]     = useState(null)
-    const [imgError,    setImgError]    = useState(false)
-    const [mobileOpen,  setMobileOpen]  = useState(false)
-    const { user, loading, logout }     = useAuth()
+    const [profile,      setProfile]      = useState(null)
+    const [imgError,     setImgError]     = useState(false)
+    const [mobileOpen,   setMobileOpen]   = useState(false)
+    const [unreadCount,  setUnreadCount]  = useState(0)
+    const { user, loading, logout }       = useAuth()
 
     useEffect(() => {
         api.get("/profile")
-            .then(({ data }) => {
-                if (data?.firstName) setProfile(data)
-            })
-            .catch(() => {
-                // profile failed — sidebar renders without user info, no crash
-            })
+            .then(({ data }) => { if (data?.firstName) setProfile(data) })
+            .catch(() => {})
     }, [])
 
     useEffect(() => { setImgError(false) }, [profile?.avatar])
     useEffect(() => { setMobileOpen(false) }, [pathname])
 
+    // ── Poll unread announcements every 2 min (employees only) ────────────────
+    useEffect(() => {
+        if (!user) return
+
+        const fetchUnread = async () => {
+            try {
+                const lastSeen = localStorage.getItem("announcementLastSeen") || ""
+                const res = await api.get(`/announcements/unread${lastSeen ? `?since=${lastSeen}` : ""}`)
+                setUnreadCount(res.data.count ?? 0)
+            } catch { /* silent */ }
+        }
+
+        fetchUnread()
+        const interval = setInterval(fetchUnread, 2 * 60 * 1000)
+        return () => clearInterval(interval)
+    }, [user])
+
     const role     = user?.role
     const userName = profile ? `${profile.firstName} ${profile.lastName || ""}`.trim() : ""
 
     const navItems = useMemo(() => [
-        { name: "Dashboard", href: "/dashboard", icon: LayoutGridIcon },
+        { name: "Dashboard",     href: "/dashboard",     icon: LayoutGridIcon  },
         ...(role === "ADMIN"
             ? [{ name: "Employees", href: "/employees", icon: UserIcon }]
             : [
@@ -40,18 +54,25 @@ const Sidebar = () => {
                 { name: "My Profile", href: "/my-profile",  icon: UserCircleIcon },
               ]
         ),
-        { name: "Leave",    href: "/leave",    icon: FileTextIcon    },
-        { name: "Payslips", href: "/payslips", icon: IndianRupeeIcon },
-        { name: "Calendar", href: "/calendar", icon: CalendarDaysIcon },
-        { name: "Settings", href: "/settings", icon: SettingsIcon    },
-    ], [role])
+        { name: "Leave",         href: "/leave",         icon: FileTextIcon    },
+        { name: "Payslips",      href: "/payslips",      icon: IndianRupeeIcon },
+        { name: "Calendar",      href: "/calendar",      icon: CalendarDaysIcon },
+        { name: "Announcements", href: "/announcements", icon: BellIcon, badge: unreadCount },
+        { name: "Settings",      href: "/settings",      icon: SettingsIcon    },
+    ], [role, unreadCount])
 
     const handleLogout = () => { logout(); window.location.href = "/login" }
 
+    const handleNavClick = (href) => {
+        if (href === "/announcements") {
+            localStorage.setItem("announcementLastSeen", new Date().toISOString())
+            setUnreadCount(0)
+        }
+    }
+
     const avatarContent = profile?.avatar && !imgError ? (
         <img
-            src={profile.avatar}
-            alt={userName}
+            src={profile.avatar} alt={userName}
             onError={() => setImgError(true)}
             style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px" }}
         />
@@ -65,6 +86,7 @@ const Sidebar = () => {
                 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
                 @keyframes sb-fadeIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
                 @keyframes sb-blink  { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+                @keyframes sb-pulse  { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.5); opacity:0.6; } }
                 @keyframes spin      { to { transform:rotate(360deg); } }
 
                 .sb-wrap { display:flex; flex-direction:column; height:100%; background:#080b14; border-right:1px solid rgba(255,255,255,0.06); font-family:'DM Sans',sans-serif; position:relative; overflow:hidden; }
@@ -100,6 +122,10 @@ const Sidebar = () => {
                 .sb-item:hover:not(.active) svg { color:rgba(255,255,255,0.6); }
                 .sb-item-chevron { margin-left:auto; width:12px; height:12px; color:rgba(99,102,241,0.4); }
 
+                /* ── Announcement badge & dot ── */
+                .sb-badge { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#f43f5e; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; animation:sb-pulse 2s ease-in-out infinite; margin-left:auto; }
+                .sb-bell-dot { width:7px; height:7px; border-radius:50%; background:#f43f5e; position:absolute; top:-1px; right:-1px; box-shadow:0 0 6px #f43f5e; animation:sb-pulse 1.5s ease-in-out infinite; }
+
                 .sb-loading { display:flex; align-items:center; gap:8px; padding:12px; color:rgba(255,255,255,0.25); font-size:13px; }
                 .sb-loading svg { animation:spin 1s linear infinite; width:14px; height:14px; }
 
@@ -115,6 +141,7 @@ const Sidebar = () => {
                 <div className="sb-orb" />
                 <div className="sb-orb2" />
 
+                {/* Brand */}
                 <div className="sb-brand">
                     <div className="sb-logo">
                         <div className="sb-logo-icon"><UserIcon /></div>
@@ -128,11 +155,10 @@ const Sidebar = () => {
                     </button>
                 </div>
 
+                {/* User card */}
                 {userName && (
                     <div className="sb-user">
-                        <div className="sb-avatar">
-                            {avatarContent}
-                        </div>
+                        <div className="sb-avatar">{avatarContent}</div>
                         <div>
                             <div className="sb-user-name">{userName}</div>
                             <div className="sb-user-role">{role === "ADMIN" ? "Administrator" : "Employee"}</div>
@@ -143,24 +169,48 @@ const Sidebar = () => {
 
                 <div className="sb-section">Navigation</div>
 
+                {/* Nav */}
                 <nav className="sb-nav">
                     {loading ? (
                         <div className="sb-loading"><Loader2 /><span>Loading...</span></div>
                     ) : (
                         navItems.map((item) => {
-                            const isActive = pathname.startsWith(item.href)
+                            const isActive  = pathname.startsWith(item.href)
+                            const hasUnread = (item.badge ?? 0) > 0
+
                             return (
-                                <Link key={item.name} to={item.href} className={`sb-item ${isActive ? "active" : ""}`}>
+                                <Link
+                                    key={item.name}
+                                    to={item.href}
+                                    onClick={() => handleNavClick(item.href)}
+                                    className={`sb-item ${isActive ? "active" : ""}`}
+                                >
                                     {isActive && <div className="sb-item-bar" />}
-                                    <item.icon />
+
+                                    {/* Icon wrapper — bell dot sits here */}
+                                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                                        <item.icon />
+                                        {hasUnread && !isActive && (
+                                            <span className="sb-bell-dot" />
+                                        )}
+                                    </div>
+
                                     <span style={{ flex: 1 }}>{item.name}</span>
-                                    {isActive && <ChevronRightIcon className="sb-item-chevron" />}
+
+                                    {/* Unread badge or chevron */}
+                                    {hasUnread && !isActive
+                                        ? <span className="sb-badge">{item.badge > 99 ? "99+" : item.badge}</span>
+                                        : isActive
+                                            ? <ChevronRightIcon className="sb-item-chevron" />
+                                            : null
+                                    }
                                 </Link>
                             )
                         })
                     )}
                 </nav>
 
+                {/* Logout */}
                 <div className="sb-footer">
                     <button onClick={handleLogout} className="sb-logout">
                         <LogOutIcon /><span>Log out</span>

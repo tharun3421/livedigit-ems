@@ -1,17 +1,16 @@
 // controllers/profileController.js
 import Employee from "../models/Employee.js"
 import User from "../models/User.js"
-import { cloudinary } from "../middleware/avatarUpload.js"
+// NO top-level cloudinary import — if CLOUDINARY_* env vars are missing on
+// Vercel, importing avatarUpload.js here would crash this entire module and
+// make GET /profile return 500 even though it doesn't use Cloudinary at all.
 
 // ── GET /api/profile ─────────────────────────────────────────────────────────
 export const getProfile = async (req, res) => {
   try {
-    console.log("getProfile called, req.user:", req.user)
-
     const employee = await Employee.findOne({ userId: req.user._id }).lean()
-
     if (!employee) {
-      return res.status(404).json({ error: "Employee profile not found for this user" })
+      return res.status(404).json({ error: "Employee profile not found" })
     }
 
     const user = await User.findById(req.user._id)
@@ -53,15 +52,15 @@ export const uploadAvatar = async (req, res) => {
       return res.status(400).json({ error: "No file received" })
     }
 
-    const avatarUrl = req.file.path      // Cloudinary secure URL
-    const publicId  = req.file.filename  // Cloudinary public_id
+    const avatarUrl = req.file.path
+    const publicId  = req.file.filename
 
-    // Avatar lives on User — find by the auth middleware's req.user._id
     const user = await User.findById(req.user._id)
     if (!user) return res.status(404).json({ error: "User not found" })
 
-    // Delete old Cloudinary image to avoid orphaned files
+    // Lazy import — only loads when this route is actually called
     if (user.cloudinaryPublicId) {
+      const { cloudinary } = await import("../middleware/avatarUpload.js")
       await cloudinary.uploader.destroy(user.cloudinaryPublicId).catch((e) => {
         console.warn("Could not delete old avatar:", e.message)
       })

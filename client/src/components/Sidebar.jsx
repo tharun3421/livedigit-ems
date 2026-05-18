@@ -10,20 +10,22 @@ import api from "../api/axios"
 
 const Sidebar = () => {
     const { pathname } = useLocation()
-    const [profile,     setProfile]     = useState(null)   // { firstName, lastName, avatar }
+    const [profile,     setProfile]     = useState(null)
     const [imgError,    setImgError]    = useState(false)
     const [mobileOpen,  setMobileOpen]  = useState(false)
     const { user, loading, logout }     = useAuth()
 
     useEffect(() => {
-        api.get("/profile").then(({ data }) => {
-            if (data.firstName) setProfile(data)
-        })
+        api.get("/profile")
+            .then(({ data }) => {
+                if (data?.firstName) setProfile(data)
+            })
+            .catch(() => {
+                // profile failed — sidebar renders without user info, no crash
+            })
     }, [])
 
-    // Reset image error when profile changes (e.g. after upload)
     useEffect(() => { setImgError(false) }, [profile?.avatar])
-
     useEffect(() => { setMobileOpen(false) }, [pathname])
 
     const role     = user?.role
@@ -46,7 +48,6 @@ const Sidebar = () => {
 
     const handleLogout = () => { logout(); window.location.href = "/login" }
 
-    // ── Avatar: image or initials fallback ───────────────────────────────────
     const avatarContent = profile?.avatar && !imgError ? (
         <img
             src={profile.avatar}
@@ -129,7 +130,6 @@ const Sidebar = () => {
 
                 {userName && (
                     <div className="sb-user">
-                        {/* ── Sidebar avatar: image or initials ── */}
                         <div className="sb-avatar">
                             {avatarContent}
                         </div>

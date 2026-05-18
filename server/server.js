@@ -1,6 +1,7 @@
 import express from "express"
 import cors from "cors"
 import "dotenv/config"
+import multer from "multer"
 import connectDB from "./config/db.js"
 import authRouter from "./routes/authRoutes.js"
 import employeeRouter from "./routes/employeeRoutes.js"
@@ -32,7 +33,11 @@ app.options(/.*/, cors(corsOptions))
 
 app.use(express.json())
 
-
+// ── multer().none() removed from global scope ─────────────────────────────────
+// Applying it globally causes multer to attempt multipart parsing on every
+// request including JSON logins, which throws and causes 500 errors.
+// Apply it only on specific routes that receive multipart/form-data text fields.
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.use("/api/auth",       authRouter)
 app.use("/api/employees",  employeeRouter)

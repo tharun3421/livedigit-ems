@@ -8,12 +8,12 @@ import User from "../models/User.js"
 // ── GET /api/profile ─────────────────────────────────────────────────────────
 export const getProfile = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ userId: req.user._id }).lean()
+    const employee = await Employee.findOne({ userId: req.session.userId }).lean()
     if (!employee) {
       return res.status(404).json({ error: "Employee profile not found" })
     }
 
-    const user = await User.findById(req.user._id)
+    const user = await User.findById(req.session.userId)
       .select("avatar cloudinaryPublicId role")
       .lean()
 
@@ -33,7 +33,7 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const employee = await Employee.findOneAndUpdate(
-      { userId: req.user._id },
+      { userId: req.session.userId },
       { $set: req.body },
       { new: true }
     )
@@ -55,7 +55,7 @@ export const uploadAvatar = async (req, res) => {
     const avatarUrl = req.file.path
     const publicId  = req.file.filename
 
-    const user = await User.findById(req.user._id)
+    const user = await User.findById(req.session.userId)
     if (!user) return res.status(404).json({ error: "User not found" })
 
     // Lazy import — only loads when this route is actually called

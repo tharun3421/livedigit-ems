@@ -1,21 +1,29 @@
 // controllers/profileController.js
 import Employee from "../models/Employee.js"
 import User from "../models/User.js"
-import { cloudinary } from "../middleware/avatarUpload.js"
+// ✅ cloudinary is NOT imported at the top level.
+//    avatarUpload.js calls cloudinary.config() the moment it is imported.
+//    If CLOUDINARY_* env vars are missing on Vercel that import throws,
+//    which crashes this entire module — making GET /profile 500 too.
+//    Lazy import inside uploadAvatar() keeps the two concerns separate.
 
 // ── GET /api/profile ─────────────────────────────────────────────────────────
 export const getProfile = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ userId: req.user._id })
-    if (!employee) return res.status(404).json({ error: "Profile not found" })
+    const employee = await Employee.findOne({ userId: req.user._id }).lean()
+    if (!employee) {
+      return res.status(404).json({ error: "Employee profile not found" })
+    }
 
-    // Merge avatar from User into the Employee response
-    const user = await User.findById(req.user._id).select("avatar role")
+    const user = await User.findById(req.user._id)
+      .select("avatar cloudinaryPublicId role")
+      .lean()
 
     return res.json({
-      ...employee.toObject(),
-      avatar: user?.avatar || "",   // ← inject avatar so frontend receives it
-      user: { role: user?.role },
+      ...employee,
+      avatar:             user?.avatar             ?? "",
+      cloudinaryPublicId: user?.cloudinaryPublicId ?? "",
+      user: { role: user?.role ?? "" },
     })
   } catch (err) {
     console.error("getProfile error:", err)
@@ -30,7 +38,7 @@ export const updateProfile = async (req, res) => {
       { userId: req.user._id },
       { $set: req.body },
       { new: true }
-    )
+    ).lean()
     if (!employee) return res.status(404).json({ error: "Profile not found" })
     return res.json(employee)
   } catch (err) {
@@ -46,15 +54,15 @@ export const uploadAvatar = async (req, res) => {
       return res.status(400).json({ error: "No file received" })
     }
 
-    const avatarUrl = req.file.path      // Cloudinary secure URL
-    const publicId  = req.file.filename  // Cloudinary public_id
+    const avatarUrl = req.file.path
+    const publicId  = req.file.filename
 
-    // Avatar lives on User — find by the auth middleware's req.user._id
     const user = await User.findById(req.user._id)
     if (!user) return res.status(404).json({ error: "User not found" })
 
-    // Delete old Cloudinary image to avoid orphaned files
+    // ✅ Only import cloudinary here, when it is actually needed
     if (user.cloudinaryPublicId) {
+      const { cloudinary } = await import("../middleware/avatarUpload.js")
       await cloudinary.uploader.destroy(user.cloudinaryPublicId).catch((e) => {
         console.warn("Could not delete old avatar:", e.message)
       })

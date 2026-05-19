@@ -1,68 +1,86 @@
 import Employee from "../models/Employee.js"
 import User from "../models/User.js"
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const mergeWithUser = (employee, user) => ({
+    ...employee,
+    avatar:             user?.avatar             ?? "",
+    cloudinaryPublicId: user?.cloudinaryPublicId ?? "",
+    user: {
+        role:  user?.role  ?? "",
+        email: user?.email ?? "",
+    },
+})
+
+const findOrCreateEmployee = async (userId) => {
+    const existing = await Employee.findOne({ userId }).lean()
+    if (existing) return existing
+
+    const user = await User.findById(userId).lean()
+    if (!user) return null
+
+    // Bypass schema validation for auto-created profiles (e.g. admin accounts
+    // that were seeded without a corresponding Employee document)
+    const doc = new Employee({
+        userId,
+        firstName:        user.email.split("@")[0],
+        lastName:         "N/A",
+        email:            user.email,
+        phone:            "N/A",
+        position:         user.role === "ADMIN" ? "Administrator" : "Employee",
+        department:       "Technical",
+        joinDate:         new Date(),
+        employmentStatus: "ACTIVE",
+    })
+
+    await doc.save({ validateBeforeSave: false })  // ✅ skips required checks
+    return doc.toObject()
+}
+
 // ── GET /api/profile ──────────────────────────────────────────────────────────
+
 export const getProfile = async (req, res) => {
     try {
-        const userId = req.session.userId
+        const userId = req.session.userId  // ✅ your JWT puts userId here
 
-        let employee = await Employee.findOne({ userId }).lean()
-
-        // Auto-create a minimal profile if none exists (e.g. admin account
-        // seeded directly into Users without a matching Employee document)
-        if (!employee) {
-            const user = await User.findById(userId).lean()
-            if (!user) return res.status(404).json({ error: "User not found" })
-
-            const created = await Employee.create({
-                userId,
-                firstName:        user.email.split("@")[0],
-                lastName:         "",
-                email:            user.email,
-                employmentStatus: "ACTIVE",
-                isDeleted:        false,
-                department:       "Technical",
-                position:         user.role === "ADMIN" ? "Administrator" : "Employee",
-                basicSalary:      0,
-                allowances:       0,
-                deductions:       0,
-                joinDate:         new Date(),
-            })
-            employee = created.toObject()
-        }
+        const employee = await findOrCreateEmployee(userId)
+        if (!employee) return res.status(404).json({ error: "User not found" })
 
         const user = await User.findById(userId)
             .select("avatar cloudinaryPublicId role email")
             .lean()
 
-        return res.json({
-            ...employee,
-            avatar:             user?.avatar             ?? "",
-            cloudinaryPublicId: user?.cloudinaryPublicId ?? "",
-            user: {
-                role:  user?.role  ?? "",
-                email: user?.email ?? "",
-            },
-        })
+        return res.json(mergeWithUser(employee, user))
     } catch (err) {
         console.error("getProfile error:", err)
         return res.status(500).json({ error: err.message })
     }
 }
 
-// ── PUT /api/profile ──────────────────────────────────────────────────────────
+// ── POST /api/profile ─────────────────────────────────────────────────────────
+
+const ALLOWED_PROFILE_FIELDS = ["bio"]
+
 export const updateProfile = async (req, res) => {
     try {
-        const userId = req.session.userId
+        const userId = req.session.userId  // ✅ your JWT puts userId here
+
+        const updates = Object.fromEntries(
+            Object.entries(req.body).filter(([key]) => ALLOWED_PROFILE_FIELDS.includes(key))
+        )
+
+        if (!Object.keys(updates).length)
+            return res.status(400).json({ error: "No valid fields to update" })
 
         const employee = await Employee.findOneAndUpdate(
             { userId },
-            { $set: req.body },
-            { new: true }
+            { $set: updates },
+            { new: true, runValidators: false }
         )
         if (!employee) return res.status(404).json({ error: "Profile not found" })
 
-        return res.json(employee)
+        return res.json({ message: "Profile updated successfully", data: employee })
     } catch (err) {
         console.error("updateProfile error:", err)
         return res.status(500).json({ error: err.message })
@@ -70,32 +88,28 @@ export const updateProfile = async (req, res) => {
 }
 
 // ── POST /api/profile/avatar ──────────────────────────────────────────────────
+
 export const uploadAvatar = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: "No file received" })
-        }
+        if (!req.file) return res.status(400).json({ error: "No file received" })
 
-        const userId    = req.session.userId
-        const avatarUrl = req.file.path
-        const publicId  = req.file.filename
+        const userId = req.session.userId  // ✅ your JWT puts userId here
 
         const user = await User.findById(userId)
         if (!user) return res.status(404).json({ error: "User not found" })
 
-        // Delete old avatar from Cloudinary if it exists
         if (user.cloudinaryPublicId) {
             const { cloudinary } = await import("../middleware/avatarUpload.js")
-            await cloudinary.uploader.destroy(user.cloudinaryPublicId).catch((e) => {
+            await cloudinary.uploader.destroy(user.cloudinaryPublicId).catch((e) =>
                 console.warn("Could not delete old avatar:", e.message)
-            })
+            )
         }
 
-        user.avatar             = avatarUrl
-        user.cloudinaryPublicId = publicId
+        user.avatar             = req.file.path
+        user.cloudinaryPublicId = req.file.filename
         await user.save()
 
-        return res.json({ avatarUrl })
+        return res.json({ avatarUrl: user.avatar })
     } catch (err) {
         console.error("uploadAvatar error:", err)
         return res.status(500).json({ error: err.message })

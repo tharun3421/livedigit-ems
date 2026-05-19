@@ -73,16 +73,16 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
             onClick={onClose}
         >
             <div
-                className="card relative rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in"
+                className="bg-slate-200 relative rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 pb-0">
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-100">Apply for Leave</h2>
+                        <h2 className="text-lg font-semibold text-slate-800">Apply for Leave</h2>
                         <p className="text-sm text-slate-400 mt-0.5">Submit your leave request for approval</p>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-slate-200">
+                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-800 hover:text-slate-200">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -91,14 +91,14 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
 
                     {/* Leave Type */}
                     <div>
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-100 mb-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-2">
                             <FileText className="w-4 h-4" /> Leave Type
                         </label>
                         <select
                             name="type" required
                             value={type}
                             onChange={(e) => { setType(e.target.value); setStartDate(""); setEndDate("") }}
-                            className="text-slate-600"
+                            className="border-black/30"
                         >
                             {LEAVE_TYPES.map(({ value, label }) => {
                                 const bal       = leaveBalance?.[value]
@@ -159,12 +159,12 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
 
                     {/* Duration */}
                     <div>
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-100 mb-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-2">
                             <CalendarDays className="w-4 h-4" /> Duration
                         </label>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <span className="block text-xs text-slate-400 mb-1">From</span>
+                                <span className="block text-xs text-slate-700 mb-1">From</span>
                                 <input
                                     type="date" name="startDate" required
                                     min={minDate} value={startDate}
@@ -172,16 +172,16 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
                                         setStartDate(e.target.value)
                                         if (endDate && e.target.value > endDate) setEndDate("")
                                     }}
-                                    className="bg-cyan-500/5 text-slate-100"
+                                    className="border-black/30"
                                 />
                             </div>
                             <div>
-                                <span className="block text-xs text-slate-400 mb-1">To</span>
+                                <span className="block text-xs text-slate-700 mb-1">To</span>
                                 <input
                                     type="date" name="endDate" required
                                     min={startDate || minDate} value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="bg-cyan-500/5 text-slate-100"
+                                    className="border-black/30"
                                 />
                             </div>
                         </div>
@@ -213,10 +213,10 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
 
                     {/* Reason */}
                     <div>
-                        <label className="text-sm font-medium text-slate-100 mb-2 block">Reason</label>
+                        <label className="text-sm font-medium text-slate-800 mb-2 block">Reason</label>
                         <textarea
                             name="reason" required rows={3}
-                            className="resize-none bg-cyan-500/5"
+                           className='border-black/30'
                             placeholder="Briefly describe why you need this leave…"
                         />
                     </div>

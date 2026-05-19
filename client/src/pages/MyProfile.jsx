@@ -124,11 +124,20 @@ const MyProfile = () => {
 
             {/* ── Hero ── */}
             <div className="card p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-3xl font-bold text-indigo-400">
-                        {profile.firstName?.[0]}{profile.lastName?.[0]}
-                    </span>
-                </div>
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+    {profile.avatar ? (
+        <img
+            src={profile.avatar}
+            alt={`${profile.firstName} ${profile.lastName}`}
+            className="w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none" }}
+        />
+    ) : (
+        <span className="text-3xl font-bold text-indigo-400">
+            {profile.firstName?.[0]}{profile.lastName?.[0]}
+        </span>
+    )}
+</div>
                 <div className="flex-1 text-center sm:text-left">
                     <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                         <h1 className="text-2xl font-bold text-slate-100">

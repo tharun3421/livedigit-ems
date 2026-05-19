@@ -144,14 +144,14 @@ const Sidebar = () => {
                 {/* Brand */}
                 <div className="sb-brand">
                     <div className="sb-logo">
-                        <div className="sb-logo-icon"><UserIcon /></div>
+                        {/* <div className="sb-logo-icon"><UserIcon /></div> */}
                         <div>
                             <div className="sb-logo-name">LIVEDIGIT</div>
                             <div className="sb-logo-sub">Management System</div>
                         </div>
                     </div>
                     <button onClick={() => setMobileOpen(false)} className="sb-close">
-                        <XIcon size={18} />
+                        <XIcon size={18} className="text-slate-100" />
                     </button>
                 </div>
 
@@ -224,10 +224,10 @@ const Sidebar = () => {
         <>
             <button
                 onClick={() => setMobileOpen(true)}
-                className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                className="lg:hidden fixed top-0 left-0 z-50 p-2 flex items-center justify-start w-full h-12  "
+                style={{ background: "rgb(10, 13, 26)", border: "1px solid rgba(255,255,255,0.1)" }}
             >
-                <MenuIcon size={18} color="white" />
+                <MenuIcon size={18} color="white" className="ml-2"/>
             </button>
 
             {mobileOpen && (

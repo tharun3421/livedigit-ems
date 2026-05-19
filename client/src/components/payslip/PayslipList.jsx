@@ -10,7 +10,7 @@ const PayslipList = ({ payslips, isAdmin }) => {
                         <tr>
                             {isAdmin && <th>Employee</th>}
                             <th>Period</th>
-                            <th>Basic Salary</th>
+                            <th>Salary</th>
                             <th>Allowances</th>
                             <th>Deductions</th>
                             <th>Working Days</th>

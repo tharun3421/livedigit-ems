@@ -119,7 +119,7 @@ export const getPayslips = async (req, res) => {
 
         if (isAdmin) {
             const payslips = await Payslip.find()
-                .populate("employeeId", "firstName lastName email position department joinDate isDeleted")
+                .populate("employeeId", "firstName lastName email position department joinDate isDeleted employeeId")
                 .sort({ createdAt: -1 });
 
             const data = payslips
@@ -153,7 +153,7 @@ export const getPayslips = async (req, res) => {
 export const getPayslipById = async (req, res) => {
     try {
         const payslip = await Payslip.findById(req.params.id)
-            .populate("employeeId", "firstName lastName email position department joinDate workSchedule")
+            .populate("employeeId", "firstName lastName email position department joinDate workSchedule employeeId")
             .lean();
 
         if (!payslip) return res.status(404).json({ error: "Payslip not found" });

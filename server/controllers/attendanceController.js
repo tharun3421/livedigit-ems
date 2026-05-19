@@ -185,10 +185,11 @@ export const getAttendanceSummary = async (req, res) => {
 
 export const getTodayAttendance = async (req, res) => {
   try {
-    const today    = new Date(); today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const now      = new Date();
+    const todayIST    = getISTMidnight(now);
+    const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000);
 
-    const records = await Attendance.find({ date: { $gte: today, $lt: tomorrow } })
+    const records = await Attendance.find({ date: { $gte: todayIST, $lt: tomorrowIST } })
       .populate("employeeId", "firstName lastName position department")
       .sort({ checkIn: 1 })
       .lean();

@@ -14,6 +14,7 @@ import announcementRouter from "./routes/announcementRoutes.js"
 import { serve } from "inngest/express"
 import { inngest, functions } from "./inngest/index.js"
 
+
 const app = express()
 const PORT = process.env.PORT || 4000
 
@@ -21,6 +22,7 @@ const allowedOrigins = [
     "https://livedigit-ems.vercel.app",
     "http://localhost:5173"
 ]
+
 
 const corsOptions = {
     origin: allowedOrigins,

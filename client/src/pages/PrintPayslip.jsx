@@ -9,9 +9,9 @@ import api from "../api/axios"
 
 const COMPANY = {
     name:    "LiveDigit",
-    address: "Hyderabad, Telangana, India",
+    address: "Telangana, India",
     email:   "hr@livedigit.com",
-    website: "www.livedigit.com",
+    website: "www.livedigit.in",
 }
 
 const ATT_COLORS = {
@@ -151,7 +151,7 @@ const PrintPayslip = () => {
                         <div className="text-right">
                             <p className="text-indigo-200 text-xs uppercase tracking-widest font-medium">Payslip</p>
                             <p className="text-white text-2xl font-bold mt-0.5">{periodLabel}</p>
-                            <p className="text-indigo-300 text-xs mt-1 font-mono">REF {ref}</p>
+                            {/* <p className="text-indigo-300 text-xs mt-1 font-mono">REF {ref}</p> */}
                         </div>
                     </div>
 

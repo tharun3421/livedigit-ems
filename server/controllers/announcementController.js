@@ -1,6 +1,15 @@
 import Announcement from "../models/Announcement.js"
 import { v2 as cloudinary } from "cloudinary"
 
+
+
+cloudinary.config({
+    cloud_name:  process.env.CLOUDINARY_CLOUD_NAME,
+    api_key:     process.env.CLOUDINARY_API_KEY,
+    api_secret:  process.env.CLOUDINARY_API_SECRET,
+})
+
+
 // ─── Create Announcement (admin) ──────────────────────────────────────────────
 export const createAnnouncement = async (req, res) => {
     try {
@@ -11,7 +20,6 @@ export const createAnnouncement = async (req, res) => {
 
         let imageUrl = ""
 
-        // Upload image to Cloudinary if provided
         if (imageBase64) {
             try {
                 const result = await cloudinary.uploader.upload(imageBase64, {
@@ -20,9 +28,12 @@ export const createAnnouncement = async (req, res) => {
                     transformation: [{ width: 1200, crop: "limit", quality: "auto" }],
                 })
                 imageUrl = result.secure_url
+                // ✅ Log the URL so you can confirm Cloudinary is working
+                console.log("Cloudinary upload success:", imageUrl)
             } catch (uploadErr) {
-                console.error("Cloudinary upload failed:", uploadErr.message)
-                // Continue without image rather than failing
+                // ✅ Log the FULL error so you can diagnose missing credentials etc.
+                console.error("Cloudinary upload failed:", uploadErr)
+                // Continue without image rather than failing the whole request
             }
         }
 
@@ -77,12 +88,24 @@ export const deleteAnnouncement = async (req, res) => {
         if (!announcement)
             return res.status(404).json({ error: "Announcement not found" })
 
-        // Delete from Cloudinary if image exists
+        // ✅ FIX: extract the correct public_id from the full Cloudinary URL
+        // URL format: https://res.cloudinary.com/<cloud>/image/upload/v123456789/ems/announcements/<publicId>.jpg
         if (announcement.imageUrl) {
             try {
-                const publicId = announcement.imageUrl.split("/").slice(-1)[0].split(".")[0]
-                await cloudinary.uploader.destroy(`ems/announcements/${publicId}`)
-            } catch { /* non-critical */ }
+                const urlParts  = announcement.imageUrl.split("/")
+                const uploadIdx = urlParts.indexOf("upload")
+
+                if (uploadIdx !== -1) {
+                    // Everything after "upload/v<version>/" is the public_id (without extension)
+                    const afterUpload = urlParts.slice(uploadIdx + 2).join("/")   // skip "upload" + version segment
+                    const publicId    = afterUpload.replace(/\.[^/.]+$/, "")      // strip file extension
+
+                    await cloudinary.uploader.destroy(publicId)
+                    console.log("Cloudinary delete success:", publicId)
+                }
+            } catch (deleteErr) {
+                console.error("Cloudinary delete failed (non-critical):", deleteErr.message)
+            }
         }
 
         return res.json({ success: true })

@@ -20,13 +20,14 @@ export const getEmployee = async (req, res) => {
 
         const employees = await Employee.find(where)
             .sort({ createdAt: -1 })
-            .populate("userId", "email role")
+            .populate("userId", "email role avatar")   // ← include avatar
             .lean()
 
         const result = employees.map((emp) => ({
             ...emp,
-            id:   emp._id.toString(),
-            user: emp.userId ? { email: emp.userId.email, role: emp.userId.role } : null,
+            id:     emp._id.toString(),
+            avatar: emp.userId?.avatar || "",           // ← inject avatar
+            user:   emp.userId ? { email: emp.userId.email, role: emp.userId.role } : null,
         }))
 
         return res.json(result)
@@ -42,7 +43,7 @@ export const getEmployeeDetail = async (req, res) => {
         const { id } = req.params
 
         const employee = await Employee.findById(id)
-            .populate("userId", "email role")
+            .populate("userId", "email role avatar")   // ← include avatar
             .lean()
 
         if (!employee) return res.status(404).json({ error: "Employee not found" })
@@ -63,8 +64,9 @@ export const getEmployeeDetail = async (req, res) => {
 
         return res.json({
             ...employee,
-            id:   employee._id.toString(),
-            user: employee.userId ? { email: employee.userId.email, role: employee.userId.role } : null,
+            id:     employee._id.toString(),
+            avatar: employee.userId?.avatar || "",      // ← inject avatar
+            user:   employee.userId ? { email: employee.userId.email, role: employee.userId.role } : null,
             attendanceSummary,
             leaveSummary,
         })
@@ -78,7 +80,7 @@ export const getEmployeeDetail = async (req, res) => {
 export const createEmployee = async (req, res) => {
     try {
         const {
-            employeeId, bloodGroup,                          // ← new
+            employeeId, bloodGroup,
             firstName, lastName, email, phone, position, department,
             basicSalary, allowances, deductions, joinDate, password, role, bio,
             accountHolderName, bankName, accountNumber, ifscCode, accountType,
@@ -93,8 +95,8 @@ export const createEmployee = async (req, res) => {
 
         const employee = await Employee.create({
             userId:      user._id,
-            employeeId:  employeeId  || "",                  // ← new
-            bloodGroup:  bloodGroup  || "",                  // ← new
+            employeeId:  employeeId  || "",
+            bloodGroup:  bloodGroup  || "",
             firstName,   lastName,   email,  phone,
             position,
             department:  department  || "Technical",
@@ -143,7 +145,7 @@ export const updateEmployee = async (req, res) => {
     try {
         const { id } = req.params
         const {
-            employeeId, bloodGroup,                          // ← new
+            employeeId, bloodGroup,
             firstName, lastName, email, phone, position, department,
             basicSalary, allowances, deductions, employmentStatus, password, role, bio,
             accountHolderName, bankName, accountNumber, ifscCode, accountType,
@@ -154,8 +156,8 @@ export const updateEmployee = async (req, res) => {
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 
         await Employee.findByIdAndUpdate(id, {
-            employeeId:  employeeId  || "",                  // ← new
-            bloodGroup:  bloodGroup  || "",                  // ← new
+            employeeId:  employeeId  || "",
+            bloodGroup:  bloodGroup  || "",
             firstName,   lastName,   email,  phone,  position,
             department:       department       || "Technical",
             basicSalary:      Number(basicSalary) || 0,

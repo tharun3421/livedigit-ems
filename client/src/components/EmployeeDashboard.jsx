@@ -15,7 +15,7 @@ const EmployeeDashboard = ({ data }) => {
     {
       icon: FileTextIcon,
       value: data.pendingLeaves,
-      titel: "Pending Leaves Requests",
+      titel: "Pending Leave Request",
       subtitle: "Awaiting approval",
     },
     {

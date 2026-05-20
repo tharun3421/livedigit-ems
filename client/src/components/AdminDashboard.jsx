@@ -42,7 +42,7 @@ const AdminDashboard = ({ data }) => {
         { icon: UsersIcon,    value: data.totalEmployees,  label: "Total Employees",    description: "Active workforce"      },
         { icon: Building2Icon,value: data.totalDepartments,label: "Departments",         description: "Organisation units"    },
         { icon: CalendarIcon, value: data.totalAttendance, label: "Today's Attendance",  description: "Checked in today"      },
-        { icon: FileTextIcon, value: data.pendingLeaves,   label: "Pending Leaves",      description: "Awaiting approval"     },
+        { icon: FileTextIcon, value: data.pendingLeaves,   label: "Pending Leave Request",      description: "Awaiting approval"     },
     ]
 
     // Split into still-in and checked-out

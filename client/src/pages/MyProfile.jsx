@@ -241,9 +241,9 @@ const MyProfile = () => {
             {/* ── Salary ── */}
             <Section title="Salary Details">
                 <Row icon={BadgeIndianRupeeIcon} label="Salary"  value={`₹${(profile.basicSalary ?? 0).toLocaleString("en-IN")}`} />
-                <Row icon={BadgeIndianRupeeIcon} label="Allowances"    value={`₹${(profile.allowances  ?? 0).toLocaleString("en-IN")}`} />
+                {/* <Row icon={BadgeIndianRupeeIcon} label="Allowances"    value={`₹${(profile.allowances  ?? 0).toLocaleString("en-IN")}`} />
                 <Row icon={BadgeIndianRupeeIcon} label="Deductions"    value={`₹${(profile.deductions  ?? 0).toLocaleString("en-IN")}`} />
-                <Row icon={BadgeIndianRupeeIcon} label="Net Salary"    value={`₹${netSalary.toLocaleString("en-IN")}`} highlight />
+                <Row icon={BadgeIndianRupeeIcon} label="Net Salary"    value={`₹${netSalary.toLocaleString("en-IN")}`} highlight /> */}
             </Section>
 
             {/* ── Bank Details ── */}

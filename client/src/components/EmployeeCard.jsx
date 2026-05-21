@@ -240,10 +240,10 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                 )}
 
                                 <Section title="Salary Details">
-                                    <Detail label="Basic Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
-                                    <Detail label="Allowances"   value={`₹${detail.allowances?.toLocaleString("en-IN")}`} />
+                                    <Detail label="Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
+                                    {/* <Detail label="Allowances"   value={`₹${detail.allowances?.toLocaleString("en-IN")}`} />
                                     <Detail label="Deductions"   value={`₹${detail.deductions?.toLocaleString("en-IN")}`} />
-                                    <Detail label="Net Salary"   value={`₹${((detail.basicSalary || 0) + (detail.allowances || 0) - (detail.deductions || 0)).toLocaleString("en-IN")}`} highlight />
+                                    <Detail label="Net Salary"   value={`₹${((detail.basicSalary || 0) + (detail.allowances || 0) - (detail.deductions || 0)).toLocaleString("en-IN")}`} highlight /> */}
                                 </Section>
 
                                 <Section title="Attendance Summary">

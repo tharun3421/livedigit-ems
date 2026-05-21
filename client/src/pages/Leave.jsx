@@ -62,6 +62,7 @@ const Leave = () => {
         {
             label:     "Earned Leave",
             type:      "EARNED",
+            sub:        "company paid leaves",
             icon:      StarIcon,
             used:      leaveBalance?.EARNED?.used        ?? approvedLeaves.filter((l) => l.type === "EARNED").length,
             remaining: leaveBalance?.EARNED?.remaining   ?? null,
@@ -148,6 +149,7 @@ const Leave = () => {
                                         </span>
                                     )}
                                     {s.earned && (
+                                        
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">
                                             +{s.perMonth}/mo
                                         </span>
@@ -166,11 +168,14 @@ const Leave = () => {
                                         </>
                                     ) : s.earned ? (
                                         <>
+                                        <span className="text-sm text-slate-500 ">{s.sub}</span>
                                             <p className="text-2xl font-bold text-slate-100">
+                                                
                                                 {s.remaining ?? 0}
                                                 <span className="text-sm font-normal text-slate-400 ml-1">remaining</span>
                                             </p>
                                             <p className="text-xs text-slate-500 mt-0.5">
+                                                
                                                 {s.used} used · {s.accumulated ?? 0} accumulated total
                                             </p>
                                         </>

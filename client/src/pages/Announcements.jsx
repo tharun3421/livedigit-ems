@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
     BellIcon, PlusIcon, Trash2Icon, XIcon,
     Loader2Icon, ImageIcon, AlertTriangleIcon,
-    InfoIcon, MegaphoneIcon,
+    InfoIcon, MegaphoneIcon, ZoomInIcon,
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
@@ -16,21 +16,19 @@ const PRIORITY = {
     URGENT:    { label: "Urgent",    color: "bg-rose-500/15 text-rose-400",    dot: "bg-rose-500",   icon: MegaphoneIcon     },
 }
 
-// ─── Notification sound (Web Audio API — no external file needed) ─────────────
+// ─── Notification sound (Web Audio API) ──────────────────────────────────────
 const playNotificationSound = (priority = "NORMAL") => {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)()
-
         const configs = {
             NORMAL:    [{ freq: 523, dur: 0.12 }, { freq: 659, dur: 0.18 }],
             IMPORTANT: [{ freq: 659, dur: 0.12 }, { freq: 784, dur: 0.12 }, { freq: 880, dur: 0.22 }],
             URGENT:    [{ freq: 880, dur: 0.10 }, { freq: 988, dur: 0.10 }, { freq: 880, dur: 0.10 }, { freq: 988, dur: 0.25 }],
         }
-
         let time = ctx.currentTime
         ;(configs[priority] || configs.NORMAL).forEach(({ freq, dur }) => {
-            const osc   = ctx.createOscillator()
-            const gain  = ctx.createGain()
+            const osc  = ctx.createOscillator()
+            const gain = ctx.createGain()
             osc.connect(gain)
             gain.connect(ctx.destination)
             osc.frequency.value = freq
@@ -44,21 +42,17 @@ const playNotificationSound = (priority = "NORMAL") => {
     } catch { /* AudioContext not supported */ }
 }
 
-// ─── Request & send browser notification ─────────────────────────────────────
+// ─── Browser notification ─────────────────────────────────────────────────────
 const sendBrowserNotification = async (title, body, priority = "NORMAL") => {
     if (!("Notification" in window)) return
-
-    if (Notification.permission === "default") {
-        await Notification.requestPermission()
-    }
-
+    if (Notification.permission === "default") await Notification.requestPermission()
     if (Notification.permission === "granted") {
         const icons = { NORMAL: "ℹ️", IMPORTANT: "⚠️", URGENT: "🚨" }
         new Notification(`${icons[priority] || ""} ${title}`, {
             body,
-            icon: "/favicon.ico",   // swap for your app icon path
+            icon: "/favicon.ico",
             badge: "/favicon.ico",
-            tag: `announcement-${Date.now()}`,   // prevents duplicate stacking
+            tag: `announcement-${Date.now()}`,
             requireInteraction: priority === "URGENT",
         })
         playNotificationSound(priority)
@@ -74,6 +68,63 @@ const timeAgo = (iso) => {
     const h = Math.floor(m / 60)
     if (h < 24) return `${h}h ago`
     return `${Math.floor(h / 24)}d ago`
+}
+
+// ─── Image Lightbox ───────────────────────────────────────────────────────────
+const ImageLightbox = ({ src, alt, onClose }) => {
+    const [loaded, setLoaded] = useState(false)
+
+    // Close on Escape key
+    useEffect(() => {
+        const handleKey = (e) => { if (e.key === "Escape") onClose() }
+        window.addEventListener("keydown", handleKey)
+        // Prevent background scroll while open
+        document.body.style.overflow = "hidden"
+        return () => {
+            window.removeEventListener("keydown", handleKey)
+            document.body.style.overflow = ""
+        }
+    }, [onClose])
+
+    return (
+        <div
+            className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center"
+            onClick={onClose}
+        >
+            {/* Close button */}
+            <button
+                onClick={onClose}
+                className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            >
+                <XIcon className="w-5 h-5" />
+            </button>
+
+            {/* Image title */}
+            {alt && (
+                <p className="absolute top-5 left-1/2 -translate-x-1/2 text-white/60 text-sm truncate max-w-[60vw]">
+                    {alt}
+                </p>
+            )}
+
+            {/* Spinner while loading */}
+            {!loaded && (
+                <Loader2Icon className="w-8 h-8 text-white/40 animate-spin absolute" />
+            )}
+
+            {/* Full image */}
+            <img
+                src={src}
+                alt={alt}
+                onLoad={() => setLoaded(true)}
+                onClick={(e) => e.stopPropagation()} // don't close when clicking image itself
+                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+                className="max-w-[95vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            />
+
+            {/* Tap outside hint */}
+            <p className="absolute bottom-4 text-white/30 text-xs">Tap outside to close</p>
+        </div>
+    )
 }
 
 // ─── Admin: Create Form ───────────────────────────────────────────────────────
@@ -94,7 +145,7 @@ const CreateAnnouncementForm = ({ onSuccess }) => {
         const reader = new FileReader()
         reader.onload = (ev) => {
             setPreview(ev.target.result)
-            setImgB64(ev.target.result)          // full data-URL, Cloudinary accepts this
+            setImgB64(ev.target.result)
         }
         reader.readAsDataURL(file)
     }
@@ -226,67 +277,91 @@ const CreateAnnouncementForm = ({ onSuccess }) => {
 
 // ─── Announcement Card ────────────────────────────────────────────────────────
 const AnnouncementCard = ({ item, isAdmin, onDelete, isNew }) => {
+    const [lightboxOpen, setLightboxOpen] = useState(false)
+
     const p    = PRIORITY[item.priority] || PRIORITY.NORMAL
     const Icon = p.icon
 
     return (
-        <div className={`card overflow-hidden transition-all ${isNew ? "ring-2 ring-indigo-500/40" : ""}`}>
-            {/* ✅ FIX: trim() prevents whitespace-only strings from rendering a broken img */}
-            {item.imageUrl?.trim() && (
-                <div className="w-full h-52 overflow-hidden bg-slate-800">
-                    <img
-                        src={item.imageUrl}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.currentTarget.style.display = "none" }}   // hide if Cloudinary URL is broken
-                    />
-                </div>
-            )}
+        <>
+            <div className={`card overflow-hidden transition-all ${isNew ? "ring-2 ring-indigo-500/40" : ""}`}>
 
-            <div className="p-5">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${p.color}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${p.dot} ${item.priority === "URGENT" ? "animate-pulse" : ""}`} />
-                            {p.label}
-                        </span>
-                        {isNew && (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 font-medium animate-pulse">
-                                NEW
+                {/* Clickable image thumbnail */}
+                {item.imageUrl?.trim() && (
+                    <div
+                        className="w-full h-52 overflow-hidden bg-slate-800 relative group cursor-pointer"
+                        onClick={() => setLightboxOpen(true)}
+                    >
+                        <img
+                            src={item.imageUrl}
+                            alt={item.title}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            onError={(e) => { e.currentTarget.parentElement.style.display = "none" }}
+                        />
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/60 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-white text-sm font-medium">
+                                <ZoomInIcon className="w-4 h-4" />
+                                View image
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="p-5">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${p.color}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${p.dot} ${item.priority === "URGENT" ? "animate-pulse" : ""}`} />
+                                {p.label}
                             </span>
-                        )}
+                            {isNew && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 font-medium animate-pulse">
+                                    NEW
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-slate-500">{timeAgo(item.createdAt)}</span>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => onDelete(item._id)}
+                                    className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition-colors"
+                                >
+                                    <Trash2Icon className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-slate-500">{timeAgo(item.createdAt)}</span>
-                        {isAdmin && (
-                            <button
-                                onClick={() => onDelete(item._id)}
-                                className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition-colors"
-                            >
-                                <Trash2Icon className="w-3.5 h-3.5" />
-                            </button>
-                        )}
+
+                    <div className="flex items-start gap-2 mb-2">
+                        <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${
+                            item.priority === "URGENT"    ? "text-rose-400"  :
+                            item.priority === "IMPORTANT" ? "text-amber-400" : "text-slate-400"
+                        }`} />
+                        <h3 className="text-base font-semibold text-slate-100 leading-snug">{item.title}</h3>
                     </div>
+
+                    <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap pl-6">{item.message}</p>
+
+                    <p className="text-xs text-slate-600 mt-3 pl-6">
+                        {new Date(item.createdAt).toLocaleDateString("en-IN", {
+                            day: "2-digit", month: "long", year: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                        })}
+                    </p>
                 </div>
-
-                <div className="flex items-start gap-2 mb-2">
-                    <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${
-                        item.priority === "URGENT"    ? "text-rose-400"  :
-                        item.priority === "IMPORTANT" ? "text-amber-400" : "text-slate-400"
-                    }`} />
-                    <h3 className="text-base font-semibold text-slate-100 leading-snug">{item.title}</h3>
-                </div>
-
-                <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap pl-6">{item.message}</p>
-
-                <p className="text-xs text-slate-600 mt-3 pl-6">
-                    {new Date(item.createdAt).toLocaleDateString("en-IN", {
-                        day: "2-digit", month: "long", year: "numeric",
-                        hour: "2-digit", minute: "2-digit",
-                    })}
-                </p>
             </div>
-        </div>
+
+            {/* Fullscreen lightbox */}
+            {lightboxOpen && (
+                <ImageLightbox
+                    src={item.imageUrl}
+                    alt={item.title}
+                    onClose={() => setLightboxOpen(false)}
+                />
+            )}
+        </>
     )
 }
 
@@ -323,41 +398,35 @@ const NotificationPermissionBanner = () => {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const POLL_INTERVAL = 30_000   // poll every 30 seconds
+const POLL_INTERVAL = 30_000
 
 const Announcements = () => {
     const { user } = useAuth()
     const [announcements, setAnnouncements] = useState([])
     const [loading,       setLoading]       = useState(true)
 
-    // ✅ FIX: store lastSeen as a ref so polling callback always reads the latest value
-    //         without causing re-renders or stale closures
     const lastSeenRef = useRef(localStorage.getItem("announcementLastSeen") || "")
     const [lastSeen,  setLastSeen] = useState(lastSeenRef.current)
 
-    const knownIdsRef = useRef(new Set())   // tracks IDs we already have on screen
+    const knownIdsRef = useRef(new Set())
 
     const isAdmin = user?.role === "ADMIN"
 
-    // ── Fetch & diff for new items ────────────────────────────────────────────
     const fetchAnnouncements = useCallback(async ({ silent = false } = {}) => {
         try {
             const res  = await api.get("/announcements")
             const data = res.data.data || []
 
             if (!silent) {
-                // First load — just populate knownIds, don't fire notifications
                 setAnnouncements(data)
                 data.forEach((a) => knownIdsRef.current.add(a._id))
                 setLoading(false)
                 return
             }
 
-            // Subsequent polls — find genuinely new items
             const newItems = data.filter((a) => !knownIdsRef.current.has(a._id))
 
             if (newItems.length > 0) {
-                // Notify for each new item (or batch into one if many)
                 if (newItems.length === 1) {
                     const a = newItems[0]
                     await sendBrowserNotification(a.title, a.message, a.priority)
@@ -365,7 +434,7 @@ const Announcements = () => {
                     await sendBrowserNotification(
                         `${newItems.length} new announcements`,
                         newItems.map((a) => a.title).join(", "),
-                        newItems.some((a) => a.priority === "URGENT")   ? "URGENT"    :
+                        newItems.some((a) => a.priority === "URGENT")    ? "URGENT"    :
                         newItems.some((a) => a.priority === "IMPORTANT") ? "IMPORTANT" : "NORMAL"
                     )
                 }
@@ -380,22 +449,18 @@ const Announcements = () => {
         }
     }, [])
 
-    // ── Initial load + mark seen + start polling ──────────────────────────────
     useEffect(() => {
         fetchAnnouncements({ silent: false })
 
-        // Mark seen timestamp on page open
         const now = new Date().toISOString()
         localStorage.setItem("announcementLastSeen", now)
         lastSeenRef.current = now
         setLastSeen(now)
 
-        // Request notification permission proactively
         if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission()
         }
 
-        // Polling — silent fetches to detect new items
         const timer = setInterval(() => {
             fetchAnnouncements({ silent: true })
         }, POLL_INTERVAL)
@@ -403,7 +468,6 @@ const Announcements = () => {
         return () => clearInterval(timer)
     }, [fetchAnnouncements])
 
-    // ── Delete ────────────────────────────────────────────────────────────────
     const handleDelete = async (id) => {
         if (!confirm("Delete this announcement?")) return
         try {
@@ -416,12 +480,11 @@ const Announcements = () => {
         }
     }
 
-    // ── After admin posts, re-fetch and don't re-notify our own post ──────────
     const handlePostSuccess = useCallback(async () => {
         const res  = await api.get("/announcements").catch(() => null)
         if (!res) return
         const data = res.data.data || []
-        data.forEach((a) => knownIdsRef.current.add(a._id))   // mark all as known for poster
+        data.forEach((a) => knownIdsRef.current.add(a._id))
         setAnnouncements(data)
     }, [])
 
@@ -429,7 +492,6 @@ const Announcements = () => {
 
     return (
         <div className="animate-fade-in">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <div className="flex items-center gap-3">
@@ -449,10 +511,8 @@ const Announcements = () => {
                 {isAdmin && <CreateAnnouncementForm onSuccess={handlePostSuccess} />}
             </div>
 
-            {/* Notification permission nudge */}
             <NotificationPermissionBanner />
 
-            {/* Empty state */}
             {announcements.length === 0 ? (
                 <div className="card p-16 flex flex-col items-center justify-center text-center gap-4">
                     <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
@@ -470,8 +530,6 @@ const Announcements = () => {
             ) : (
                 <div className="space-y-4">
                     {announcements.map((item) => {
-                        // ✅ FIX: compare against the time when the page was opened,
-                        //         not the constantly-updating lastSeen
                         const isNew = lastSeen
                             ? new Date(item.createdAt) > new Date(lastSeen)
                             : false

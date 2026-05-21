@@ -1,4 +1,4 @@
-import { Loader2, Plus, X, UserIcon, CalendarIcon, AlertCircleIcon, InfoIcon, PencilIcon } from 'lucide-react'
+import { Loader2, Plus, X, UserIcon, AlertCircleIcon, InfoIcon, PencilIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
@@ -7,18 +7,6 @@ const MONTH_NAMES = [
     "January","February","March","April","May","June",
     "July","August","September","October","November","December"
 ]
-const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
-
-/** Scheduled working days — mirrors backend logic */
-const getWorkingDays = (year, month, weekOffDays = []) => {
-    const totalDays = new Date(year, month, 0).getDate()
-    let working = 0
-    for (let d = 1; d <= totalDays; d++) {
-        const dayName = DAYS[new Date(year, month - 1, d).getDay()]
-        if (!weekOffDays.includes(dayName)) working++
-    }
-    return working
-}
 
 const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
 
@@ -35,7 +23,6 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
     const [year,             setYear]             = useState(currentYear)
     const [empDetail,        setEmpDetail]        = useState(null)
     const [lopInfo,          setLopInfo]          = useState(null)
-    const [attendanceInfo,   setAttendanceInfo]   = useState(null)  // { daysWorked }
     const [fetchingEmp,      setFetchingEmp]      = useState(false)
     const [customAllowances, setCustomAllowances] = useState("")
     const [editAllowances,   setEditAllowances]   = useState(false)
@@ -65,41 +52,20 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
         }
     }, [])
 
-    const fetchAttendanceInfo = useCallback(async (empId, m, y) => {
-        if (!empId) return
-        try {
-            // GET /attendance/summary?employeeId=x&month=m&year=y  (admin endpoint)
-            const res = await api.get(`/attendance/summary?employeeId=${empId}&month=${m}&year=${y}`)
-            setAttendanceInfo(res.data)
-        } catch {
-            setAttendanceInfo(null)
-        }
-    }, [])
-
     useEffect(() => {
         if (isOpen && selectedEmpId) {
             fetchEmployeeDetail(selectedEmpId)
             fetchLopInfo(selectedEmpId, month, year)
-            fetchAttendanceInfo(selectedEmpId, month, year)
         }
-    }, [isOpen, selectedEmpId, month, year, fetchEmployeeDetail, fetchLopInfo, fetchAttendanceInfo])
+    }, [isOpen, selectedEmpId, month, year, fetchEmployeeDetail, fetchLopInfo])
 
     // ── Derived values ────────────────────────────────────────────────────────
-    const emp          = empDetail || employees.find((e) => (e._id ?? e.id) === selectedEmpId)
-    const basicSalary  = emp?.basicSalary ?? 0
-    const allowances   = editAllowances ? Number(customAllowances) : (emp?.allowances ?? 0)
-    const baseDeduct   = emp?.deductions  ?? 0
-
-    const weekOffDays   = emp?.workSchedule?.weekOff ?? ["Saturday", "Sunday"]
-    const totalWorkDays = getWorkingDays(year, month, weekOffDays)
-    const lopDays       = lopInfo?.days   ?? 0
-    const lopAmount     = lopInfo?.amount ?? parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
-
-    // Actual days worked from attendance (PRESENT + LATE count)
-    const daysWorked    = attendanceInfo?.daysWorked ?? (totalWorkDays - lopDays)
-
-    const totalDeduct   = parseFloat((baseDeduct + lopAmount).toFixed(2))
-    const netSalary     = parseFloat((basicSalary + allowances - totalDeduct).toFixed(2))
+    const emp         = empDetail || employees.find((e) => (e._id ?? e.id) === selectedEmpId)
+    const basicSalary = emp?.basicSalary ?? 0
+    const allowances  = editAllowances ? Number(customAllowances) : (emp?.allowances ?? 0)
+    const lopDays     = lopInfo?.days   ?? 0
+    const lopAmount   = lopInfo?.amount ?? parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
+    const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -183,32 +149,6 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                         </div>
                     ) : emp ? (
                         <>
-                            {/* ── Working Days ── */}
-                            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
-                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                    <CalendarIcon className="w-3.5 h-3.5" />
-                                    Attendance — {MONTH_NAMES[month - 1]} {year}
-                                </p>
-                                <div className="grid grid-cols-4 gap-2">
-                                    <DayBox label="Scheduled" value={totalWorkDays} />
-                                    <DayBox label="LOP Days"  value={lopDays}       color="rose"  />
-                                    <DayBox label="Worked"    value={daysWorked}    color="green" />
-                                    <DayBox
-                                        label="Absent"
-                                        value={Math.max(0, totalWorkDays - daysWorked - lopDays)}
-                                        color="yellow"
-                                    />
-                                </div>
-                                {weekOffDays.length > 0 && (
-                                    <p className="text-xs text-slate-400">Week off: {weekOffDays.join(", ")}</p>
-                                )}
-                                {!attendanceInfo && (
-                                    <p className="text-xs text-amber-500">
-                                        ⚠ Could not fetch attendance — showing estimated days
-                                    </p>
-                                )}
-                            </div>
-
                             {/* ── LOP Banner ── */}
                             {lopDays > 0 && (
                                 <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 flex items-start gap-3">
@@ -265,18 +205,13 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                         </div>
                                     </div>
 
-                                    {baseDeduct > 0 && (
-                                        <SalaryRow label="Other Deductions" value={`– ${inr(baseDeduct)}`} color="rose" />
-                                    )}
                                     {lopDays > 0 && (
                                         <SalaryRow
                                             label={`Loss of Pay (${lopDays} day${lopDays > 1 ? "s" : ""})`}
                                             value={`– ${inr(lopAmount)}`}
                                             color="rose"
+                                            bold
                                         />
-                                    )}
-                                    {totalDeduct > 0 && (
-                                        <SalaryRow label="Total Deductions" value={`– ${inr(totalDeduct)}`} color="rose" bold />
                                     )}
 
                                     <div className="flex justify-between items-center px-4 py-3 bg-indigo-50">
@@ -312,17 +247,6 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const DayBox = ({ label, value, color }) => (
-    <div className="text-center">
-        <p className={`text-xl font-bold ${
-            color === "rose"   ? "text-rose-500"   :
-            color === "green"  ? "text-green-600"  :
-            color === "yellow" ? "text-yellow-500" : "text-slate-800"
-        }`}>{value ?? "—"}</p>
-        <p className="text-xs text-slate-400 mt-0.5">{label}</p>
-    </div>
-)
-
 const SalaryRow = ({ label, value, color, bold }) => (
     <div className="flex justify-between items-center px-4 py-2.5">
         <span className={`text-sm ${bold ? "font-semibold text-slate-700" : "text-slate-600"}`}>{label}</span>

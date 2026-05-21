@@ -5,50 +5,19 @@ import { PrinterIcon, BuildingIcon } from "lucide-react"
 import Loading from "../components/Loading"
 import api from "../api/axios"
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const COMPANY = {
     name:    "LiveDigit",
     address: "Telangana, India",
     email:   "hr@livedigit.com",
-    website: "www.livedigit.in",
 }
 
 const ATT_COLORS = {
-    green:  { bg: "bg-green-50",  text: "text-green-600",  border: "border-green-200"  },
-    rose:   { bg: "bg-rose-50",   text: "text-rose-600",   border: "border-rose-200"   },
-    yellow: { bg: "bg-yellow-50", text: "text-yellow-600", border: "border-yellow-200" },
-    slate:  { bg: "bg-slate-50",  text: "text-slate-700",  border: "border-slate-200"  },
+    green: { bg: "bg-green-50",  text: "text-green-600",  border: "border-green-200" },
+    rose:  { bg: "bg-rose-50",   text: "text-rose-600",   border: "border-rose-200"  },
+    slate: { bg: "bg-slate-50",  text: "text-slate-700",  border: "border-slate-200" },
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const inr = (n) => Number(n ?? 0).toLocaleString("en-IN")
-
-const derivePayslip = (p) => {
-    const basicSalary   = p.basicSalary   ?? 0
-    const allowances    = p.allowances    ?? 0
-    const daysWorked    = p.daysWorked    ?? 0
-    const deductions    = p.deductions    ?? 0
-    const lopDays       = p.lopDays       ?? 0   // from backend (approved LOP leave only)
-    const totalWorkDays = 26                      // always fixed
-
-    const perDaySalary  = basicSalary / totalWorkDays
-    const earnedBasic   = parseFloat((perDaySalary * daysWorked).toFixed(2))
-    const lopAmount     = parseFloat((perDaySalary * lopDays).toFixed(2))
-    const otherDeduct   = Math.max(0, deductions - lopAmount)
-    const grossEarnings = parseFloat((earnedBasic + allowances).toFixed(2))
-    const netSalary     = Math.max(0, parseFloat((grossEarnings - deductions).toFixed(2)))
-    const absentDays    = Math.max(0, totalWorkDays - daysWorked - lopDays)
-
-    return {
-        basicSalary, allowances, totalWorkDays, daysWorked, deductions,
-        perDaySalary, earnedBasic, lopDays, lopAmount,
-        otherDeduct, grossEarnings, netSalary, absentDays,
-    }
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
+const fmt = (n) => Number(n ?? 0).toLocaleString("en-IN")
 
 const SectionTitle = ({ children }) => (
     <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">{children}</h3>
@@ -63,12 +32,13 @@ const InfoStrip = ({ label, value, highlight }) => (
     </div>
 )
 
-const AttBox = ({ label, value, color = "slate" }) => {
+const AttBox = ({ label, value, sub, color = "slate" }) => {
     const c = ATT_COLORS[color] ?? ATT_COLORS.slate
     return (
         <div className={`rounded-xl border ${c.bg} ${c.border} px-4 py-3 text-center`}>
             <p className={`text-2xl font-bold ${c.text}`}>{value ?? 0}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">{label}</p>
+            {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
         </div>
     )
 }
@@ -84,10 +54,8 @@ const EarningsRow = ({ earning, earningAmt, deduction, deductionAmt }) => (
     </tr>
 )
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 const PrintPayslip = () => {
-    const { id }                = useParams()
+    const { id } = useParams()
     const [payslip, setPayslip] = useState(null)
     const [loading, setLoading] = useState(true)
 
@@ -103,21 +71,28 @@ const PrintPayslip = () => {
 
     const emp         = payslip.employee || {}
     const periodLabel = format(new Date(payslip.year, payslip.month - 1), "MMMM yyyy")
-    const ref         = `#${payslip._id?.toString().slice(-8).toUpperCase()}`
     const employeeId  = emp.employeeId || `EMP-${payslip._id?.toString().slice(-5).toUpperCase()}`
     const joinDate    = emp.joinDate ? format(new Date(emp.joinDate), "dd MMM yyyy") : "—"
 
-    const {
-        basicSalary, allowances, totalWorkDays, daysWorked,
-        deductions, perDaySalary, lopDays, lopAmount,
-        otherDeduct, grossEarnings, netSalary, absentDays,
-    } = derivePayslip(payslip)
+    // ── Always recompute from atomic fields — never trust stored netSalary ──
+    const basicSalary   = payslip.basicSalary ?? 0
+    const allowances    = payslip.allowances  ?? 0
+    const lopDays       = payslip.lopDays     ?? 0
+    const lopAmount     = parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
+    const grossEarnings = parseFloat((basicSalary + allowances).toFixed(2))
+    const netSalary     = parseFloat((grossEarnings - lopAmount).toFixed(2))
+    const perDaySalary  = parseFloat((basicSalary / 26).toFixed(2))
+
+    // ── Live leave counts injected by getPayslipById ──
+    const casualLeaves = emp.casualLeaves ?? 0
+    const sickLeaves   = emp.sickLeaves   ?? 0
+    const earnedLeaves = emp.earnedLeaves ?? 0
+    const totalLeaves  = casualLeaves + sickLeaves + earnedLeaves
 
     return (
         <div className="min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
             <div className="max-w-3xl mx-auto">
 
-                {/* Print button */}
                 <div className="flex justify-end mb-4 print:hidden">
                     <button
                         onClick={() => window.print()}
@@ -151,7 +126,6 @@ const PrintPayslip = () => {
                         <div className="text-right">
                             <p className="text-indigo-200 text-xs uppercase tracking-widest font-medium">Payslip</p>
                             <p className="text-white text-2xl font-bold mt-0.5">{periodLabel}</p>
-                            {/* <p className="text-indigo-300 text-xs mt-1 font-mono">REF {ref}</p> */}
                         </div>
                     </div>
 
@@ -172,17 +146,27 @@ const PrintPayslip = () => {
                     <div className="px-8 py-6 space-y-6">
 
                         {/* ── Attendance Summary ── */}
-                        {payslip.totalWorkDays != null && (
-                            <div>
-                                <SectionTitle>Attendance Summary</SectionTitle>
-                                <div className="grid grid-cols-4 gap-3 mt-3">
-                                    <AttBox label="Scheduled Days" value={totalWorkDays} color="slate" />
-                                    <AttBox label="Days Worked"    value={daysWorked}    color="green" />
-                                    <AttBox label="LOP Days"       value={lopDays}       color={lopDays > 0 ? "rose" : "slate"} />
-                                    <AttBox label="Absent"         value={absentDays}    color={absentDays > 0 ? "yellow" : "slate"} />
-                                </div>
+                        <div>
+                            <SectionTitle>Attendance Summary</SectionTitle>
+                            <div className="grid grid-cols-3 gap-3 mt-3">
+                                <AttBox
+                                    label="Scheduled Days"
+                                    value={26}
+                                    color="slate"
+                                />
+                                <AttBox
+                                    label="LOP Days"
+                                    value={lopDays}
+                                    color={lopDays > 0 ? "rose" : "slate"}
+                                />
+                                <AttBox
+                                    label="Scheduled Leaves"
+                                    value={totalLeaves}
+                                    sub={`C:${casualLeaves} · S:${sickLeaves} · E:${earnedLeaves}`}
+                                    color={totalLeaves > 0 ? "green" : "slate"}
+                                />
                             </div>
-                        )}
+                        </div>
 
                         {/* ── Earnings & Deductions ── */}
                         <div>
@@ -205,25 +189,25 @@ const PrintPayslip = () => {
                                     </thead>
                                     <tbody>
                                         <EarningsRow
-                                            earning="Salary (Earned)"
-                                            earningAmt={inr(basicSalary)}
-                                            deduction={otherDeduct > 0 ? "Other Deductions" : null}
-                                            deductionAmt={otherDeduct > 0 ? inr(otherDeduct) : null}
+                                            earning="Basic Salary"
+                                            earningAmt={fmt(basicSalary)}
+                                            deduction={lopDays > 0
+                                                ? <span>Loss of Pay <span className="text-xs text-slate-400">({lopDays}d)</span></span>
+                                                : null
+                                            }
+                                            deductionAmt={lopDays > 0 ? fmt(lopAmount) : null}
                                         />
                                         <EarningsRow
                                             earning="Allowances"
-                                            earningAmt={inr(allowances)}
-                                            deduction={lopDays > 0
-                                                ? <>Loss of Pay <span className="text-xs text-slate-400">({lopDays}d)</span></>
-                                                : null
-                                            }
-                                            deductionAmt={lopDays > 0 ? inr(lopAmount) : null}
+                                            earningAmt={allowances > 0 ? fmt(allowances) : "—"}
+                                            deduction={null}
+                                            deductionAmt={null}
                                         />
                                         <tr className="bg-slate-50 border-t-2 border-slate-200">
                                             <td className="px-5 py-3 text-sm font-semibold text-slate-700">Total Earnings</td>
-                                            <td className="px-5 py-3 text-right font-bold text-green-600">{inr(grossEarnings)}</td>
+                                            <td className="px-5 py-3 text-right font-bold text-green-600">{fmt(grossEarnings)}</td>
                                             <td className="px-5 py-3 text-sm font-semibold text-slate-700 bg-rose-50">Total Deductions</td>
-                                            <td className="px-5 py-3 text-right font-bold text-rose-600 bg-rose-50">{inr(deductions)}</td>
+                                            <td className="px-5 py-3 text-right font-bold text-rose-600 bg-rose-50">{fmt(lopAmount)}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -241,9 +225,9 @@ const PrintPayslip = () => {
                             </div>
                             <div className="text-right hidden sm:block">
                                 <p className="text-indigo-300 text-xs">Gross Earnings</p>
-                                <p className="text-white font-semibold">₹ {inr(grossEarnings)}</p>
+                                <p className="text-white font-semibold">₹ {fmt(grossEarnings)}</p>
                                 <p className="text-indigo-300 text-xs mt-2">Total Deductions</p>
-                                <p className="text-rose-300 font-semibold">– ₹ {inr(deductions)}</p>
+                                <p className="text-rose-300 font-semibold">– ₹ {fmt(lopAmount)}</p>
                             </div>
                         </div>
 
@@ -252,7 +236,7 @@ const PrintPayslip = () => {
                             <div className="rounded-xl bg-rose-50 border border-rose-100 px-5 py-3 text-xs text-rose-600">
                                 <span className="font-semibold">Loss of Pay Note:</span>{" "}
                                 {lopDays} LOP day{lopDays > 1 ? "s" : ""} deducted
-                                @ ₹{perDaySalary.toFixed(2)}/day (Basic Salary ÷ {totalWorkDays} scheduled days)
+                                @ ₹{perDaySalary.toFixed(2)}/day (Basic Salary ÷ 26 days)
                             </div>
                         )}
 

@@ -10,11 +10,9 @@ const PayslipList = ({ payslips, isAdmin }) => {
                         <tr>
                             {isAdmin && <th>Employee</th>}
                             <th>Period</th>
-                            <th>Salary</th>
+                            <th>Basic Salary</th>
                             <th>Allowances</th>
-                            <th>Deductions</th>
-                            <th>Working Days</th>
-                            <th>Days Worked</th>
+                            <th>LOP Deduction</th>
                             <th>Net Salary</th>
                             <th className='text-center'>Actions</th>
                         </tr>
@@ -22,7 +20,7 @@ const PayslipList = ({ payslips, isAdmin }) => {
                     <tbody>
                         {payslips.length === 0 ? (
                             <tr>
-                                <td colSpan={isAdmin ? 9 : 8} className='text-center py-12 text-slate-400'>
+                                <td colSpan={isAdmin ? 7 : 6} className='text-center py-12 text-slate-400'>
                                     No payslips found
                                 </td>
                             </tr>
@@ -44,18 +42,16 @@ const PayslipList = ({ payslips, isAdmin }) => {
                                         + ₹ {payslip.allowances?.toLocaleString("en-IN")}
                                     </td>
                                     <td className='text-rose-400 font-medium'>
-                                        – ₹ {payslip.deductions?.toLocaleString("en-IN")}
-                                        {payslip.lopDays > 0 && (
-                                            <span className='ml-1.5 text-xs bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded-full'>
-                                                {payslip.lopDays}d LOP
-                                            </span>
+                                        {payslip.lopDays > 0 ? (
+                                            <>
+                                                – ₹ {payslip.lopAmount?.toLocaleString("en-IN")}
+                                                <span className='ml-1.5 text-xs bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded-full'>
+                                                    {payslip.lopDays}d LOP
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className='text-slate-400'>—</span>
                                         )}
-                                    </td>
-                                    <td className='text-slate-400 text-center'>
-                                        {payslip.totalWorkDays ?? '—'}
-                                    </td>
-                                    <td className='text-slate-400 text-center'>
-                                        {payslip.daysWorked ?? '—'}
                                     </td>
                                     <td className='text-slate-100 font-semibold'>
                                         ₹ {payslip.netSalary?.toLocaleString("en-IN")}

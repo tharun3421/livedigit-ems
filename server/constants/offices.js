@@ -2,8 +2,8 @@ export const OFFICE_LOCATIONS = {
     HYDERABAD: {
         office: "HYDERABAD",
         label: "Hyderabad Office",
-        latitude: 17.4963556,
-        longitude: 78.3596945,
+        latitude: 17.4965897,
+        longitude: 78.3595829,
         radiusMeters: 200,
     },
 

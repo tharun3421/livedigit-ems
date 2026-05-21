@@ -6,9 +6,11 @@ import LeaveApplication from "../models/LeaveApplication.js"
 import { OFFICE_LOCATIONS } from "../constants/offices.js"
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+// radiusMeters: 100 matches the mongoose schema default — keep them in sync
 const getOfficeLocation = (office) => {
-    if (!office) return { office: null, label: "", latitude: null, longitude: null, radiusMeters: 150 }
-    return OFFICE_LOCATIONS[office] || { office: null, label: "", latitude: null, longitude: null, radiusMeters: 150 }
+    if (!office) return { office: null, label: "", latitude: null, longitude: null, radiusMeters: 200 }
+    return OFFICE_LOCATIONS[office] || { office: null, label: "", latitude: null, longitude: null, radiusMeters: 200 }
 }
 
 // ─── GET ALL EMPLOYEES ────────────────────────────────────────────────────────
@@ -20,13 +22,13 @@ export const getEmployee = async (req, res) => {
 
         const employees = await Employee.find(where)
             .sort({ createdAt: -1 })
-            .populate("userId", "email role avatar")   // ← include avatar
+            .populate("userId", "email role avatar")
             .lean()
 
         const result = employees.map((emp) => ({
             ...emp,
             id:     emp._id.toString(),
-            avatar: emp.userId?.avatar || "",           // ← inject avatar
+            avatar: emp.userId?.avatar || "",
             user:   emp.userId ? { email: emp.userId.email, role: emp.userId.role } : null,
         }))
 
@@ -43,7 +45,7 @@ export const getEmployeeDetail = async (req, res) => {
         const { id } = req.params
 
         const employee = await Employee.findById(id)
-            .populate("userId", "email role avatar")   // ← include avatar
+            .populate("userId", "email role avatar")
             .lean()
 
         if (!employee) return res.status(404).json({ error: "Employee not found" })
@@ -65,7 +67,7 @@ export const getEmployeeDetail = async (req, res) => {
         return res.json({
             ...employee,
             id:     employee._id.toString(),
-            avatar: employee.userId?.avatar || "",      // ← inject avatar
+            avatar: employee.userId?.avatar || "",
             user:   employee.userId ? { email: employee.userId.email, role: employee.userId.role } : null,
             attendanceSummary,
             leaveSummary,

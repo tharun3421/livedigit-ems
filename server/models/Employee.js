@@ -50,7 +50,7 @@ const employeeSchema = new mongoose.Schema({
         label:        { type: String, default: "" },
         latitude:     { type: Number, default: null },
         longitude:    { type: Number, default: null },
-        radiusMeters: { type: Number, default: 100  },
+        radiusMeters: { type: Number, default: 200  },
     },
 
 }, { timestamps: true })

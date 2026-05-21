@@ -2,11 +2,6 @@ import Employee from "../models/Employee.js";
 import Payslip from "../models/Payslip.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const SICK_LIMIT   = 6
-const CASUAL_LIMIT = 6
-const EL_PER_MONTH = 2
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const countDays = (start, end) =>
@@ -34,38 +29,26 @@ const getLopDaysForMonth = async (employeeId, month, year) => {
     return totalDays
 }
 
-/** Remaining leave balances — mirrors leaveController logic */
-const getLeaveBalances = async (employee) => {
+/**
+ * Total leave days TAKEN per type in the current calendar year.
+ * Used for the payslip attendance summary boxes.
+ */
+const getTakenLeaveCounts = async (employeeId) => {
     const startOfYear = new Date(new Date().getFullYear(), 0, 1)
 
     const approved = await LeaveApplication.find({
-        employeeId: employee._id,
-        status:     "APPROVED",
-        startDate:  { $gte: startOfYear },
-        type:       { $in: ["SICK", "CASUAL", "EARNED"] },
+        employeeId,
+        status:    "APPROVED",
+        startDate: { $gte: startOfYear },
+        type:      { $in: ["SICK", "CASUAL", "EARNED"] },
     })
 
-    const used = { SICK: 0, CASUAL: 0, EARNED: 0 }
+    const taken = { SICK: 0, CASUAL: 0, EARNED: 0 }
     for (const leave of approved) {
         const days = countDays(leave.startDate, leave.endDate)
-        if (used[leave.type] !== undefined) used[leave.type] += days
+        if (taken[leave.type] !== undefined) taken[leave.type] += days
     }
-
-    // Earned leave accrual: EL_PER_MONTH per complete month since joining
-    const joinDate     = new Date(employee.joinDate)
-    const now          = new Date()
-    const monthsWorked = Math.max(0,
-        (now.getFullYear() - joinDate.getFullYear()) * 12 +
-        (now.getMonth()    - joinDate.getMonth())
-    )
-    const elAccumulated = monthsWorked * EL_PER_MONTH
-    const elRemaining   = Math.max(0, elAccumulated - used.EARNED)
-
-    return {
-        casualLeaves: Math.max(0, CASUAL_LIMIT - used.CASUAL),
-        sickLeaves:   Math.max(0, SICK_LIMIT   - used.SICK),
-        earnedLeaves: elRemaining,
-    }
+    return taken
 }
 
 // ─── Create Payslip ───────────────────────────────────────────────────────────
@@ -181,8 +164,8 @@ export const getPayslipById = async (req, res) => {
         const lopAmount   = parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
         const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
-        // Live remaining leave balances from LeaveApplication records
-        const leaveBalances = await getLeaveBalances(employee)
+        // Live taken leave counts for attendance summary boxes
+        const taken = await getTakenLeaveCounts(employee._id)
 
         return res.json({
             ...payslip,
@@ -192,8 +175,10 @@ export const getPayslipById = async (req, res) => {
             deductions: lopAmount,
             employee: {
                 ...employee,
-                id: employee._id.toString(),
-                ...leaveBalances,   // casualLeaves, sickLeaves, earnedLeaves
+                id:           employee._id.toString(),
+                casualLeaves: taken.CASUAL,
+                sickLeaves:   taken.SICK,
+                earnedLeaves: taken.EARNED,
             },
         })
 

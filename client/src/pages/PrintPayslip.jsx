@@ -160,9 +160,9 @@ const PrintPayslip = () => {
                                     color={lopDays > 0 ? "rose" : "slate"}
                                 />
                                 <AttBox
-                                    label="Scheduled Leaves"
+                                    label="Leaves Taken"
                                     value={totalLeaves}
-                                    sub={`C:${casualLeaves} · S:${sickLeaves} · E:${earnedLeaves}`}
+                                    sub={`Casual:${casualLeaves} · Sick:${sickLeaves} · Earn:${earnedLeaves}`}
                                     color={totalLeaves > 0 ? "green" : "slate"}
                                 />
                             </div>

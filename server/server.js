@@ -13,6 +13,7 @@ import dashboardRouter from "./routes/dashboardRoutes.js"
 import announcementRouter from "./routes/announcementRoutes.js"
 import { serve } from "inngest/express"
 import { inngest, functions } from "./inngest/index.js"
+import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
 
 
 const app = express()
@@ -49,6 +50,8 @@ app.use("/api/announcements", announcementRouter)
 app.use("/api/inngest",       serve({ client: inngest, functions }))
 
 app.get("/", (req, res) => res.send("Server running successfully"))
+
+startAutoCheckoutJob()
 
 connectDB().catch((err) => console.error("DB connection failed:", err))
 

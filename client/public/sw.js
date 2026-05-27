@@ -21,7 +21,6 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
     if (!event.request.url.startsWith('http')) return;
-    // Only cache GET requests
     if (event.request.method !== "GET") return;
 
     event.respondWith(
@@ -34,3 +33,36 @@ self.addEventListener("fetch", (event) => {
             .catch(() => caches.match(event.request))
     );
 });
+
+// ─── Push Notifications ───────────────────────────────────────────────────────
+
+self.addEventListener("push", (event) => {
+    const data     = event.data?.json() || {}
+    const { title = "New Announcement", message = "", priority = "NORMAL" } = data
+    const icons    = { NORMAL: "ℹ️", IMPORTANT: "⚠️", URGENT: "🚨" }
+
+    event.waitUntil(
+        self.registration.showNotification(`${icons[priority]} ${title}`, {
+            body:               message,
+            icon:               "/favicon.ico",
+            badge:              "/favicon.ico",
+            tag:                `announcement-${Date.now()}`,
+            requireInteraction: priority === "URGENT",
+            data:               { url: "/announcements" },
+        })
+    )
+})
+
+// ─── Notification Click ───────────────────────────────────────────────────────
+
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close()
+    event.waitUntil(
+        clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+            for (const client of list) {
+                if (client.url.includes("/announcements")) return client.focus()
+            }
+            return clients.openWindow(event.notification.data?.url || "/announcements")
+        })
+    )
+})

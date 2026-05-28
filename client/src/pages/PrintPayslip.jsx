@@ -6,9 +6,9 @@ import Loading from "../components/Loading"
 import api from "../api/axios"
 
 const COMPANY = {
-    name:    "LiveDigit",
-    address: "Telangana, India",
-    email:   "hr@livedigit.com",
+    name:    "LiveDigit.in",
+    address: "Vizag and Hyderabad, Telangana, India",
+    email:   "hrsupport@livedigit.in",
 }
 
 const ATT_COLORS = {
@@ -107,7 +107,7 @@ const PrintPayslip = () => {
                     {/* ── Header ── */}
                     <div className="bg-indigo-700 px-8 py-6 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-white/30 flex items-center justify-center shrink-0">
                                 <img
                                     src="/logo.png" alt="Logo"
                                     className="h-8 w-auto object-contain"

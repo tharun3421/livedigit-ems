@@ -1,7 +1,7 @@
 import cron       from 'node-cron'
 import Attendance from '../models/Attendance.js'
 
-const MAX_HOURS    = 10
+const MAX_HOURS      = 10
 const EXPECTED_HOURS = 9
 
 const getDayType = (hours) => {
@@ -24,21 +24,19 @@ export const startAutoCheckoutJob = () => {
             if (!stale.length) return
 
             for (const record of stale) {
-                const workingHours = parseFloat(
-                    ((Date.now() - new Date(record.checkIn).getTime()) / (1000 * 60 * 60)).toFixed(2)
-                )
+                const checkOutTime = new Date(new Date(record.checkIn).getTime() + MAX_HOURS * 60 * 60 * 1000)
 
-                record.checkOut       = new Date()
-                record.workingHours   = workingHours
+                record.checkOut       = checkOutTime
+                record.workingHours   = MAX_HOURS
                 record.autoCheckedOut = true
-                record.dayType        = getDayType(workingHours)
+                record.dayType        = getDayType(MAX_HOURS)  // → 'Full Day' (10 >= 9)
 
                 if (record.status !== 'LATE') {
-                    record.status = workingHours >= EXPECTED_HOURS * 0.5 ? 'PRESENT' : 'LATE'
+                    record.status = 'PRESENT'
                 }
 
                 await record.save()
-                console.log(`[AutoCheckout] Employee ${record.employeeId} checked out after ${workingHours}h`)
+                console.log(`[AutoCheckout] Employee ${record.employeeId} — checkIn: ${record.checkIn} | checkOut: ${checkOutTime.toISOString()} | ${MAX_HOURS}h | ${record.dayType}`)
             }
 
         } catch (err) {
@@ -46,5 +44,5 @@ export const startAutoCheckoutJob = () => {
         }
     })
 
-    console.log('[AutoCheckout] Cron job started — runs every 15 minutes')
+    console.log('[AutoCheckout] Cron job started — auto checkout after', MAX_HOURS, 'hours')
 }

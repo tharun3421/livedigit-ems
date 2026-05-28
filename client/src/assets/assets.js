@@ -290,21 +290,43 @@ export const dummyAttendanceData = [
 ];
 
 
+// export function getWorkingHoursDisplay(record) {
+//     if (record.workingHours != null) {
+//         const hrs = Math.floor(record.workingHours);
+//         const mins = Math.round((record.workingHours - hrs) * 60);
+//         return `${hrs}h ${mins}m`;
+//     }
+//     // If still checked in (no checkout), compute live hours
+//     if (record.checkIn && !record.checkOut) {
+//         const diffMs = Date.now() - new Date(record.checkIn).getTime();
+//         const diffHours = diffMs / (1000 * 60 * 60);
+//         const hrs = Math.floor(diffHours);
+//         const mins = Math.round((diffHours - hrs) * 60);
+//         return `${hrs}h ${mins}m (ongoing)`;
+//     }
+//     return "—";
+// }
+
+
+// after
+const MAX_HOURS = 10  // keep in sync with autoCheckout.js
+
 export function getWorkingHoursDisplay(record) {
     if (record.workingHours != null) {
-        const hrs = Math.floor(record.workingHours);
-        const mins = Math.round((record.workingHours - hrs) * 60);
-        return `${hrs}h ${mins}m`;
+        const hrs  = Math.floor(record.workingHours)
+        const mins = Math.round((record.workingHours - hrs) * 60)
+        return `${hrs}h ${mins}m`
     }
-    // If still checked in (no checkout), compute live hours
     if (record.checkIn && !record.checkOut) {
-        const diffMs = Date.now() - new Date(record.checkIn).getTime();
-        const diffHours = diffMs / (1000 * 60 * 60);
-        const hrs = Math.floor(diffHours);
-        const mins = Math.round((diffHours - hrs) * 60);
-        return `${hrs}h ${mins}m (ongoing)`;
+        const elapsedMs = Date.now() - new Date(record.checkIn).getTime()
+        const cappedMs  = Math.min(elapsedMs, MAX_HOURS * 60 * 60 * 1000)
+        const totalMins = Math.floor(cappedMs / 60000)
+        const hrs       = Math.floor(totalMins / 60)
+        const mins      = totalMins % 60
+        const isCapped  = elapsedMs > cappedMs
+        return `${hrs}h ${mins}m${isCapped ? ' (pending checkout)' : ' (ongoing)'}`
     }
-    return "—";
+    return "—"
 }
 
 export function getDayTypeDisplay(record) {

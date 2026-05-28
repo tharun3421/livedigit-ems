@@ -12,7 +12,7 @@ import payslipRouter from "./routes/payslipRoutes.js"
 import dashboardRouter from "./routes/dashboardRoutes.js"
 import announcementRouter from "./routes/announcementRoutes.js"
 import { serve } from "inngest/express"
-import { inngest, functions } from "./inngest/index.js"
+
 import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
 
 
@@ -47,7 +47,7 @@ app.use("/api/leave",         leaveRouter)
 app.use("/api/payslips",      payslipRouter)
 app.use("/api/dashboard",     dashboardRouter)
 app.use("/api/announcements", announcementRouter)
-app.use("/api/inngest",       serve({ client: inngest, functions }))
+
 
 app.get("/", (req, res) => res.send("Server running successfully"))
 

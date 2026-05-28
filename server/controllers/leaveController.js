@@ -1,4 +1,4 @@
-import { inngest } from "../inngest/index.js";
+
 import Employee from "../models/Employee.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 
@@ -55,6 +55,69 @@ const getUsedLeaveCounts = async (employeeId) => {
 }
 
 // ─── Create Leave ─────────────────────────────────────────────────────────────
+// export const createLeave = async (req, res) => {
+//     try {
+//         const employee = await Employee.findOne({ userId: req.session.userId });
+//         if (!employee)          return res.status(404).json({ error: "Employee not found" });
+//         if (employee.isDeleted) return res.status(403).json({ error: "Your account is deactivated." });
+
+//         const { type, startDate, endDate, reason } = req.body;
+
+//         if (!type || !startDate || !endDate || !reason)
+//             return res.status(400).json({ error: "Missing required fields" });
+//         if (!["SICK", "CASUAL", "LOSS_OF_PAY", "EARNED"].includes(type))
+//             return res.status(400).json({ error: "Invalid leave type" });
+
+//         const today        = new Date(); today.setHours(0, 0, 0, 0)
+//         const startDateObj = new Date(startDate)
+//         const endDateObj   = new Date(endDate)
+
+//         if (startDateObj < today)      return res.status(400).json({ error: "Leave dates must be in the future" });
+//         if (endDateObj < startDateObj) return res.status(400).json({ error: "End date cannot be before start date" });
+
+//         const requestedDays = countDays(startDateObj, endDateObj)
+
+//         if (type === "SICK" || type === "CASUAL") {
+//             const used      = await getUsedLeaveCounts(employee._id)
+//             const limit     = LEAVE_LIMITS[type]
+//             const remaining = limit - used[type]
+//             if (requestedDays > remaining) {
+//                 return res.status(400).json({
+//                     error: `You only have ${remaining} ${type.replace("_", " ")} day(s) remaining (limit: ${limit}).`,
+//                     remaining, limit,
+//                 });
+//             }
+//         }
+
+//         if (type === "EARNED") {
+//             const elBalance = await getEarnedLeaveBalance(employee)
+//             if (requestedDays > elBalance.remaining) {
+//                 return res.status(400).json({
+//                     error: `You only have ${elBalance.remaining} Earned Leave day(s) available (accumulated: ${elBalance.accumulated}).`,
+//                     remaining:   elBalance.remaining,
+//                     accumulated: elBalance.accumulated,
+//                 });
+//             }
+//         }
+
+//         const leave = await LeaveApplication.create({
+//             employeeId: employee._id,
+//             type, startDate: startDateObj, endDate: endDateObj, reason, status: "PENDING",
+//         });
+
+//         try {
+//             await inngest.send({ name: "leave/pending", data: { leaveApplicationId: leave._id.toString() } });
+//         } catch (err) {
+//             console.error("Inngest send failed:", err.message);
+//         }
+
+//         return res.json({ success: true, data: leave });
+//     } catch (error) {
+//         console.error("createLeave error:", error.message);
+//         return res.status(500).json({ error: error.message });
+//     }
+// };
+
 export const createLeave = async (req, res) => {
     try {
         const employee = await Employee.findOne({ userId: req.session.userId });
@@ -104,12 +167,6 @@ export const createLeave = async (req, res) => {
             employeeId: employee._id,
             type, startDate: startDateObj, endDate: endDateObj, reason, status: "PENDING",
         });
-
-        try {
-            await inngest.send({ name: "leave/pending", data: { leaveApplicationId: leave._id.toString() } });
-        } catch (err) {
-            console.error("Inngest send failed:", err.message);
-        }
 
         return res.json({ success: true, data: leave });
     } catch (error) {

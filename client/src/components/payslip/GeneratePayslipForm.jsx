@@ -1,3 +1,4 @@
+
 import { Loader2, Plus, X, UserIcon, AlertCircleIcon, InfoIcon, PencilIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import api from '../../api/axios'
@@ -9,6 +10,16 @@ const MONTH_NAMES = [
 ]
 
 const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+
+// Working days = calendar days − Sundays − 2 (Earned Leaves)
+const getWorkingDays = (month, year) => {
+    const calendarDays = new Date(year, month, 0).getDate()
+    let sundays = 0
+    for (let d = 1; d <= calendarDays; d++) {
+        if (new Date(year, month - 1, d).getDay() === 0) sundays++
+    }
+    return calendarDays - sundays - 2
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const GeneratePayslipForm = ({ employees, onSuccess }) => {
@@ -63,8 +74,11 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
     const emp         = empDetail || employees.find((e) => (e._id ?? e.id) === selectedEmpId)
     const basicSalary = emp?.basicSalary ?? 0
     const allowances  = editAllowances ? Number(customAllowances) : (emp?.allowances ?? 0)
-    const lopDays     = lopInfo?.days   ?? 0
-    const lopAmount   = lopInfo?.amount ?? parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
+    const lopDays     = lopInfo?.days ?? 0
+
+    // Working days from API if available, else compute locally
+    const workingDays = lopInfo?.workingDays ?? getWorkingDays(month, year)
+    const lopAmount   = lopInfo?.amount ?? parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
     const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
     const handleSubmit = async (e) => {
@@ -159,7 +173,10 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                             {lopDays} LOP day{lopDays > 1 ? "s" : ""} approved
                                             → <span className="font-semibold">{inr(lopAmount)}</span> deducted
                                             <span className="block text-rose-400 mt-0.5">
-                                                (₹{basicSalary.toLocaleString("en-IN")} ÷ 26 × {lopDays} days)
+                                                (₹{basicSalary.toLocaleString("en-IN")} ÷ {workingDays} working days × {lopDays} days)
+                                            </span>
+                                            <span className="block text-rose-300 mt-0.5 text-[10px]">
+                                                Working days = calendar days − Sundays − 2 EL
                                             </span>
                                         </p>
                                     </div>
@@ -173,6 +190,9 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                         Salary Breakdown
                                     </p>
+                                    <span className="ml-auto text-xs text-slate-400">
+                                        {workingDays} working days
+                                    </span>
                                 </div>
                                 <div className="divide-y divide-slate-100">
                                     <SalaryRow label="Basic Salary" value={inr(basicSalary)} />
@@ -207,7 +227,7 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
 
                                     {lopDays > 0 && (
                                         <SalaryRow
-                                            label={`Loss of Pay (${lopDays} day${lopDays > 1 ? "s" : ""})`}
+                                            label={`Loss of Pay (${lopDays} day${lopDays > 1 ? "s" : ""} × ₹${basicSalary.toLocaleString("en-IN")} ÷ ${workingDays})`}
                                             value={`– ${inr(lopAmount)}`}
                                             color="rose"
                                             bold

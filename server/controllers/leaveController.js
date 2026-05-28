@@ -1,3 +1,4 @@
+
 import Employee from "../models/Employee.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 
@@ -15,20 +16,29 @@ const EL_PER_MONTH = 2
 const countDays = (startDate, endDate) =>
     Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
 
+// ─── Working days = calendar days − Sundays − 2 (Earned Leaves) ──────────────
+const getWorkingDays = (month, year) => {
+    const calendarDays = new Date(year, month, 0).getDate()
+    let sundays = 0
+    for (let d = 1; d <= calendarDays; d++) {
+        if (new Date(year, month - 1, d).getDay() === 0) sundays++
+    }
+    return calendarDays - sundays - 2
+}
+
+// ─── Earned Leave: 2 per month, resets each month ────────────────────────────
 const getEarnedLeaveBalance = async (employee) => {
-    const joinDate = new Date(employee.joinDate)
-    const now      = new Date()
+    const now        = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-    const monthsWorked =
-        (now.getFullYear() - joinDate.getFullYear()) * 12 +
-        (now.getMonth()    - joinDate.getMonth())
-
-    const accumulated = Math.max(0, monthsWorked) * EL_PER_MONTH
+    const accumulated = EL_PER_MONTH  // always 2 for current month
 
     const approvedEL = await LeaveApplication.find({
         employeeId: employee._id,
         type:       "EARNED",
         status:     "APPROVED",
+        startDate:  { $gte: monthStart, $lte: monthEnd },
     })
 
     const used      = approvedEL.reduce((sum, l) => sum + countDays(l.startDate, l.endDate), 0)
@@ -37,6 +47,7 @@ const getEarnedLeaveBalance = async (employee) => {
     return { accumulated, used, remaining, perMonth: EL_PER_MONTH }
 }
 
+// ─── Sick & Casual: resets every new year ─────────────────────────────────────
 const getUsedLeaveCounts = async (employeeId) => {
     const startOfYear = new Date(new Date().getFullYear(), 0, 1)
     const approved = await LeaveApplication.find({
@@ -55,7 +66,6 @@ const getUsedLeaveCounts = async (employeeId) => {
 
 // ─── Create Leave ─────────────────────────────────────────────────────────────
 export const createLeave = async (req, res) => {
-    console.log("CREATE LEAVE HIT")
     try {
         const employee = await Employee.findOne({ userId: req.session.userId });
         if (!employee)          return res.status(404).json({ error: "Employee not found" });
@@ -92,7 +102,7 @@ export const createLeave = async (req, res) => {
             const elBalance = await getEarnedLeaveBalance(employee)
             if (requestedDays > elBalance.remaining) {
                 return res.status(400).json({
-                    error: `You only have ${elBalance.remaining} Earned Leave day(s) available (accumulated: ${elBalance.accumulated}).`,
+                    error: `You only have ${elBalance.remaining} Earned Leave day(s) available this month.`,
                     remaining:   elBalance.remaining,
                     accumulated: elBalance.accumulated,
                 });
@@ -213,12 +223,16 @@ export const getLopSummary = async (req, res) => {
             leaveDetails.push({ id: leave._id.toString(), startDate: leave.startDate, endDate: leave.endDate, days })
         }
 
-        const amount = parseFloat(((employee.basicSalary / 26) * totalDays).toFixed(2))
+        // Working days = calendar days in month − Sundays − 2 (Earned Leaves)
+        const workingDays = getWorkingDays(m, y)
+        const perDayRate  = parseFloat((employee.basicSalary / workingDays).toFixed(2))
+        const amount      = parseFloat((perDayRate * totalDays).toFixed(2))
 
         return res.json({
             days: totalDays, amount,
             basicSalary:  employee.basicSalary,
-            perDayRate:   parseFloat((employee.basicSalary / 26).toFixed(2)),
+            workingDays,
+            perDayRate,
             leaveDetails,
         });
     } catch (error) {

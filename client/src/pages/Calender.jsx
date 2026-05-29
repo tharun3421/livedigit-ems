@@ -6,11 +6,20 @@ import api from "../api/axios"
 const WEEKDAYS    = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 
+const parseDate = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number)
+  return { year: y, month: m, day: d }
+}
+
 // ─── Holiday Form Modal ───────────────────────────────────────────────────────
 const HolidayForm = ({ initial, onSave, onClose, saving }) => {
-  const [form, setForm] = useState(initial || { mmdd: "", name: "" })
+  const [form, setForm] = useState(
+    initial
+      ? { date: initial.date.split("T")[0], name: initial.name }
+      : { date: "", name: "" }
+  )
   const set   = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const valid = form.mmdd.match(/^\d{2}-\d{2}$/) && form.name.trim().length > 0
+  const valid = form.date.match(/^\d{4}-\d{2}-\d{2}$/) && form.name.trim().length > 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -23,12 +32,11 @@ const HolidayForm = ({ initial, onSave, onClose, saving }) => {
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Date (MM-DD)</label>
+            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Date</label>
             <input
-              value={form.mmdd}
-              onChange={e => set("mmdd", e.target.value)}
-              placeholder="e.g. 08-15"
-              maxLength={5}
+              type="date"
+              value={form.date}
+              onChange={e => set("date", e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
             />
           </div>
@@ -37,7 +45,7 @@ const HolidayForm = ({ initial, onSave, onClose, saving }) => {
             <input
               value={form.name}
               onChange={e => set("name", e.target.value)}
-              placeholder="e.g. Independence Day"
+              placeholder="e.g. Dasara"
               className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
             />
           </div>
@@ -75,38 +83,30 @@ const AdminPanel = ({ holidays, onAdd, onEdit, onDelete, onClose }) => {
   const [error,         setError]         = useState("")
 
   const filtered = holidays
-    .filter(h => h.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.mmdd.localeCompare(b.mmdd))
+    .filter(h => h.date && h.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const handleSaveAdd = async (form) => {
     setSaving(true); setError("")
-    try {
-      await onAdd(form)
-      setAddOpen(false)
-    } catch (e) {
-      setError(e?.response?.data?.message || "Failed to add holiday")
-    } finally { setSaving(false) }
+    try { await onAdd(form); setAddOpen(false) }
+    catch (e) { setError(e?.response?.data?.message || "Failed to add holiday") }
+    finally { setSaving(false) }
   }
 
   const handleSaveEdit = async (form) => {
     setSaving(true); setError("")
-    try {
-      await onEdit({ ...editTarget, ...form })
-      setEditTarget(null)
-    } catch (e) {
-      setError(e?.response?.data?.message || "Failed to update holiday")
-    } finally { setSaving(false) }
+    try { await onEdit({ ...editTarget, ...form }); setEditTarget(null) }
+    catch (e) { setError(e?.response?.data?.message || "Failed to update holiday") }
+    finally { setSaving(false) }
   }
 
   const confirmDelete = async (h) => {
-    if (deleteConfirm !== (h._id || h.id)) { setDeleteConfirm(h._id || h.id); return }
-    setDeleting(h._id || h.id); setError("")
-    try {
-      await onDelete(h._id || h.id)
-      setDeleteConfirm(null)
-    } catch (e) {
-      setError(e?.response?.data?.message || "Failed to delete holiday")
-    } finally { setDeleting(null) }
+    const id = h._id || h.id
+    if (deleteConfirm !== id) { setDeleteConfirm(id); return }
+    setDeleting(id); setError("")
+    try { await onDelete(id); setDeleteConfirm(null) }
+    catch (e) { setError(e?.response?.data?.message || "Failed to delete holiday") }
+    finally { setDeleting(null) }
   }
 
   return (
@@ -114,7 +114,6 @@ const AdminPanel = ({ holidays, onAdd, onEdit, onDelete, onClose }) => {
       <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
 
-          {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
@@ -138,7 +137,6 @@ const AdminPanel = ({ holidays, onAdd, onEdit, onDelete, onClose }) => {
             </div>
           </div>
 
-          {/* Search */}
           <div className="px-6 py-3 border-b border-slate-800 shrink-0">
             <input
               value={search}
@@ -148,58 +146,58 @@ const AdminPanel = ({ holidays, onAdd, onEdit, onDelete, onClose }) => {
             />
           </div>
 
-          {/* Error */}
           {error && (
             <div className="mx-4 mt-3 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-xl shrink-0">
               <p className="text-xs text-red-400">{error}</p>
             </div>
           )}
 
-          {/* List */}
           <div className="overflow-y-auto flex-1 p-4 space-y-1.5">
             {filtered.length === 0 ? (
               <p className="text-sm text-slate-500 text-center py-10">
                 {holidays.length === 0 ? `No holidays added yet. Click "Add Holiday" to get started.` : "No results found."}
               </p>
-            ) : filtered.map(h => (
-              <div
-                key={h._id || h.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition-colors group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-200 truncate">{h.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {MONTH_NAMES[parseInt(h.mmdd.split("-")[0]) - 1]} {parseInt(h.mmdd.split("-")[1])}
-                  </p>
+            ) : filtered.map(h => {
+              const id = h._id || h.id
+              const { year, month, day } = parseDate(h.date.split("T")[0])
+              return (
+                <div
+                  key={id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition-colors group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-200 truncate">{h.name}</p>
+                    <p className="text-xs text-slate-500">{MONTH_NAMES[month - 1]} {day}, {year}</p>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => { setEditTarget(h); setError("") }}
+                      className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-colors"
+                    >
+                      <PencilIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(h)}
+                      disabled={deleting === id}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        deleteConfirm === id
+                          ? "bg-red-500/20 text-red-400"
+                          : "hover:bg-slate-700 text-slate-400 hover:text-red-400"
+                      }`}
+                      title={deleteConfirm === id ? "Click again to confirm" : "Delete"}
+                    >
+                      {deleting === id
+                        ? <Loader2Icon className="w-3.5 h-3.5 animate-spin" />
+                        : <TrashIcon className="w-3.5 h-3.5" />
+                      }
+                    </button>
+                  </div>
+                  {deleteConfirm === id && (
+                    <span className="text-xs text-red-400 shrink-0">Confirm?</span>
+                  )}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => { setEditTarget(h); setError("") }}
-                    className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-colors"
-                  >
-                    <PencilIcon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => confirmDelete(h)}
-                    disabled={deleting === (h._id || h.id)}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      deleteConfirm === (h._id || h.id)
-                        ? "bg-red-500/20 text-red-400"
-                        : "hover:bg-slate-700 text-slate-400 hover:text-red-400"
-                    }`}
-                    title={deleteConfirm === (h._id || h.id) ? "Click again to confirm" : "Delete"}
-                  >
-                    {deleting === (h._id || h.id)
-                      ? <Loader2Icon className="w-3.5 h-3.5 animate-spin" />
-                      : <TrashIcon className="w-3.5 h-3.5" />
-                    }
-                  </button>
-                </div>
-                {deleteConfirm === (h._id || h.id) && (
-                  <span className="text-xs text-red-400 shrink-0">Confirm?</span>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <div className="px-6 py-3 border-t border-slate-800 shrink-0">
@@ -229,7 +227,6 @@ const TeluguCalendar = () => {
   const [adminOpen,  setAdminOpen]  = useState(false)
   const [showDenied, setShowDenied] = useState(false)
 
-  // ── Fetch holidays ──
   const fetchHolidays = useCallback(async () => {
     setLoading(true); setFetchError("")
     try {
@@ -245,14 +242,13 @@ const TeluguCalendar = () => {
 
   useEffect(() => { fetchHolidays() }, [fetchHolidays])
 
-  // ── CRUD ──
   const handleAdd = async (form) => {
     const { data } = await api.post("/holidays", form)
     setHolidays(prev => [...prev, data])
   }
 
   const handleEdit = async (h) => {
-    const { data } = await api.put(`/holidays/${h._id || h.id}`, { mmdd: h.mmdd, name: h.name })
+    const { data } = await api.put(`/holidays/${h._id || h.id}`, { date: h.date, name: h.name })
     setHolidays(prev => prev.map(x => (x._id || x.id) === (h._id || h.id) ? data : x))
   }
 
@@ -267,15 +263,17 @@ const TeluguCalendar = () => {
 
   const openAdmin = () => {
     if (isAdmin) setAdminOpen(true)
-    else {
-      setShowDenied(true)
-      setTimeout(() => setShowDenied(false), 3000)
-    }
+    else { setShowDenied(true); setTimeout(() => setShowDenied(false), 3000) }
   }
 
+  // Guards against old mmdd-schema docs still in the DB
   const holidayMap = useMemo(() => {
     const map = {}
-    holidays.forEach(h => { if (!map[h.mmdd]) map[h.mmdd] = h })
+    holidays.forEach(h => {
+      if (!h.date) return
+      const key = h.date.split("T")[0]
+      if (!map[key]) map[key] = h
+    })
     return map
   }, [holidays])
 
@@ -289,11 +287,11 @@ const TeluguCalendar = () => {
       cells.push({ day: prevDays - i, current: false })
 
     for (let d = 1; d <= daysInMonth; d++) {
-      const mmdd    = `${String(viewMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`
-      const holiday = holidayMap[mmdd] || null
+      const key     = `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`
+      const holiday = holidayMap[key] || null
       const date    = new Date(viewYear, viewMonth, d)
       cells.push({
-        day: d, current: true, holiday, mmdd,
+        day: d, current: true, holiday, key,
         isSun:   date.getDay() === 0,
         isSat:   date.getDay() === 6,
         isToday: d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear(),
@@ -309,9 +307,13 @@ const TeluguCalendar = () => {
 
   const monthHolidays = useMemo(() =>
     holidays
-      .filter(h => h.mmdd.startsWith(String(viewMonth+1).padStart(2,"0")))
-      .sort((a, b) => a.mmdd.localeCompare(b.mmdd)),
-    [holidays, viewMonth]
+      .filter(h => {
+        if (!h.date) return false
+        const { year, month } = parseDate(h.date.split("T")[0])
+        return year === viewYear && month === viewMonth + 1
+      })
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    [holidays, viewYear, viewMonth]
   )
 
   const selectedCell = selected ? days.find(d => d.current && d.day === selected) : null
@@ -319,7 +321,6 @@ const TeluguCalendar = () => {
   return (
     <div className="max-w-4xl mx-auto pb-10">
 
-      {/* Access Denied Toast */}
       {showDenied && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl shadow-lg backdrop-blur-sm">
           <LockIcon className="w-4 h-4 text-red-400 shrink-0" />
@@ -330,7 +331,6 @@ const TeluguCalendar = () => {
         </div>
       )}
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl text-slate-100">Company Calendar</h1>
@@ -357,10 +357,8 @@ const TeluguCalendar = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* Calendar Grid */}
         <div className="lg:col-span-2 rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
 
-          {/* Month nav */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
             <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-slate-100 transition-colors">
               <ChevronLeftIcon className="w-5 h-5" />
@@ -371,17 +369,13 @@ const TeluguCalendar = () => {
             </button>
           </div>
 
-          {/* Fetch error banner */}
           {fetchError && !loading && (
             <div className="flex items-center justify-between px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
               <p className="text-xs text-amber-400">{fetchError} — holidays may not be shown</p>
-              <button onClick={fetchHolidays} className="text-xs text-cyan-400 hover:underline ml-4 shrink-0">
-                Retry
-              </button>
+              <button onClick={fetchHolidays} className="text-xs text-cyan-400 hover:underline ml-4 shrink-0">Retry</button>
             </div>
           )}
 
-          {/* Weekday headers */}
           <div className="grid grid-cols-7 border-b border-slate-800">
             {WEEKDAYS.map(d => (
               <div key={d} className={`py-2.5 text-center text-xs font-semibold tracking-wider uppercase ${
@@ -390,7 +384,6 @@ const TeluguCalendar = () => {
             ))}
           </div>
 
-          {/* Loading spinner or grid — grid always renders after load */}
           {loading ? (
             <div className="flex items-center justify-center py-20 gap-3 text-slate-500">
               <Loader2Icon className="w-5 h-5 animate-spin" />
@@ -439,10 +432,8 @@ const TeluguCalendar = () => {
           )}
         </div>
 
-        {/* Right Panel */}
         <div className="space-y-4">
 
-          {/* Selected day info */}
           {selectedCell ? (
             <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
               <div className="flex items-center gap-3 mb-4">
@@ -483,10 +474,9 @@ const TeluguCalendar = () => {
             </div>
           )}
 
-          {/* Holidays this month */}
           <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              {MONTH_NAMES[viewMonth]} Holidays
+              {MONTH_NAMES[viewMonth]} {viewYear} Holidays
               <span className="ml-2 text-slate-600 normal-case font-normal">({monthHolidays.length})</span>
             </h3>
             {loading ? (
@@ -500,7 +490,7 @@ const TeluguCalendar = () => {
               <div className="space-y-1.5 max-h-64 overflow-y-auto">
                 {monthHolidays.map(h => {
                   const id  = h._id || h.id
-                  const day = parseInt(h.mmdd.split("-")[1])
+                  const day = parseDate(h.date.split("T")[0]).day
                   return (
                     <button
                       key={id}
@@ -512,7 +502,7 @@ const TeluguCalendar = () => {
                       <span className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">{day}</span>
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-slate-200 truncate">{h.name}</p>
-                        <p className="text-[10px] text-slate-500">{MONTH_NAMES[viewMonth]} {day}</p>
+                        <p className="text-[10px] text-slate-500">{MONTH_NAMES[viewMonth]} {day}, {viewYear}</p>
                       </div>
                     </button>
                   )
@@ -521,7 +511,6 @@ const TeluguCalendar = () => {
             )}
           </div>
 
-          {/* Legend */}
           <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Legend</h3>
             <div className="space-y-2">

@@ -1,12 +1,9 @@
-import mongoose from "mongoose"
-
+// Holiday.js model
 const holidaySchema = new mongoose.Schema(
   {
-    mmdd: {
-      type: String,
+    date: {
+      type: Date,
       required: true,
-      match: /^\d{2}-\d{2}$/,
-      trim: true,
     },
     name: {
       type: String,
@@ -16,7 +13,3 @@ const holidaySchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
-
-const Holiday = mongoose.model("Holiday", holidaySchema)
-
-export default Holiday

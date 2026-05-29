@@ -199,15 +199,15 @@
 
 
 
-import Attendance from '../models/Attendance.js'
-import Employee   from '../models/Employee.js'
+import Attendance      from '../models/Attendance.js'
+import Employee        from '../models/Employee.js'
+import { OFFICE_LOCATIONS } from '../constants/offices.js'  
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const LATE_THRESHOLD   = { hour: 10, minute: 30 }
-const EXPECTED_HOURS   = 9
-const IST_OFFSET_MS    = (5 * 60 + 30) * 60 * 1000
-const MAX_GPS_ACCURACY = 150  // ignore GPS fixes worse than this (meters)
+const LATE_THRESHOLD = { hour: 10, minute: 30 }
+const EXPECTED_HOURS = 9
+const IST_OFFSET_MS  = (5 * 60 + 30) * 60 * 1000
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -232,9 +232,9 @@ const getISTMidnight = (date) => {
 }
 
 const getDayType = (hours) => {
-    if (hours >= EXPECTED_HOURS)              return 'Full Day'
-    if (hours >= EXPECTED_HOURS * 0.75)       return 'Three Quarter Day'
-    if (hours >= EXPECTED_HOURS * 0.5)        return 'Half Day'
+    if (hours >= EXPECTED_HOURS)        return 'Full Day'
+    if (hours >= EXPECTED_HOURS * 0.75) return 'Three Quarter Day'
+    if (hours >= EXPECTED_HOURS * 0.5)  return 'Half Day'
     return 'Short Day'
 }
 
@@ -258,21 +258,22 @@ export const clockInOut = async (req, res) => {
         if (employee.isDeleted) return res.status(403).json({ error: 'Your account is deactivated. You cannot clock in/out.' })
 
         const coords = parseCoords(req.body)
-        const loc    = employee.assignedLocation
-        const hasAssignedLocation = loc?.latitude != null && loc?.longitude != null
 
-        if (hasAssignedLocation) {
+        // Resolve location from OFFICE_LOCATIONS config (single source of truth)
+        const officeKey = employee.assignedLocation?.office
+        const loc       = officeKey ? OFFICE_LOCATIONS[officeKey] : null
+
+        if (loc) {
             if (!coords)
                 return res.status(400).json({ error: 'Location data is required to clock in/out.' })
 
-            const distance  = getDistanceMeters(coords.lat, coords.lng, loc.latitude, loc.longitude)
-            const radius    = loc.radiusMeters ?? 300   // widened default: 100 → 300m
+            const distance = getDistanceMeters(coords.lat, coords.lng, loc.latitude, loc.longitude)
 
-            if (distance > radius) {
+            if (distance > loc.radiusMeters) {
                 return res.status(403).json({
-                    error:    `You are ${Math.round(distance)}m away from ${loc.label || 'your assigned location'}. You must be within ${radius}m to clock in/out.`,
+                    error:    `You are ${Math.round(distance)}m away from ${loc.label}. You must be within ${loc.radiusMeters}m to clock in/out.`,
                     distance: Math.round(distance),
-                    allowed:  radius,
+                    allowed:  loc.radiusMeters,
                 })
             }
         }

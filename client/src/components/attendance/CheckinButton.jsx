@@ -187,7 +187,6 @@
 
 
 
-
 import { Loader2Icon, LogInIcon, LogOutIcon, MapPinIcon, MapPinOffIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import toast from 'react-hot-toast'
@@ -195,8 +194,8 @@ import api from '../../api/axios'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const MAX_ACCURACY_METERS = 150   // reject GPS fixes worse than this
-const WATCH_TIMEOUT_MS    = 12000 // fallback after 12s if no accurate fix
+const MAX_ACCURACY_METERS = 150
+const WATCH_TIMEOUT_MS    = 12000
 
 // ─── Geo Helpers ──────────────────────────────────────────────────────────────
 
@@ -218,10 +217,6 @@ const GEO_ERRORS = {
     3: 'Location request timed out. Please try again.',
 }
 
-/**
- * Uses watchPosition to wait for an accurate GPS fix.
- * Falls back to a single getCurrentPosition after WATCH_TIMEOUT_MS.
- */
 const getCurrentPosition = () =>
     new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -248,20 +243,19 @@ const getCurrentPosition = () =>
             reject(GEO_ERRORS[err.code] ?? 'Unable to retrieve your location.')
         }
 
-        // Watch and resolve as soon as accuracy is good enough
         const watcherId = navigator.geolocation.watchPosition(
             (pos) => { if (pos.coords.accuracy <= MAX_ACCURACY_METERS) settle(pos) },
             onError,
             { enableHighAccuracy: true, maximumAge: 0 }
         )
 
-        // Fallback: accept whatever we have after timeout
+        // Fallback: accept best available fix after timeout
         setTimeout(() => {
             if (resolved) return
             navigator.geolocation.clearWatch(watcherId)
             navigator.geolocation.getCurrentPosition(settle, onError, {
                 enableHighAccuracy: true,
-                maximumAge:         60000,  // allow a 60s cached fix as last resort
+                maximumAge:         60000,
             })
         }, WATCH_TIMEOUT_MS)
     })
@@ -292,8 +286,8 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
     const [loading,        setLoading]        = useState(false)
     const [locationStatus, setLocationStatus] = useState(null)
 
-    const hasAssignedLocation =
-        assignedLocation?.latitude != null && assignedLocation?.longitude != null
+    // assignedLocation only carries { office, label } now — coords come from OFFICE_LOCATIONS on the server
+    const hasAssignedLocation = !!assignedLocation?.office
 
     const handleAttendance = async () => {
         setLoading(true)
@@ -311,28 +305,10 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
                     return
                 }
 
-                const radius   = assignedLocation.radiusMeters ?? 300   // widened default
-                const distance = getDistanceMeters(
-                    coords.latitude,  coords.longitude,
-                    assignedLocation.latitude, assignedLocation.longitude
-                )
-
-                if (distance > radius) {
-                    setLocationStatus('out-of-range')
-                    toast.error(
-                        `You are ${Math.round(distance)}m away from ` +
-                        `${assignedLocation.label || 'your assigned location'} ` +
-                        `(GPS accuracy: ±${Math.round(coords.accuracy)}m). ` +
-                        `Must be within ${radius}m.`,
-                        { duration: 6000 }
-                    )
-                    return
-                }
-
                 setLocationStatus('ok')
 
             } else {
-                try { coords = await getCurrentPosition() } catch { /* optional — no assigned location */ }
+                try { coords = await getCurrentPosition() } catch { /* optional */ }
             }
 
             await api.post('/attendance', coords ?? undefined)

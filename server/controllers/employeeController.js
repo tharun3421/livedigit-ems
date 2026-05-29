@@ -7,11 +7,14 @@ import { OFFICE_LOCATIONS } from "../constants/offices.js"
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-// radiusMeters: 100 matches the mongoose schema default — keep them in sync
 const getOfficeLocation = (office) => {
     if (!office) return { office: null, label: "", latitude: null, longitude: null, radiusMeters: 200 }
     return OFFICE_LOCATIONS[office] || { office: null, label: "", latitude: null, longitude: null, radiusMeters: 200 }
 }
+
+/** Inclusive day count between two dates */
+const countDays = (start, end) =>
+    Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1
 
 // ─── GET ALL EMPLOYEES ────────────────────────────────────────────────────────
 export const getEmployee = async (req, res) => {
@@ -50,19 +53,41 @@ export const getEmployeeDetail = async (req, res) => {
 
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 
+        // ── Attendance summary (all time) ─────────────────────────────────────
         const attendanceRaw = await Attendance.aggregate([
             { $match: { employeeId: employee._id } },
             { $group: { _id: "$status", count: { $sum: 1 } } },
         ])
         const attendanceSummary = { PRESENT: 0, ABSENT: 0, LATE: 0 }
-        attendanceRaw.forEach(({ _id, count }) => { if (_id in attendanceSummary) attendanceSummary[_id] = count })
+        attendanceRaw.forEach(({ _id, count }) => {
+            if (_id in attendanceSummary) attendanceSummary[_id] = count
+        })
 
-        const leavesRaw = await LeaveApplication.aggregate([
-            { $match: { employeeId: employee._id, status: "APPROVED" } },
-            { $group: { _id: "$type", count: { $sum: 1 } } },
-        ])
-        const leaveSummary = { SICK: 0, CASUAL: 0, LOSS_OF_PAY: 0, EARNED: 0 }
-        leavesRaw.forEach(({ _id, count }) => { if (_id in leaveSummary) leaveSummary[_id] = count })
+        // ── Leave summary ─────────────────────────────────────────────────────
+        // SICK / CASUAL / EARNED: sum actual days (all time)
+        // LOSS_OF_PAY: sum days clamped to current month only (resets each month)
+        const now        = new Date()
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
+        const allApprovedLeaves = await LeaveApplication.find({
+            employeeId: employee._id,
+            status:     "APPROVED",
+        }).lean()
+
+        const leaveSummary = { SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 }
+
+        for (const leave of allApprovedLeaves) {
+            if (leave.type === "LOSS_OF_PAY") {
+                // Clamp to current month — LOP resets each month
+                const start = new Date(Math.max(new Date(leave.startDate), monthStart))
+                const end   = new Date(Math.min(new Date(leave.endDate),   monthEnd))
+                if (end >= start) leaveSummary.LOSS_OF_PAY += countDays(start, end)
+            } else if (leave.type in leaveSummary) {
+                // SICK / CASUAL / EARNED: total days across all time
+                leaveSummary[leave.type] += countDays(leave.startDate, leave.endDate)
+            }
+        }
 
         return res.json({
             ...employee,

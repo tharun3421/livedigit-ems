@@ -99,12 +99,17 @@ const MyProfile = () => {
                     })
                 } catch { /* silent — show zeros */ }
 
-                // ── 3. Leaves (approved — sum actual days, not application count) ──
+                // 3. Leaves (approved - sum actual days, not application count)
                 try {
                     const leaveRes = await api.get("/leave")
                     const all      = leaveRes.data.data || []
                     const approved = all.filter(l => l.status === "APPROVED")
 
+                    const now2       = new Date()
+                    const mthStart   = new Date(now2.getFullYear(), now2.getMonth(), 1)
+                    const mthEnd     = new Date(now2.getFullYear(), now2.getMonth() + 1, 0, 23, 59, 59)
+
+                    // SICK / CASUAL / EARNED: all-time days
                     const sumDays = (type) =>
                         approved
                             .filter(l => l.type === type)
@@ -115,13 +120,23 @@ const MyProfile = () => {
                                 return sum + days
                             }, 0)
 
+                    // LOP: current month only (resets each month)
+                    const lopThisMonth = approved
+                        .filter(l => l.type === "LOSS_OF_PAY")
+                        .reduce((sum, l) => {
+                            const start = new Date(Math.max(new Date(l.startDate), mthStart))
+                            const end   = new Date(Math.min(new Date(l.endDate),   mthEnd))
+                            if (end < start) return sum
+                            return sum + Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
+                        }, 0)
+
                     setLv({
                         SICK:        sumDays("SICK"),
                         CASUAL:      sumDays("CASUAL"),
                         EARNED:      sumDays("EARNED"),
-                        LOSS_OF_PAY: sumDays("LOSS_OF_PAY"),
+                        LOSS_OF_PAY: lopThisMonth,
                     })
-                } catch { /* silent — show zeros */ }
+                } catch { /* silent - show zeros */ }
 
                 // ── 4. LOP summary for current month ─────────────────────────
                 try {

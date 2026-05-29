@@ -1,4 +1,3 @@
-
 import Employee from "../models/Employee.js";
 import Payslip from "../models/Payslip.js";
 import LeaveApplication from "../models/LeaveApplication.js";
@@ -41,22 +40,28 @@ const getLopDaysForMonth = async (employeeId, month, year) => {
 }
 
 /**
- * Total leave days TAKEN per type in the current calendar year.
- * Used for the payslip attendance summary boxes.
+ * Leave days taken for a specific month/year — used by the payslip print view.
+ * SICK / CASUAL / EARNED: days in that exact month.
+ * LOSS_OF_PAY: days clamped to that month (consistent with LOP deduction logic).
  */
-const getTakenLeaveCounts = async (employeeId) => {
-    const startOfYear = new Date(new Date().getFullYear(), 0, 1)
+const getTakenLeaveCountsForMonth = async (employeeId, month, year) => {
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd   = new Date(year, month, 0, 23, 59, 59)
 
     const approved = await LeaveApplication.find({
         employeeId,
         status:    "APPROVED",
-        startDate: { $gte: startOfYear },
-        type:      { $in: ["SICK", "CASUAL", "EARNED"] },
+        startDate: { $lte: monthEnd },
+        endDate:   { $gte: monthStart },
+        type:      { $in: ["SICK", "CASUAL", "EARNED", "LOSS_OF_PAY"] },
     })
 
-    const taken = { SICK: 0, CASUAL: 0, EARNED: 0 }
+    const taken = { SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 }
     for (const leave of approved) {
-        const days = countDays(leave.startDate, leave.endDate)
+        const start = new Date(Math.max(new Date(leave.startDate), monthStart))
+        const end   = new Date(Math.min(new Date(leave.endDate),   monthEnd))
+        if (end < start) continue
+        const days = countDays(start, end)
         if (taken[leave.type] !== undefined) taken[leave.type] += days
     }
     return taken
@@ -184,8 +189,9 @@ export const getPayslipById = async (req, res) => {
         const lopAmount   = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
         const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
-        // Live taken leave counts for attendance summary boxes
-        const taken = await getTakenLeaveCounts(employee._id)
+        // Leave counts scoped to this payslip's month — so past payslips show
+        // exactly how many days of each type were taken in that month
+        const taken = await getTakenLeaveCountsForMonth(employee._id, month, year)
 
         return res.json({
             ...payslip,
@@ -200,6 +206,7 @@ export const getPayslipById = async (req, res) => {
                 casualLeaves: taken.CASUAL,
                 sickLeaves:   taken.SICK,
                 earnedLeaves: taken.EARNED,
+                lopLeaves:    taken.LOSS_OF_PAY,
             },
         })
 

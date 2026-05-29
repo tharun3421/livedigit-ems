@@ -1,4 +1,3 @@
-
 import Employee from "../models/Employee.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 
@@ -145,10 +144,24 @@ export const getLeaves = async (req, res) => {
         const used   = await getUsedLeaveCounts(employee._id)
         const el     = await getEarnedLeaveBalance(employee)
 
+        // LOP: current month only — resets each month
+        const now        = new Date()
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
         const lopApproved = await LeaveApplication.find({
-            employeeId: employee._id, type: "LOSS_OF_PAY", status: "APPROVED",
+            employeeId: employee._id,
+            type:       "LOSS_OF_PAY",
+            status:     "APPROVED",
+            startDate:  { $lte: monthEnd },
+            endDate:    { $gte: monthStart },
         })
-        const lopUsedDays = lopApproved.reduce((s, l) => s + countDays(l.startDate, l.endDate), 0)
+        const lopUsedDays = lopApproved.reduce((s, l) => {
+            const start = new Date(Math.max(new Date(l.startDate), monthStart))
+            const end   = new Date(Math.min(new Date(l.endDate),   monthEnd))
+            if (end < start) return s
+            return s + countDays(start, end)
+        }, 0)
 
         const leaveBalance = {
             SICK:        { used: used.SICK,   remaining: LEAVE_LIMITS.SICK   - used.SICK,   limit: LEAVE_LIMITS.SICK   },

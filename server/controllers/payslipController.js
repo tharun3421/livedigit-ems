@@ -211,3 +211,37 @@ export const getPayslipById = async (req, res) => {
         return res.status(500).json({ error: "Failed to fetch payslip" })
     }
 }
+
+
+
+// ─── Update Payslip (admin only) ──────────────────────────────────────────────
+export const updatePayslip = async (req, res) => {
+    try {
+        const { basicSalary, allowances, lopDays } = req.body
+
+        const payslip = await Payslip.findById(req.params.id)
+        if (!payslip) return res.status(404).json({ error: "Payslip not found" })
+
+        // Persist overrides — only update fields that were actually sent
+        if (basicSalary !== undefined) payslip.basicSalary = Number(basicSalary)
+        if (allowances  !== undefined) payslip.allowances  = Number(allowances)
+        if (lopDays     !== undefined) payslip.lopDays     = Number(lopDays)
+
+        // Recompute derived fields
+        const workingDays = payslip.workingDays ?? getWorkingDays(payslip.month, payslip.year)
+        const lopAmount   = parseFloat(((payslip.basicSalary / workingDays) * payslip.lopDays).toFixed(2))
+        const netSalary   = parseFloat((payslip.basicSalary + payslip.allowances - lopAmount).toFixed(2))
+
+        payslip.lopAmount  = lopAmount
+        payslip.deductions = lopAmount
+        payslip.netSalary  = netSalary
+        payslip.workingDays = workingDays
+
+        await payslip.save()
+        return res.json({ success: true, data: payslip })
+
+    } catch (error) {
+        console.error("updatePayslip error:", error)
+        return res.status(500).json({ error: "Failed to update payslip" })
+    }
+}

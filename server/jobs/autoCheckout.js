@@ -1,7 +1,7 @@
 import cron       from 'node-cron'
 import Attendance from '../models/Attendance.js'
 
-const MAX_HOURS      = 10
+const MAX_HOURS      = 9
 const EXPECTED_HOURS = 9
 
 const getDayType = (hours) => {

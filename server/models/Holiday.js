@@ -1,4 +1,6 @@
-// Holiday.js model
+// models/Holiday.js
+import mongoose from "mongoose"
+
 const holidaySchema = new mongoose.Schema(
   {
     date: {
@@ -13,3 +15,5 @@ const holidaySchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+export default mongoose.model("Holiday", holidaySchema)

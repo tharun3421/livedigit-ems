@@ -151,7 +151,7 @@ const Leave = () => {
                                     {s.earned && (
                                         
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">
-                                            +{s.perMonth}/mo
+                                            {s.perMonth}/mo
                                         </span>
                                     )}
                                 </div>

@@ -71,7 +71,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
             <div className="group relative card card-hover overflow-hidden">
 
                 {/* ── Card avatar area ── */}
-                <div className="relative aspect-4/3 w-full overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                <div className="relative aspect-4/3 w-full overflow-hidden bg-linear-to-br from-slate-800 to-slate-900 flex items-center justify-center">
                     {employee.avatar ? (
                         <Avatar
                             src={employee.avatar}
@@ -96,7 +96,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 </div>
 
                 {/* Desktop hover actions */}
-                <div className="absolute inset-0 bg-gradient-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity items-end justify-center pb-6 gap-3 hidden sm:flex opacity-0 group-hover:opacity-100">
+                <div className="absolute inset-0 bg-linear-to-t from-indigo-700/20 via-transparent to-transparent transition-opacity items-end justify-center pb-6 gap-3 hidden sm:flex opacity-0 group-hover:opacity-100">
                     <button onClick={handleViewDetail} className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-indigo-600 rounded-xl shadow-lg transition-all hover:scale-105" title="View Details">
                         <EyeIcon className="w-4 h-4" />
                     </button>
@@ -234,16 +234,13 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                 {detail.assignedLocation?.latitude && (
                                     <Section title="Assigned Location">
                                         <div className="col-span-2">
-                                            <Detail label={<Row icon={MapPinIcon} text="Office" />} value={`${detail.assignedLocation.label || "Custom"} (±${detail.assignedLocation.radiusMeters}m)`} />
+                                            <Detail label={<Row icon={MapPinIcon} text="Office" />} value={`${detail.assignedLocation.label || "Custom"} `} />
                                         </div>
                                     </Section>
                                 )}
 
                                 <Section title="Salary Details">
                                     <Detail label="Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
-                                    {/* <Detail label="Allowances"   value={`₹${detail.allowances?.toLocaleString("en-IN")}`} />
-                                    <Detail label="Deductions"   value={`₹${detail.deductions?.toLocaleString("en-IN")}`} />
-                                    <Detail label="Net Salary"   value={`₹${((detail.basicSalary || 0) + (detail.allowances || 0) - (detail.deductions || 0)).toLocaleString("en-IN")}`} highlight /> */}
                                 </Section>
 
                                 <Section title="Attendance Summary">

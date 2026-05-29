@@ -10,8 +10,8 @@ const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturd
 const BLOOD_GROUPS = ["A+","A-","B+","B-","AB+","AB-","O+","O-"]
 
 const OFFICE_LOCATIONS = {
-    HYDERABAD: { label: "Hyderabad Office", latitude: 17.385044, longitude: 78.486671, radiusMeters: 150 },
-    VIZAG:     { label: "Vizag Office",      latitude: 17.686815, longitude: 83.218483, radiusMeters: 150 },
+    HYDERABAD: { label: "Hyderabad Office", latitude: 17.385044, longitude: 78.486671, radiusMeters: 100 },
+    VIZAG:     { label: "Vizag Office",      latitude: 17.686815, longitude: 83.218483, radiusMeters: 100 },
 }
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -153,14 +153,6 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                     <label className="block mb-2">Salary</label>
                     <input type="number" name="basicSalary" required min="0" step="0.01" defaultValue={initialData?.basicSalary || 0} />
                 </div>
-                {/* <div>
-                    <label className="block mb-2">Allowances</label>
-                    <input type="number" name="allowances" required min="0" step="0.01" defaultValue={initialData?.allowances || 0} />
-                </div>
-                <div>
-                    <label className="block mb-2">Deductions</label>
-                    <input type="number" name="deductions" required min="0" step="0.01" defaultValue={initialData?.deductions || 0} />
-                </div> */}
                 {isEditMode && (
                     <div>
                         <label className="block mb-2">Employment Status</label>

@@ -17,6 +17,16 @@ const fmt12 = (time24) => {
     return `${hour}:${String(m).padStart(2, "0")} ${ampm}`
 }
 
+// Working days = calendar days − Sundays − 2 (Earned Leaves)
+const getWorkingDays = (month, year) => {
+    const calendarDays = new Date(year, month, 0).getDate()
+    let sundays = 0
+    for (let d = 1; d <= calendarDays; d++) {
+        if (new Date(year, month - 1, d).getDay() === 0) sundays++
+    }
+    return calendarDays - sundays - 2
+}
+
 const Section = ({ title, children }) => (
     <div className="card p-5 sm:p-6">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 pb-3 border-b border-slate-800">
@@ -61,22 +71,26 @@ const StatCard = ({ label, value, icon: Icon, color }) => {
     )
 }
 
+const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+
 const MyProfile = () => {
-    const [profile, setProfile] = useState(null)
-    const [att,     setAtt]     = useState({ PRESENT: 0, LATE: 0, ABSENT: 0 })
-    const [lv,      setLv]      = useState({ SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 })
-    const [loading, setLoading] = useState(true)
+    const [profile,    setProfile]    = useState(null)
+    const [att,        setAtt]        = useState({ PRESENT: 0, LATE: 0, ABSENT: 0 })
+    const [lv,         setLv]         = useState({ SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 })
+    const [lopInfo,    setLopInfo]    = useState(null)   // { days, amount, workingDays, perDayRate }
+    const [loading,    setLoading]    = useState(true)
 
     useEffect(() => {
         const fetchAll = async () => {
             try {
                 // ── 1. Profile ────────────────────────────────────────────────
                 const profileRes = await api.get("/profile")
-                setProfile(profileRes.data)
+                const prof = profileRes.data
+                setProfile(prof)
 
-                // ── 2. Attendance (this month — from existing GET /attendance) ─
+                // ── 2. Attendance (this month) ────────────────────────────────
                 try {
-                    const attRes = await api.get("/attendance")
+                    const attRes  = await api.get("/attendance")
                     const records = attRes.data.data || []
                     setAtt({
                         PRESENT: records.filter(r => r.status === "PRESENT").length,
@@ -85,18 +99,42 @@ const MyProfile = () => {
                     })
                 } catch { /* silent — show zeros */ }
 
-                // ── 3. Leaves (all time — from existing GET /leave) ───────────
+                // ── 3. Leaves (approved — sum actual days, not application count) ──
                 try {
                     const leaveRes = await api.get("/leave")
                     const all      = leaveRes.data.data || []
                     const approved = all.filter(l => l.status === "APPROVED")
+
+                    const sumDays = (type) =>
+                        approved
+                            .filter(l => l.type === type)
+                            .reduce((sum, l) => {
+                                const days = Math.ceil(
+                                    (new Date(l.endDate) - new Date(l.startDate)) / (1000 * 60 * 60 * 24)
+                                ) + 1
+                                return sum + days
+                            }, 0)
+
                     setLv({
-                        SICK:        approved.filter(l => l.type === "SICK").length,
-                        CASUAL:      approved.filter(l => l.type === "CASUAL").length,
-                        EARNED:      approved.filter(l => l.type === "EARNED").length,
-                        LOSS_OF_PAY: approved.filter(l => l.type === "LOSS_OF_PAY").length,
+                        SICK:        sumDays("SICK"),
+                        CASUAL:      sumDays("CASUAL"),
+                        EARNED:      sumDays("EARNED"),
+                        LOSS_OF_PAY: sumDays("LOSS_OF_PAY"),
                     })
                 } catch { /* silent — show zeros */ }
+
+                // ── 4. LOP summary for current month ─────────────────────────
+                try {
+                    if (prof._id || prof.id) {
+                        const now   = new Date()
+                        const m     = now.getMonth() + 1
+                        const y     = now.getFullYear()
+                        const lopRes = await api.get(
+                            `/leave/lop-summary?employeeId=${prof._id ?? prof.id}&month=${m}&year=${y}`
+                        )
+                        setLopInfo(lopRes.data)
+                    }
+                } catch { /* silent — LOP defaults to 0 */ }
 
             } catch (err) {
                 toast.error(err?.response?.data?.error || err.message)
@@ -114,10 +152,18 @@ const MyProfile = () => {
         </div>
     )
 
-    const ws  = profile.workSchedule    || {}
+    const ws  = profile.workSchedule     || {}
     const loc = profile.assignedLocation || {}
     const bd  = profile.bankDetails      || {}
-    const netSalary = (profile.basicSalary || 0) + (profile.allowances || 0) - (profile.deductions || 0)
+
+    // ── Salary calculations ───────────────────────────────────────────────────
+    const now         = new Date()
+    const basicSalary = profile.basicSalary ?? 0
+    const allowances  = profile.allowances  ?? 0
+    const workingDays = lopInfo?.workingDays ?? getWorkingDays(now.getMonth() + 1, now.getFullYear())
+    const lopDays     = lopInfo?.days        ?? 0
+    const lopAmount   = lopInfo?.amount      ?? 0
+    const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
     return (
         <div className="animate-fade-in max-w-3xl mx-auto space-y-5 pb-10">
@@ -125,19 +171,19 @@ const MyProfile = () => {
             {/* ── Hero ── */}
             <div className="card p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
                 <div className="w-20 h-20 rounded-2xl overflow-hidden bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-    {profile.avatar ? (
-        <img
-            src={profile.avatar}
-            alt={`${profile.firstName} ${profile.lastName}`}
-            className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none" }}
-        />
-    ) : (
-        <span className="text-3xl font-bold text-indigo-400">
-            {profile.firstName?.[0]}{profile.lastName?.[0]}
-        </span>
-    )}
-</div>
+                    {profile.avatar ? (
+                        <img
+                            src={profile.avatar}
+                            alt={`${profile.firstName} ${profile.lastName}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.style.display = "none" }}
+                        />
+                    ) : (
+                        <span className="text-3xl font-bold text-indigo-400">
+                            {profile.firstName?.[0]}{profile.lastName?.[0]}
+                        </span>
+                    )}
+                </div>
                 <div className="flex-1 text-center sm:text-left">
                     <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                         <h1 className="text-2xl font-bold text-slate-100">
@@ -239,11 +285,41 @@ const MyProfile = () => {
             </Section>
 
             {/* ── Salary ── */}
-            <Section title="Salary Details">
-                <Row icon={BadgeIndianRupeeIcon} label="Salary"  value={`₹${(profile.basicSalary ?? 0).toLocaleString("en-IN")}`} />
-                {/* <Row icon={BadgeIndianRupeeIcon} label="Allowances"    value={`₹${(profile.allowances  ?? 0).toLocaleString("en-IN")}`} />
-                <Row icon={BadgeIndianRupeeIcon} label="Deductions"    value={`₹${(profile.deductions  ?? 0).toLocaleString("en-IN")}`} />
-                <Row icon={BadgeIndianRupeeIcon} label="Net Salary"    value={`₹${netSalary.toLocaleString("en-IN")}`} highlight /> */}
+            <Section title={`Salary Details — ${now.toLocaleString("en-IN", { month: "long", year: "numeric" })}`}>
+                <Row
+                    icon={BadgeIndianRupeeIcon}
+                    label="Basic Salary"
+                    value={inr(basicSalary)}
+                />
+                <Row
+                    icon={BadgeIndianRupeeIcon}
+                    label="Allowances"
+                    value={`+ ${inr(allowances)}`}
+                />
+                <Row
+                    icon={CalendarIcon}
+                    label="Working Days This Month"
+                    value={`${workingDays} days (calendar − Sundays − 2 EL)`}
+                />
+                {lopDays > 0 ? (
+                    <Row
+                        icon={BadgeIndianRupeeIcon}
+                        label={`LOP Deduction (${lopDays} day${lopDays > 1 ? "s" : ""} × ${inr(basicSalary / workingDays)}/day)`}
+                        value={`– ${inr(lopAmount)}`}
+                    />
+                ) : (
+                    <Row
+                        icon={BadgeIndianRupeeIcon}
+                        label="LOP Deduction"
+                        value="None"
+                    />
+                )}
+                <Row
+                    icon={BadgeIndianRupeeIcon}
+                    label="Net Salary"
+                    value={inr(netSalary)}
+                    highlight
+                />
             </Section>
 
             {/* ── Bank Details ── */}

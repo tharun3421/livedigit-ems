@@ -35,7 +35,6 @@ const Leave = () => {
 
     if (loading) return <Loading />
 
-    // Fallback counts from local data
     const approvedLeaves = leaves.filter((l) => l.status === "APPROVED")
 
     const leaveStats = [
@@ -47,6 +46,7 @@ const Leave = () => {
             remaining: leaveBalance?.SICK?.remaining ?? null,
             limit:     leaveBalance?.SICK?.limit     ?? 4,
             unlimited: false,
+            badge:     { label: `${leaveBalance?.SICK?.limit ?? 4}/yr` },
             color:     "blue",
         },
         {
@@ -57,20 +57,22 @@ const Leave = () => {
             remaining: leaveBalance?.CASUAL?.remaining ?? null,
             limit:     leaveBalance?.CASUAL?.limit     ?? 2,
             unlimited: false,
+            badge:     { label: `${leaveBalance?.CASUAL?.limit ?? 2}/yr` },
             color:     "indigo",
         },
         {
-            label:     "Earned Leave",
-            type:      "EARNED",
-            sub:        "company paid leaves",
-            icon:      StarIcon,
-            used:      leaveBalance?.EARNED?.used        ?? approvedLeaves.filter((l) => l.type === "EARNED").length,
-            remaining: leaveBalance?.EARNED?.remaining   ?? null,
+            label:       "Earned Leave",
+            type:        "EARNED",
+            sub:         "company paid leaves",
+            icon:        StarIcon,
+            used:        leaveBalance?.EARNED?.used        ?? approvedLeaves.filter((l) => l.type === "EARNED").length,
+            remaining:   leaveBalance?.EARNED?.remaining   ?? null,
             accumulated: leaveBalance?.EARNED?.accumulated ?? null,
-            perMonth:  leaveBalance?.EARNED?.perMonth    ?? 2,
-            unlimited: false,
-            earned:    true,   // special rendering
-            color:     "green",
+            perMonth:    leaveBalance?.EARNED?.perMonth    ?? 2,
+            unlimited:   false,
+            earned:      true,
+            badge:       { label: `${leaveBalance?.EARNED?.perMonth ?? 2}/mo` },
+            color:       "green",
         },
         {
             label:     "Loss of Pay",
@@ -133,27 +135,25 @@ const Leave = () => {
                                         </div>
                                         <p className="text-sm font-medium text-slate-400">{s.label}</p>
                                     </div>
-                                    {isExhausted && (
+
+                                    {/* Status / limit badges */}
+                                    {isExhausted ? (
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 font-medium">
                                             Exhausted
                                         </span>
-                                    )}
-                                    {elExhausted && (
+                                    ) : elExhausted ? (
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 font-medium">
                                             Used all
                                         </span>
-                                    )}
-                                    {s.unlimited && (
+                                    ) : s.unlimited ? (
                                         <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
                                             Deducted
                                         </span>
-                                    )}
-                                    {s.earned && (
-                                        
-                                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">
-                                            {s.perMonth}/mo
+                                    ) : s.badge ? (
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${c.bg} ${c.text} font-medium`}>
+                                            {s.badge.label}
                                         </span>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 {/* Numbers */}
@@ -168,14 +168,12 @@ const Leave = () => {
                                         </>
                                     ) : s.earned ? (
                                         <>
-                                        <span className="text-sm text-slate-500 ">{s.sub}</span>
+                                            <span className="text-sm text-slate-500">{s.sub}</span>
                                             <p className="text-2xl font-bold text-slate-100">
-                                                
                                                 {s.remaining ?? 0}
                                                 <span className="text-sm font-normal text-slate-400 ml-1">remaining</span>
                                             </p>
                                             <p className="text-xs text-slate-500 mt-0.5">
-                                                
                                                 {s.used} used · {s.accumulated ?? 0} accumulated total
                                             </p>
                                         </>
@@ -192,7 +190,7 @@ const Leave = () => {
                                     )}
                                 </div>
 
-                                {/* Progress bar — for limited and earned types */}
+                                {/* Progress bar */}
                                 {!s.unlimited && s.accumulated !== null && s.accumulated > 0 && (
                                     <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                                         <div

@@ -7,7 +7,7 @@ import api from "../api/axios"
 
 const COMPANY = {
     name:    "LiveDigit.in",
-    address: "Vizag and Hyderabad, Telangana, India",
+    address: "Visakhapatnam & Hyderabad",
     email:   "hrsupport@livedigit.in",
 }
 

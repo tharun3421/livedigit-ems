@@ -1,4 +1,3 @@
-
 import { Loader2, Plus, X, UserIcon, AlertCircleIcon, InfoIcon, PencilIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import api from '../../api/axios'
@@ -11,14 +10,9 @@ const MONTH_NAMES = [
 
 const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
 
-// Working days = calendar days − Sundays − 2 (Earned Leaves)
+// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
 const getWorkingDays = (month, year) => {
-    const calendarDays = new Date(year, month, 0).getDate()
-    let sundays = 0
-    for (let d = 1; d <= calendarDays; d++) {
-        if (new Date(year, month - 1, d).getDay() === 0) sundays++
-    }
-    return calendarDays - sundays - 2
+    return new Date(year, month, 0).getDate() - 6
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -176,7 +170,7 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                                 (₹{basicSalary.toLocaleString("en-IN")} ÷ {workingDays} working days × {lopDays} days)
                                             </span>
                                             <span className="block text-rose-300 mt-0.5 text-[10px]">
-                                                Working days = calendar days − Sundays − 2 EL
+                                                Working days = calendar days − 6 (4 Sundays + 2 EL)
                                             </span>
                                         </p>
                                     </div>

@@ -54,6 +54,11 @@ const EarningsRow = ({ earning, earningAmt, deduction, deductionAmt }) => (
     </tr>
 )
 
+// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
+const getWorkingDays = (month, year) => {
+    return new Date(year, month, 0).getDate() - 6
+}
+
 const PrintPayslip = () => {
     const { id } = useParams()
     const [payslip, setPayslip] = useState(null)
@@ -74,19 +79,23 @@ const PrintPayslip = () => {
     const employeeId  = emp.employeeId || `EMP-${payslip._id?.toString().slice(-5).toUpperCase()}`
     const joinDate    = emp.joinDate ? format(new Date(emp.joinDate), "dd MMM yyyy") : "—"
 
-    // ── Always recompute from atomic fields — never trust stored netSalary ──
+    // ── Working days: use stored value from API, fallback to recompute ──
+    const workingDays = payslip.workingDays ?? getWorkingDays(payslip.month, payslip.year)
+
+    // ── Always recompute from atomic fields using correct working days ──
     const basicSalary   = payslip.basicSalary ?? 0
     const allowances    = payslip.allowances  ?? 0
     const lopDays       = payslip.lopDays     ?? 0
-    const lopAmount     = parseFloat(((basicSalary / 26) * lopDays).toFixed(2))
+    const lopAmount     = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
     const grossEarnings = parseFloat((basicSalary + allowances).toFixed(2))
     const netSalary     = parseFloat((grossEarnings - lopAmount).toFixed(2))
-    const perDaySalary  = parseFloat((basicSalary / 26).toFixed(2))
+    const perDaySalary  = parseFloat((basicSalary / workingDays).toFixed(2))
 
-    // ── Live leave counts injected by getPayslipById ──
+    // ── Live leave counts injected by getPayslipById (scoped to this month) ──
     const casualLeaves = emp.casualLeaves ?? 0
     const sickLeaves   = emp.sickLeaves   ?? 0
     const earnedLeaves = emp.earnedLeaves ?? 0
+    const lopLeaves    = emp.lopLeaves    ?? lopDays
     const totalLeaves  = casualLeaves + sickLeaves + earnedLeaves
 
     return (
@@ -151,13 +160,14 @@ const PrintPayslip = () => {
                             <div className="grid grid-cols-3 gap-3 mt-3">
                                 <AttBox
                                     label="Scheduled Days"
-                                    value={26}
+                                    value={workingDays}
+                                    sub={`Cal days − 6 (4 Sun + 2 EL)`}
                                     color="slate"
                                 />
                                 <AttBox
                                     label="LOP Days"
-                                    value={lopDays}
-                                    color={lopDays > 0 ? "rose" : "slate"}
+                                    value={lopLeaves}
+                                    color={lopLeaves > 0 ? "rose" : "slate"}
                                 />
                                 <AttBox
                                     label="Leaves Taken"
@@ -236,7 +246,11 @@ const PrintPayslip = () => {
                             <div className="rounded-xl bg-rose-50 border border-rose-100 px-5 py-3 text-xs text-rose-600">
                                 <span className="font-semibold">Loss of Pay Note:</span>{" "}
                                 {lopDays} LOP day{lopDays > 1 ? "s" : ""} deducted
-                                @ ₹{perDaySalary.toFixed(2)}/day (Basic Salary ÷ 26 days)
+                                @ ₹{perDaySalary.toFixed(2)}/day (Basic ÷ {workingDays} working days)
+                                <span className="block text-rose-400 mt-0.5">
+                                    Working days = calendar days − 6 (4 Sundays + 2 EL)
+                                    ({workingDays} days for {periodLabel})
+                                </span>
                             </div>
                         )}
 

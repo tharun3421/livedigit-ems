@@ -8,13 +8,9 @@ const countDays = (start, end) =>
     Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1
 
 // Working days = calendar days in month − Sundays − 2 (Earned Leaves)
+// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
 const getWorkingDays = (month, year) => {
-    const calendarDays = new Date(year, month, 0).getDate()
-    let sundays = 0
-    for (let d = 1; d <= calendarDays; d++) {
-        if (new Date(year, month - 1, d).getDay() === 0) sundays++
-    }
-    return calendarDays - sundays - 2
+    return new Date(year, month, 0).getDate() - 6
 }
 
 /** Approved LOP days for an employee clamped to the given month */

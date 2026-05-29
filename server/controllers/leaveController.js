@@ -16,13 +16,9 @@ const countDays = (startDate, endDate) =>
     Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
 
 // ─── Working days = calendar days − Sundays − 2 (Earned Leaves) ──────────────
+// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
 const getWorkingDays = (month, year) => {
-    const calendarDays = new Date(year, month, 0).getDate()
-    let sundays = 0
-    for (let d = 1; d <= calendarDays; d++) {
-        if (new Date(year, month - 1, d).getDay() === 0) sundays++
-    }
-    return calendarDays - sundays - 2
+    return new Date(year, month, 0).getDate() - 6
 }
 
 // ─── Earned Leave: 2 per month, resets each month ────────────────────────────

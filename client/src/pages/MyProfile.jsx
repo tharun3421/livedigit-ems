@@ -17,14 +17,9 @@ const fmt12 = (time24) => {
     return `${hour}:${String(m).padStart(2, "0")} ${ampm}`
 }
 
-// Working days = calendar days − Sundays − 2 (Earned Leaves)
+// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
 const getWorkingDays = (month, year) => {
-    const calendarDays = new Date(year, month, 0).getDate()
-    let sundays = 0
-    for (let d = 1; d <= calendarDays; d++) {
-        if (new Date(year, month - 1, d).getDay() === 0) sundays++
-    }
-    return calendarDays - sundays - 2
+    return new Date(year, month, 0).getDate() - 6
 }
 
 const Section = ({ title, children }) => (
@@ -314,7 +309,7 @@ const MyProfile = () => {
                 <Row
                     icon={CalendarIcon}
                     label="Working Days This Month"
-                    value={`${workingDays} days (calendar − Sundays − 2 EL)`}
+                    value={`${workingDays} days (cal days − 6)`}
                 />
                 {lopDays > 0 ? (
                     <Row

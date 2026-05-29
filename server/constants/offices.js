@@ -10,8 +10,8 @@ export const OFFICE_LOCATIONS = {
     VIZAG: {
         office: "VIZAG",
         label: "Vizag Office",
-        latitude: 17.7282661,
-        longitude: 83.3107369,
+        latitude: 17.7281391,
+        longitude: 83.3106863,
         radiusMeters: 100,
     },
 }

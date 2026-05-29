@@ -3,8 +3,8 @@ import LeaveApplication from "../models/LeaveApplication.js";
 
 // ─── Leave limits ─────────────────────────────────────────────────────────────
 export const LEAVE_LIMITS = {
-    SICK:        6,
-    CASUAL:      6,
+    SICK:        4,
+    CASUAL:      2,
     LOSS_OF_PAY: Infinity,
     EARNED:      Infinity,
 }

@@ -11,6 +11,7 @@ import leaveRouter from "./routes/leaveRoutes.js"
 import payslipRouter from "./routes/payslipRoutes.js"
 import dashboardRouter from "./routes/dashboardRoutes.js"
 import announcementRouter from "./routes/announcementRoutes.js"
+import holidayRouter from "./routes/holidayRoutes.js"
 import { serve } from "inngest/express"
 
 import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
@@ -47,6 +48,7 @@ app.use("/api/leave",         leaveRouter)
 app.use("/api/payslips",      payslipRouter)
 app.use("/api/dashboard",     dashboardRouter)
 app.use("/api/announcements", announcementRouter)
+app.use("/api/holidays", holidayRouter)
 
 
 app.get("/", (req, res) => res.send("Server running successfully"))

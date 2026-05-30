@@ -185,8 +185,6 @@
 // export default CheckinButton
 
 
-
-
 import { Loader2Icon, LogInIcon, LogOutIcon, MapPinIcon, MapPinOffIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import toast from 'react-hot-toast'
@@ -249,14 +247,22 @@ const getCurrentPosition = () =>
             { enableHighAccuracy: true, maximumAge: 0 }
         )
 
-        // Fallback: accept best available fix after timeout
+        // Fallback: after timeout, accept best available fix — but reject if accuracy is too poor
         setTimeout(() => {
             if (resolved) return
             navigator.geolocation.clearWatch(watcherId)
-            navigator.geolocation.getCurrentPosition(settle, onError, {
-                enableHighAccuracy: true,
-                maximumAge:         60000,
-            })
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    if (pos.coords.accuracy > MAX_ACCURACY_METERS) {
+                        resolved = true
+                        reject(`GPS accuracy too low (${Math.round(pos.coords.accuracy)}m). Please move to an open area and try again.`)
+                        return
+                    }
+                    settle(pos)
+                },
+                onError,
+                { enableHighAccuracy: true, maximumAge: 0 }
+            )
         }, WATCH_TIMEOUT_MS)
     })
 
@@ -286,7 +292,6 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
     const [loading,        setLoading]        = useState(false)
     const [locationStatus, setLocationStatus] = useState(null)
 
-    // assignedLocation only carries { office, label } now — coords come from OFFICE_LOCATIONS on the server
     const hasAssignedLocation = !!assignedLocation?.office
 
     const handleAttendance = async () => {
@@ -301,7 +306,7 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
                     coords = await getCurrentPosition()
                 } catch (err) {
                     setLocationStatus('denied')
-                    toast.error(err, { duration: 6000 })
+                    toast.error(typeof err === 'string' ? err : 'Unable to retrieve your location.', { duration: 6000 })
                     return
                 }
 
@@ -317,15 +322,13 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
         } catch (err) {
             const msg    = err?.response?.data?.error || err?.message
             const status = err?.response?.status
+
             const isLocationError =
-                status === 400 && msg && /(location|latitude|longitude|coords)/i.test(msg)
+                status === 400 && msg && /(location|latitude|longitude|coords|accuracy)/i.test(msg)
 
             if (isLocationError) {
                 setLocationStatus('denied')
-                toast.error(
-                    'Location data is required to clock in/out. Please enable location access and try again.',
-                    { duration: 6000 }
-                )
+                toast.error(msg || 'Location error. Please enable location access and try again.', { duration: 6000 })
             } else {
                 toast.error(msg || 'Something went wrong. Please try again.', { duration: 5000 })
             }

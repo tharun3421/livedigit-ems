@@ -201,7 +201,7 @@
 
 import Attendance      from '../models/Attendance.js'
 import Employee        from '../models/Employee.js'
-import { OFFICE_LOCATIONS } from '../constants/offices.js'  
+import { OFFICE_LOCATIONS } from '../constants/offices.js'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -239,9 +239,11 @@ const getDayType = (hours) => {
 }
 
 const parseCoords = (body) => {
-    const lat = parseFloat(body?.latitude)
-    const lng = parseFloat(body?.longitude)
-    return isNaN(lat) || isNaN(lng) ? null : { lat, lng }
+    const lat      = parseFloat(body?.latitude)
+    const lng      = parseFloat(body?.longitude)
+    const accuracy = parseFloat(body?.accuracy)
+    if (isNaN(lat) || isNaN(lng)) return null
+    return { lat, lng, accuracy: isNaN(accuracy) ? null : accuracy }
 }
 
 const isLateArrival = (istDate) =>
@@ -259,13 +261,22 @@ export const clockInOut = async (req, res) => {
 
         const coords = parseCoords(req.body)
 
-        // Resolve location from OFFICE_LOCATIONS config (single source of truth)
+        // Resolve office from OFFICE_LOCATIONS config (single source of truth)
         const officeKey = employee.assignedLocation?.office
         const loc       = officeKey ? OFFICE_LOCATIONS[officeKey] : null
 
         if (loc) {
             if (!coords)
                 return res.status(400).json({ error: 'Location data is required to clock in/out.' })
+
+            // Reject if GPS accuracy is worse than the office radius
+            if (coords.accuracy !== null && coords.accuracy > loc.radiusMeters) {
+                return res.status(400).json({
+                    error:    `GPS accuracy too low (${Math.round(coords.accuracy)}m). Please move to an open area and try again.`,
+                    accuracy: Math.round(coords.accuracy),
+                    required: loc.radiusMeters,
+                })
+            }
 
             const distance = getDistanceMeters(coords.lat, coords.lng, loc.latitude, loc.longitude)
 

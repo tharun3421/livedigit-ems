@@ -42,7 +42,8 @@ const Payslips = () => {
         <div><h1 className='text-3xl text-slate-100'>Payslips</h1><p className='page-subtitle'>{isAdmin ? "Generate and manage employee payslips":"Your payslip history"}</p></div>
         {isAdmin && <GeneratePayslipForm employees={employees} onSuccess={fetchPayslips}/>}
       </div>
-      <PayslipList payslips={payslips} isAdmin={isAdmin}/>
+      {/* <PayslipList payslips={payslips} isAdmin={isAdmin}/> */}
+      <PayslipList payslips={payslips} isAdmin={isAdmin} onRefresh={fetchPayslips} />
     </div>
   )
 }

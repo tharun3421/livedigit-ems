@@ -184,11 +184,10 @@
 
 // export default CheckinButton
 
-
-import { Loader2Icon, LogInIcon, LogOutIcon, MapPinIcon, MapPinOffIcon } from 'lucide-react'
-import React, { useState } from 'react'
-import toast from 'react-hot-toast'
-import api from '../../api/axios'
+import { Loader2Icon, LogInIcon, LogOutIcon, MapPinIcon, MapPinOffIcon } from "lucide-react"
+import { useState } from "react"
+import toast from "react-hot-toast"
+import api from "../../api/axios"
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -197,28 +196,25 @@ const WATCH_TIMEOUT_MS    = 12000
 
 // ─── Geo Helpers ──────────────────────────────────────────────────────────────
 
-const toRad = (deg) => (deg * Math.PI) / 180
-
-const getDistanceMeters = (lat1, lon1, lat2, lon2) => {
-    const R    = 6371000
-    const dLat = toRad(lat2 - lat1)
-    const dLon = toRad(lon2 - lon1)
-    const a    =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
 const GEO_ERRORS = {
-    1: 'Location permission denied. Please allow location access and try again.',
-    2: 'Location unavailable. Please check your GPS or network.',
-    3: 'Location request timed out. Please try again.',
+    1: "Location permission denied. Please allow location access and try again.",
+    2: "Location unavailable. Please check your GPS or network.",
+    3: "Location request timed out. Please try again.",
 }
 
+/**
+ * Get the device's current GPS position.
+ *
+ * Strategy:
+ *  1. Watch for a fix with accuracy ≤ MAX_ACCURACY_METERS.
+ *  2. After WATCH_TIMEOUT_MS, fall back to a fresh getCurrentPosition call.
+ *  3. If the fallback fix is also inaccurate, reject — never send a stale or
+ *     low-accuracy coordinate to the server.
+ */
 const getCurrentPosition = () =>
     new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
-            reject('Geolocation is not supported by your browser.')
+            reject("Geolocation is not supported by your browser.")
             return
         }
 
@@ -238,16 +234,18 @@ const getCurrentPosition = () =>
         const onError = (err) => {
             if (resolved) return
             resolved = true
-            reject(GEO_ERRORS[err.code] ?? 'Unable to retrieve your location.')
+            reject(GEO_ERRORS[err.code] ?? "Unable to retrieve your location.")
         }
 
+        // Primary: watch for a high-accuracy fix
         const watcherId = navigator.geolocation.watchPosition(
             (pos) => { if (pos.coords.accuracy <= MAX_ACCURACY_METERS) settle(pos) },
             onError,
             { enableHighAccuracy: true, maximumAge: 0 }
         )
 
-        // Fallback: after timeout, accept best available fix — but reject if accuracy is too poor
+        // Fallback: after timeout, take the best available fix —
+        // but reject if it is still too inaccurate (maximumAge: 0 = no stale cache)
         setTimeout(() => {
             if (resolved) return
             navigator.geolocation.clearWatch(watcherId)
@@ -255,7 +253,10 @@ const getCurrentPosition = () =>
                 (pos) => {
                     if (pos.coords.accuracy > MAX_ACCURACY_METERS) {
                         resolved = true
-                        reject(`GPS accuracy too low (${Math.round(pos.coords.accuracy)}m). Please move to an open area and try again.`)
+                        reject(
+                            `GPS accuracy too low (${Math.round(pos.coords.accuracy)}m). ` +
+                            "Please move to an open area and try again."
+                        )
                         return
                     }
                     settle(pos)
@@ -269,10 +270,10 @@ const getCurrentPosition = () =>
 // ─── Location Badge ───────────────────────────────────────────────────────────
 
 const BADGE_CONFIG = {
-    checking:       { Icon: MapPinIcon,    text: 'Verifying location…',    cls: 'bg-yellow-100 text-yellow-700' },
-    ok:             { Icon: MapPinIcon,    text: 'Location verified ✓',    cls: 'bg-green-100 text-green-700'   },
-    denied:         { Icon: MapPinOffIcon, text: 'Location access denied', cls: 'bg-red-100 text-red-700'       },
-    'out-of-range': { Icon: MapPinOffIcon, text: null,                     cls: 'bg-red-100 text-red-700'       },
+    checking:       { Icon: MapPinIcon,    text: "Verifying location…",    cls: "bg-yellow-100 text-yellow-700" },
+    ok:             { Icon: MapPinIcon,    text: "Location verified ✓",    cls: "bg-green-100 text-green-700"   },
+    denied:         { Icon: MapPinOffIcon, text: "Location access denied", cls: "bg-red-100 text-red-700"       },
+    "out-of-range": { Icon: MapPinOffIcon, text: null,                     cls: "bg-red-100 text-red-700"       },
 }
 
 const LocationBadge = ({ status, locationLabel }) => {
@@ -280,8 +281,8 @@ const LocationBadge = ({ status, locationLabel }) => {
     const { Icon, text, cls } = BADGE_CONFIG[status]
     return (
         <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium mb-2 self-end ${cls}`}>
-            <Icon className='w-3.5 h-3.5' />
-            {text ?? `Not near ${locationLabel || 'assigned location'}`}
+            <Icon className="w-3.5 h-3.5" />
+            {text ?? `Not near ${locationLabel || "assigned location"}`}
         </div>
     )
 }
@@ -292,6 +293,8 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
     const [loading,        setLoading]        = useState(false)
     const [locationStatus, setLocationStatus] = useState(null)
 
+    // assignedLocation shape: { office: "HYDERABAD", label: "Hyderabad Office" }
+    // Coordinates are never stored on the client — the server resolves them.
     const hasAssignedLocation = !!assignedLocation?.office
 
     const handleAttendance = async () => {
@@ -299,52 +302,53 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
         let coords = null
 
         try {
-            if (hasAssignedLocation) {
-                setLocationStatus('checking')
+            setLocationStatus("checking")
 
-                try {
-                    coords = await getCurrentPosition()
-                } catch (err) {
-                    setLocationStatus('denied')
-                    toast.error(typeof err === 'string' ? err : 'Unable to retrieve your location.', { duration: 6000 })
-                    return
-                }
-
-                setLocationStatus('ok')
-
-            } else {
-                try { coords = await getCurrentPosition() } catch { /* optional */ }
+            try {
+                coords = await getCurrentPosition()
+            } catch (err) {
+                setLocationStatus("denied")
+                toast.error(typeof err === "string" ? err : "Unable to retrieve your location.", { duration: 6000 })
+                return
             }
 
-            await api.post('/attendance', coords ?? undefined)
+            setLocationStatus("ok")
+
+            // Send { latitude, longitude, accuracy } — the server uses accuracy
+            // to reject low-quality GPS fixes before checking the geofence.
+            await api.post("/attendance", coords)
             await onAction()
 
         } catch (err) {
             const msg    = err?.response?.data?.error || err?.message
             const status = err?.response?.status
 
-            const isLocationError =
-                status === 400 && msg && /(location|latitude|longitude|coords|accuracy)/i.test(msg)
+            const isGpsError =
+                status === 400 &&
+                msg &&
+                /(location|latitude|longitude|coords|accuracy|gps)/i.test(msg)
 
-            if (isLocationError) {
-                setLocationStatus('denied')
-                toast.error(msg || 'Location error. Please enable location access and try again.', { duration: 6000 })
+            if (isGpsError) {
+                setLocationStatus("denied")
+                toast.error(msg || "Location error. Please enable GPS and try again.", { duration: 6000 })
+            } else if (status === 403) {
+                setLocationStatus("out-of-range")
+                toast.error(msg || "You are outside the allowed office area.", { duration: 6000 })
             } else {
-                toast.error(msg || 'Something went wrong. Please try again.', { duration: 5000 })
+                toast.error(msg || "Something went wrong. Please try again.", { duration: 5000 })
             }
-
-            if (status === 403) setLocationStatus('out-of-range')
 
         } finally {
             setLoading(false)
         }
     }
 
+    // Already completed today
     if (todayRecord?.checkOut) {
         return (
-            <div className='flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border border-slate-200'>
-                <h3 className='text-lg font-bold text-slate-900'>Work Day Completed</h3>
-                <p className='text-slate-500 text-sm mt-1'>Great job! See you tomorrow</p>
+            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border border-slate-200">
+                <h3 className="text-lg font-bold text-slate-900">Work Day Completed</h3>
+                <p className="text-slate-500 text-sm mt-1">Great job! See you tomorrow</p>
             </div>
         )
     }
@@ -352,25 +356,25 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
     const isCheckedIn = !!todayRecord?.checkIn
 
     const buttonLabel = loading
-        ? locationStatus === 'checking' ? 'Locating…' : 'Processing…'
-        : isCheckedIn ? 'Clock Out' : 'Clock In'
+        ? locationStatus === "checking" ? "Locating…" : "Processing…"
+        : isCheckedIn ? "Clock Out" : "Clock In"
 
     const ButtonIcon = () => {
-        if (loading) return locationStatus === 'checking'
-            ? <MapPinIcon  className='size-7 animate-pulse' />
-            : <Loader2Icon className='size-7 animate-spin'  />
+        if (loading) return locationStatus === "checking"
+            ? <MapPinIcon  className="size-7 animate-pulse" />
+            : <Loader2Icon className="size-7 animate-spin"  />
         return isCheckedIn
-            ? <LogOutIcon className='size-7' />
-            : <LogInIcon  className='size-7' />
+            ? <LogOutIcon className="size-7" />
+            : <LogInIcon  className="size-7" />
     }
 
     return (
-        <div className='absolute bottom-4 right-4 flex flex-col items-end z-1'>
+        <div className="absolute bottom-4 right-4 flex flex-col items-end z-1">
             <LocationBadge status={locationStatus} locationLabel={assignedLocation?.label} />
 
             {assignedLocation?.label && !locationStatus && (
-                <div className='flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium mb-2 bg-slate-100 text-slate-500'>
-                    <MapPinIcon className='w-3.5 h-3.5' />
+                <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium mb-2 bg-slate-100 text-slate-500">
+                    <MapPinIcon className="w-3.5 h-3.5" />
                     Must be at: {assignedLocation.label}
                 </div>
             )}
@@ -379,14 +383,14 @@ const CheckinButton = ({ todayRecord, onAction, assignedLocation }) => {
                 onClick={handleAttendance}
                 disabled={loading}
                 className={`w-full max-w-xs flex justify-between items-center gap-8 p-4 rounded-xl bg-linear-to-br text-white transition-opacity ${
-                    loading ? 'opacity-70 cursor-not-allowed' : 'opacity-100'
-                } ${isCheckedIn ? 'from-slate-700 to-slate-900' : 'from-indigo-600 to-indigo-700'}`}
+                    loading ? "opacity-70 cursor-not-allowed" : "opacity-100"
+                } ${isCheckedIn ? "from-slate-700 to-slate-900" : "from-indigo-600 to-indigo-700"}`}
             >
                 <ButtonIcon />
-                <div className='flex flex-col items-center text-center'>
-                    <h2 className='text-lg font-medium mb-1'>{buttonLabel}</h2>
-                    <p className='text-xs opacity-80'>
-                        {isCheckedIn ? 'Click to end your shift' : 'Start your work day'}
+                <div className="flex flex-col items-center text-center">
+                    <h2 className="text-lg font-medium mb-1">{buttonLabel}</h2>
+                    <p className="text-xs opacity-80">
+                        {isCheckedIn ? "Click to end your shift" : "Start your work day"}
                     </p>
                 </div>
             </button>

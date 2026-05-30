@@ -198,10 +198,9 @@
 
 
 
-
-import Attendance      from '../models/Attendance.js'
-import Employee        from '../models/Employee.js'
-import { OFFICE_LOCATIONS } from '../constants/offices.js'
+import Attendance          from "../models/Attendance.js"
+import Employee            from "../models/Employee.js"
+import { OFFICE_LOCATIONS } from "../constants/offices.js"
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -232,10 +231,10 @@ const getISTMidnight = (date) => {
 }
 
 const getDayType = (hours) => {
-    if (hours >= EXPECTED_HOURS)        return 'Full Day'
-    if (hours >= EXPECTED_HOURS * 0.75) return 'Three Quarter Day'
-    if (hours >= EXPECTED_HOURS * 0.5)  return 'Half Day'
-    return 'Short Day'
+    if (hours >= EXPECTED_HOURS)        return "Full Day"
+    if (hours >= EXPECTED_HOURS * 0.75) return "Three Quarter Day"
+    if (hours >= EXPECTED_HOURS * 0.5)  return "Half Day"
+    return "Short Day"
 }
 
 const parseCoords = (body) => {
@@ -256,23 +255,24 @@ const isLateArrival = (istDate) =>
 export const clockInOut = async (req, res) => {
     try {
         const employee = await Employee.findOne({ userId: req.session.userId })
-        if (!employee)          return res.status(404).json({ error: 'Employee not found' })
-        if (employee.isDeleted) return res.status(403).json({ error: 'Your account is deactivated. You cannot clock in/out.' })
+        if (!employee)          return res.status(404).json({ error: "Employee not found" })
+        if (employee.isDeleted) return res.status(403).json({ error: "Your account is deactivated. You cannot clock in/out." })
 
-        const coords = parseCoords(req.body)
-
-        // Resolve office from OFFICE_LOCATIONS config (single source of truth)
+        // Resolve office coordinates from constants — never trust DB coordinates
         const officeKey = employee.assignedLocation?.office
         const loc       = officeKey ? OFFICE_LOCATIONS[officeKey] : null
 
+        // If an office is assigned, geofence is mandatory
         if (loc) {
-            if (!coords)
-                return res.status(400).json({ error: 'Location data is required to clock in/out.' })
+            const coords = parseCoords(req.body)
 
-            // Reject if GPS accuracy is worse than the office radius
+            if (!coords)
+                return res.status(400).json({ error: "Location data is required to clock in/out." })
+
+            // Reject low GPS accuracy before even checking distance
             if (coords.accuracy !== null && coords.accuracy > loc.radiusMeters) {
                 return res.status(400).json({
-                    error:    `GPS accuracy too low (${Math.round(coords.accuracy)}m). Please move to an open area and try again.`,
+                    error:    `GPS accuracy too low (${Math.round(coords.accuracy)}m). Move to an open area and try again.`,
                     accuracy: Math.round(coords.accuracy),
                     required: loc.radiusMeters,
                 })
@@ -287,52 +287,59 @@ export const clockInOut = async (req, res) => {
                     allowed:  loc.radiusMeters,
                 })
             }
+
+            // Geofence passed — proceed with verified coords
+            return await processClockInOut(req, res, employee, coords)
         }
 
-        const now      = new Date()
-        const todayIST = getISTMidnight(now)
-        const existing = await Attendance.findOne({ employeeId: employee._id, date: todayIST })
-
-        // ── Check In ──────────────────────────────────────────────────────────
-        if (!existing) {
-            const attendance = await Attendance.create({
-                employeeId: employee._id,
-                date:       todayIST,
-                checkIn:    now,
-                status:     isLateArrival(toIST(now)) ? 'LATE' : 'PRESENT',
-                ...(coords && { checkInLocation: { latitude: coords.lat, longitude: coords.lng } }),
-            })
-            return res.json({ success: true, type: 'CHECK_IN', data: attendance })
-        }
-
-        // ── Check Out ─────────────────────────────────────────────────────────
-        if (!existing.checkOut) {
-            const workingHours = parseFloat(
-                ((now - new Date(existing.checkIn)) / (1000 * 60 * 60)).toFixed(2)
-            )
-
-            existing.checkOut     = now
-            existing.workingHours = workingHours
-            existing.dayType      = getDayType(workingHours)
-
-            if (existing.status !== 'LATE') {
-                existing.status = workingHours >= EXPECTED_HOURS * 0.5 ? 'PRESENT' : 'LATE'
-            }
-
-            if (coords) {
-                existing.checkOutLocation = { latitude: coords.lat, longitude: coords.lng }
-            }
-
-            await existing.save()
-            return res.json({ success: true, type: 'CHECK_OUT', data: existing })
-        }
-
-        return res.status(400).json({ error: 'Already checked out for today' })
+        // No office assigned — block clock-in so no one slips through unassigned
+        return res.status(403).json({
+            error: "No office location assigned to your account. Please contact your administrator.",
+        })
 
     } catch (err) {
-        console.error('clockInOut error:', err)
-        return res.status(500).json({ error: 'Operation failed' })
+        console.error("clockInOut error:", err)
+        return res.status(500).json({ error: "Operation failed" })
     }
+}
+
+const processClockInOut = async (req, res, employee, coords) => {
+    const now      = new Date()
+    const todayIST = getISTMidnight(now)
+    const existing = await Attendance.findOne({ employeeId: employee._id, date: todayIST })
+
+    // ── Check In ──────────────────────────────────────────────────────────────
+    if (!existing) {
+        const attendance = await Attendance.create({
+            employeeId: employee._id,
+            date:       todayIST,
+            checkIn:    now,
+            status:     isLateArrival(toIST(now)) ? "LATE" : "PRESENT",
+            checkInLocation: { latitude: coords.lat, longitude: coords.lng },
+        })
+        return res.json({ success: true, type: "CHECK_IN", data: attendance })
+    }
+
+    // ── Check Out ─────────────────────────────────────────────────────────────
+    if (!existing.checkOut) {
+        const workingHours = parseFloat(
+            ((now - new Date(existing.checkIn)) / (1000 * 60 * 60)).toFixed(2)
+        )
+
+        existing.checkOut         = now
+        existing.workingHours     = workingHours
+        existing.dayType          = getDayType(workingHours)
+        existing.checkOutLocation = { latitude: coords.lat, longitude: coords.lng }
+
+        if (existing.status !== "LATE") {
+            existing.status = workingHours >= EXPECTED_HOURS * 0.5 ? "PRESENT" : "LATE"
+        }
+
+        await existing.save()
+        return res.json({ success: true, type: "CHECK_OUT", data: existing })
+    }
+
+    return res.status(400).json({ error: "Already checked out for today" })
 }
 
 // ─── Get Attendance ───────────────────────────────────────────────────────────
@@ -340,7 +347,7 @@ export const clockInOut = async (req, res) => {
 export const getAttendance = async (req, res) => {
     try {
         const employee = await Employee.findOne({ userId: req.session.userId })
-        if (!employee) return res.status(404).json({ error: 'Employee not found' })
+        if (!employee) return res.status(404).json({ error: "Employee not found" })
 
         const now          = new Date()
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -352,8 +359,8 @@ export const getAttendance = async (req, res) => {
         return res.json({ data: history, employee: { isDeleted: employee.isDeleted } })
 
     } catch (err) {
-        console.error('getAttendance error:', err)
-        return res.status(500).json({ error: 'Failed to fetch attendance' })
+        console.error("getAttendance error:", err)
+        return res.status(500).json({ error: "Failed to fetch attendance" })
     }
 }
 
@@ -363,7 +370,7 @@ export const getAttendanceSummary = async (req, res) => {
     try {
         const { employeeId, month, year } = req.query
         if (!employeeId || !month || !year)
-            return res.status(400).json({ error: 'employeeId, month and year are required' })
+            return res.status(400).json({ error: "employeeId, month and year are required" })
 
         const m       = Number(month)
         const y       = Number(year)
@@ -375,15 +382,15 @@ export const getAttendanceSummary = async (req, res) => {
             },
         })
 
-        const present = records.filter((r) => r.status === 'PRESENT').length
-        const late    = records.filter((r) => r.status === 'LATE').length
-        const absent  = records.filter((r) => r.status === 'ABSENT').length
+        const present = records.filter((r) => r.status === "PRESENT").length
+        const late    = records.filter((r) => r.status === "LATE").length
+        const absent  = records.filter((r) => r.status === "ABSENT").length
 
         return res.json({ daysWorked: present + late, present, late, absent, total: records.length })
 
     } catch (err) {
-        console.error('getAttendanceSummary error:', err)
-        return res.status(500).json({ error: 'Failed to fetch attendance summary' })
+        console.error("getAttendanceSummary error:", err)
+        return res.status(500).json({ error: "Failed to fetch attendance summary" })
     }
 }
 
@@ -397,7 +404,7 @@ export const getTodayAttendance = async (req, res) => {
 
         const records = await Attendance
             .find({ date: { $gte: todayIST, $lt: tomorrowIST } })
-            .populate('employeeId', 'firstName lastName position department')
+            .populate("employeeId", "firstName lastName position department")
             .sort({ checkIn: 1 })
             .lean()
 
@@ -408,7 +415,7 @@ export const getTodayAttendance = async (req, res) => {
         return res.json({ data })
 
     } catch (err) {
-        console.error('getTodayAttendance error:', err)
+        console.error("getTodayAttendance error:", err)
         return res.status(500).json({ error: "Failed to fetch today's attendance" })
     }
 }

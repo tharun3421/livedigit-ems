@@ -612,7 +612,7 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
 /**
  * Working days count for payslip salary calculation.
  * Uses employee's actual weekOff schedule.
- * ✅ No longer subtracts 2 EL — EL is a leave type, not a scheduled-day deduction.
+ *  No longer subtracts 2 EL — EL is a leave type, not a scheduled-day deduction.
  */
 const getWorkingDays = (month, year, weekOff = []) => {
     return getWorkingDatesOfMonth(month, year, weekOff).length - 2  // subtract 2 Earned Leaves
@@ -684,7 +684,7 @@ const toISTDateStr = (utcDate) =>
  *   absent     = scheduledDays - present
  *   (LOP/CL/SL/EL do NOT reduce absent — they are leaves, not absences)
  *
- * ✅ Uses IST date strings for comparison so midnight-IST records match correctly.
+ *  Uses IST date strings for comparison so midnight-IST records match correctly.
  */
 const getAbsentDaysForMonth = async (employeeId, month, year, weekOff = []) => {
     const workingDates = getWorkingDatesOfMonth(month, year, weekOff) // ["2026-06-01", ...]
@@ -758,9 +758,19 @@ export const createPayslip = async (req, res) => {
         const weekOff     = employee.workSchedule?.weekOff ?? []
         const workingDays = getWorkingDays(m, y, weekOff)
 
-        const lopDays   = await getLopDaysForMonth(employeeId, m, y)
-        const lopAmount = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
-        const netSalary = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
+        const [lopDays, counts] = await Promise.all([
+            getLopDaysForMonth(employeeId, m, y),
+            getAbsentDaysForMonth(employeeId, m, y, weekOff),
+        ])
+
+        const { clockInDays, leaveDays } = counts
+        const presentDays  = clockInDays + leaveDays
+        const absentDays   = Math.max(0, workingDays - presentDays)
+
+        const perDaySalary = parseFloat((basicSalary / workingDays).toFixed(2))
+        const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
+        const lopAmount    = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
+        const netSalary    = parseFloat((earnedBasic + allowances).toFixed(2))
 
         const payslip = await Payslip.create({
             employeeId,
@@ -773,6 +783,8 @@ export const createPayslip = async (req, res) => {
             lopAmount,
             netSalary,
             workingDays,
+            presentDays,
+            absentDays,
         })
 
         return res.json({ success: true, data: payslip })
@@ -801,13 +813,25 @@ export const updatePayslip = async (req, res) => {
         const weekOff     = employee?.workSchedule?.weekOff ?? []
         const workingDays = getWorkingDays(payslip.month, payslip.year, weekOff)
 
-        const lopAmount = parseFloat(((payslip.basicSalary / workingDays) * payslip.lopDays).toFixed(2))
-        const netSalary = parseFloat((payslip.basicSalary + payslip.allowances - lopAmount).toFixed(2))
+        const counts = await getAbsentDaysForMonth(
+            payslip.employeeId, payslip.month, payslip.year, weekOff
+        )
+
+        const { clockInDays, leaveDays } = counts
+        const presentDays  = clockInDays + leaveDays
+        const absentDays   = Math.max(0, workingDays - presentDays)
+
+        const perDaySalary = parseFloat((payslip.basicSalary / workingDays).toFixed(2))
+        const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
+        const lopAmount    = parseFloat(((payslip.basicSalary / workingDays) * payslip.lopDays).toFixed(2))
+        const netSalary    = parseFloat((earnedBasic + payslip.allowances).toFixed(2))
 
         payslip.lopAmount   = lopAmount
         payslip.deductions  = lopAmount
         payslip.netSalary   = netSalary
         payslip.workingDays = workingDays
+        payslip.presentDays = presentDays
+        payslip.absentDays  = absentDays
 
         await payslip.save()
         return res.json({ success: true, data: payslip })
@@ -887,7 +911,6 @@ export const getPayslipById = async (req, res) => {
 
         const workingDays = payslip.workingDays ?? getWorkingDays(month, year, weekOff)
         const lopAmount   = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
-        const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
         const [taken, counts] = await Promise.all([
             getTakenLeaveCountsForMonth(employee._id, month, year),
@@ -895,8 +918,12 @@ export const getPayslipById = async (req, res) => {
         ])
 
         const { clockInDays, leaveDays } = counts
-        const presentDays = clockInDays + leaveDays
-        const absentDays  = Math.max(0, workingDays - presentDays)
+        const presentDays  = clockInDays + leaveDays
+        const absentDays   = Math.max(0, workingDays - presentDays)
+
+        const perDaySalary = parseFloat((basicSalary / workingDays).toFixed(2))
+        const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
+        const netSalary    = parseFloat((earnedBasic + allowances).toFixed(2))
 
         return res.json({
             ...payslip,

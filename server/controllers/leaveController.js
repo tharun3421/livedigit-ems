@@ -251,7 +251,6 @@
 // };
 
 
-
 import Employee from "../models/Employee.js";
 import LeaveApplication from "../models/LeaveApplication.js";
 
@@ -276,7 +275,7 @@ const DAY_INDEX = {
 }
 
 /**
- * Working days = calendar days in month − employee's week-off days.
+ * Working days = calendar days in month − employee's week-off days − 2 (Earned Leaves).
  * Uses the employee's actual weekOff schedule stored in workSchedule.weekOff.
  * Falls back to Sunday-only if nothing is stored.
  */
@@ -291,7 +290,7 @@ const getWorkingDays = (month, year, weekOff = []) => {
         const dow = new Date(year, month - 1, d).getDay()
         if (!offIndices.has(dow)) workingDays++
     }
-    return workingDays
+    return workingDays - 2   // subtract 2 Earned Leaves
 }
 
 // ─── Earned Leave: 2 per month, resets each month ────────────────────────────

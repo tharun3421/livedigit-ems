@@ -559,7 +559,7 @@
 
 
 
-    import Employee          from "../models/Employee.js"
+import Employee          from "../models/Employee.js"
 import Payslip           from "../models/Payslip.js"
 import LeaveApplication  from "../models/LeaveApplication.js"
 import Attendance        from "../models/Attendance.js"
@@ -615,7 +615,7 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
  * ✅ No longer subtracts 2 EL — EL is a leave type, not a scheduled-day deduction.
  */
 const getWorkingDays = (month, year, weekOff = []) => {
-    return getWorkingDatesOfMonth(month, year, weekOff).length
+    return getWorkingDatesOfMonth(month, year, weekOff).length - 2  // subtract 2 Earned Leaves
 }
 
 /** Approved LOP days for an employee clamped to the given month */

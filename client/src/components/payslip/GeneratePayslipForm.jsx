@@ -274,7 +274,6 @@
 // export default GeneratePayslipForm
 
 
-
 import { Loader2, Plus, X, UserIcon, AlertCircleIcon, InfoIcon, PencilIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import api from '../../api/axios'
@@ -446,7 +445,7 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                             </span>
                                             {/* ✅ Dynamic weekOff label — no hardcoded "4 Sundays + 2 EL" */}
                                             <span className="block text-rose-300 mt-0.5 text-[10px]">
-                                                Working days = calendar days − {weekOffLabel} off days
+                                                Working days = calendar days − {weekOffLabel} off days − 2 Earned Leaves
                                             </span>
                                         </p>
                                     </div>

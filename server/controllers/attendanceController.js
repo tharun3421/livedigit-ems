@@ -197,7 +197,6 @@
 // }
 
 
-
 import Attendance          from "../models/Attendance.js"
 import Employee            from "../models/Employee.js"
 import { OFFICE_LOCATIONS } from "../constants/offices.js"
@@ -258,18 +257,15 @@ export const clockInOut = async (req, res) => {
         if (!employee)          return res.status(404).json({ error: "Employee not found" })
         if (employee.isDeleted) return res.status(403).json({ error: "Your account is deactivated. You cannot clock in/out." })
 
-        // Resolve office coordinates from constants — never trust DB coordinates
         const officeKey = employee.assignedLocation?.office
         const loc       = officeKey ? OFFICE_LOCATIONS[officeKey] : null
 
-        // If an office is assigned, geofence is mandatory
         if (loc) {
             const coords = parseCoords(req.body)
 
             if (!coords)
                 return res.status(400).json({ error: "Location data is required to clock in/out." })
 
-            // Reject low GPS accuracy before even checking distance
             if (coords.accuracy !== null && coords.accuracy > loc.radiusMeters) {
                 return res.status(400).json({
                     error:    `GPS accuracy too low (${Math.round(coords.accuracy)}m). Move to an open area and try again.`,
@@ -288,11 +284,9 @@ export const clockInOut = async (req, res) => {
                 })
             }
 
-            // Geofence passed — proceed with verified coords
             return await processClockInOut(req, res, employee, coords)
         }
 
-        // No office assigned — block clock-in so no one slips through unassigned
         return res.status(403).json({
             error: "No office location assigned to your account. Please contact your administrator.",
         })
@@ -349,12 +343,22 @@ export const getAttendance = async (req, res) => {
         const employee = await Employee.findOne({ userId: req.session.userId })
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 
-        const now          = new Date()
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const now = new Date()
+
+        //  Compute start-of-month in IST, then convert back to UTC for the query
+        // e.g. June 1 00:00 IST = May 31 18:30 UTC — matches how `date` is stored
+        const istNow          = toIST(now)
+        const startOfMonthIST = new Date(
+            Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), 1, 0, 0, 0, 0) - IST_OFFSET_MS
+        )
 
         const history = await Attendance
-            .find({ employeeId: employee._id, date: { $gte: startOfMonth } })
+            .find({ employeeId: employee._id, date: { $gte: startOfMonthIST } })
             .sort({ date: -1 })
+
+
+        console.log("startOfMonthIST:", startOfMonthIST)
+console.log("records found:", history.length)
 
         return res.json({ data: history, employee: { isDeleted: employee.isDeleted } })
 

@@ -248,19 +248,56 @@
 
 
 
+
 import Employee from "../models/Employee.js";
 import Payslip from "../models/Payslip.js";
 import LeaveApplication from "../models/LeaveApplication.js";
+import Attendance from "../models/Attendance.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const countDays = (start, end) =>
     Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1
 
-// Working days = calendar days in month − Sundays − 2 (Earned Leaves)
-// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
-const getWorkingDays = (month, year) => {
-    return new Date(year, month, 0).getDate() - 6
+// Day name → JS getDay() index
+const DAY_INDEX = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+}
+
+/**
+ * Convert weekOff string array to a Set of day indices (0=Sun … 6=Sat).
+ * Falls back to [0] (Sunday only) if nothing is stored.
+ */
+const weekOffIndices = (weekOff = []) => {
+    if (!weekOff.length) return new Set([0])        // default: Sunday off
+    return new Set(weekOff.map((d) => DAY_INDEX[d.toLowerCase()]).filter((n) => n !== undefined))
+}
+
+/**
+ * All working dates in a month for an employee based on their weekOff schedule.
+ * Returns an array of toDateString() values for easy Set comparison.
+ */
+const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
+    const offDays    = weekOffIndices(weekOff)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const dates = []
+    for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, month - 1, d)
+        if (!offDays.has(date.getDay())) {
+            dates.push(date.toDateString())
+        }
+    }
+    return dates
+}
+
+/**
+ * Working days count for payslip salary calculation.
+ * Uses employee's actual weekOff schedule.
+ * Subtracts 2 for the fixed Earned Leave allowance (same as before).
+ */
+const getWorkingDays = (month, year, weekOff = []) => {
+    return getWorkingDatesOfMonth(month, year, weekOff).length - 2
 }
 
 /** Approved LOP days for an employee clamped to the given month */
@@ -287,8 +324,6 @@ const getLopDaysForMonth = async (employeeId, month, year) => {
 
 /**
  * Leave days taken for a specific month/year — used by the payslip print view.
- * SICK / CASUAL / EARNED: days in that exact month.
- * LOSS_OF_PAY: days clamped to that month (consistent with LOP deduction logic).
  */
 const getTakenLeaveCountsForMonth = async (employeeId, month, year) => {
     const monthStart = new Date(year, month - 1, 1)
@@ -313,6 +348,31 @@ const getTakenLeaveCountsForMonth = async (employeeId, month, year) => {
     return taken
 }
 
+/**
+ * Absent days = employee's working days in the month that have NO attendance record.
+ *
+ * - Working days are derived from the employee's weekOff schedule.
+ * - If there is no attendance document for a working day → absent.
+ * - Leaves / LOP are not subtracted — absence is purely clock-in based.
+ */
+const getAbsentDaysForMonth = async (employeeId, month, year, weekOff = []) => {
+    const workingDates = getWorkingDatesOfMonth(month, year, weekOff)
+
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd   = new Date(year, month, 0, 23, 59, 59)
+
+    const records = await Attendance.find({
+        employeeId,
+        date: { $gte: monthStart, $lte: monthEnd },
+    }).lean()
+
+    const recordedDates = new Set(
+        records.map((r) => new Date(r.date).toDateString())
+    )
+
+    return workingDates.filter((d) => !recordedDates.has(d)).length
+}
+
 // ─── Create Payslip ───────────────────────────────────────────────────────────
 export const createPayslip = async (req, res) => {
     try {
@@ -332,10 +392,9 @@ export const createPayslip = async (req, res) => {
             ? Number(customAllowances)
             : (employee.allowances || 0)
 
-        // Working days = calendar days − Sundays − 2 (Earned Leaves)
-        const workingDays = getWorkingDays(m, y)
+        const weekOff     = employee.workSchedule?.weekOff ?? []
+        const workingDays = getWorkingDays(m, y, weekOff)
 
-        // LOP deduction = LOP days × (basic ÷ working days)
         const lopDays   = await getLopDaysForMonth(employeeId, m, y)
         const lopAmount = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
         const netSalary = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
@@ -371,15 +430,16 @@ export const updatePayslip = async (req, res) => {
         const payslip = await Payslip.findById(req.params.id)
         if (!payslip) return res.status(404).json({ error: "Payslip not found" })
 
-        // Only update fields that were explicitly sent
         if (basicSalary !== undefined) payslip.basicSalary = Number(basicSalary)
         if (allowances  !== undefined) payslip.allowances  = Number(allowances)
         if (lopDays     !== undefined) payslip.lopDays     = Number(lopDays)
 
-        // Recompute derived fields
-        const workingDays = payslip.workingDays ?? getWorkingDays(payslip.month, payslip.year)
-        const lopAmount   = parseFloat(((payslip.basicSalary / workingDays) * payslip.lopDays).toFixed(2))
-        const netSalary   = parseFloat((payslip.basicSalary + payslip.allowances - lopAmount).toFixed(2))
+        const workingDays = payslip.workingDays ?? (() => {
+            // Fallback: recompute without weekOff (safe default)
+            return new Date(payslip.year, payslip.month, 0).getDate() - 6
+        })()
+        const lopAmount = parseFloat(((payslip.basicSalary / workingDays) * payslip.lopDays).toFixed(2))
+        const netSalary = parseFloat((payslip.basicSalary + payslip.allowances - lopAmount).toFixed(2))
 
         payslip.lopAmount   = lopAmount
         payslip.deductions  = lopAmount
@@ -455,21 +515,22 @@ export const getPayslipById = async (req, res) => {
         const employee = await Employee.findById(payslip.employeeId).lean()
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 
-        // Recompute salary — never trust stale stored netSalary
         const basicSalary = payslip.basicSalary ?? 0
         const allowances  = payslip.allowances  ?? 0
         const lopDays     = payslip.lopDays      ?? 0
         const month       = payslip.month
         const year        = payslip.year
+        const weekOff     = employee.workSchedule?.weekOff ?? []
 
-        // Use stored workingDays if available, else recompute
-        const workingDays = payslip.workingDays ?? getWorkingDays(month, year)
+        const workingDays = payslip.workingDays ?? getWorkingDays(month, year, weekOff)
         const lopAmount   = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
         const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
-        // Leave counts scoped to this payslip's month — so past payslips show
-        // exactly how many days of each type were taken in that month
-        const taken = await getTakenLeaveCountsForMonth(employee._id, month, year)
+        // Run leave counts + absent calculation in parallel
+        const [taken, absentDays] = await Promise.all([
+            getTakenLeaveCountsForMonth(employee._id, month, year),
+            getAbsentDaysForMonth(employee._id, month, year, weekOff),
+        ])
 
         return res.json({
             ...payslip,
@@ -484,7 +545,9 @@ export const getPayslipById = async (req, res) => {
                 casualLeaves: taken.CASUAL,
                 sickLeaves:   taken.SICK,
                 earnedLeaves: taken.EARNED,
-                lopLeaves:    taken.LOSS_OF_PAY,
+                lopLeaves:    lopDays,      // stored value — respects admin override
+                absentDays,                 // working days with no clock-in record
+                weekOff,                    // pass to frontend for display if needed
             },
         })
 

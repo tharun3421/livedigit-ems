@@ -894,11 +894,9 @@ export const getPayslipById = async (req, res) => {
             getAbsentDaysForMonth(employee._id, month, year, weekOff),
         ])
 
-        const { clockInDays, leaveDays, absentDays } = counts
-
-        // presentDays = clock-in days + approved leave days
-        // e.g. 1 clock-in + 4 leaves = 5; absentDays = scheduledDays - presentDays
+        const { clockInDays, leaveDays } = counts
         const presentDays = clockInDays + leaveDays
+        const absentDays  = Math.max(0, workingDays - presentDays)
 
         return res.json({
             ...payslip,

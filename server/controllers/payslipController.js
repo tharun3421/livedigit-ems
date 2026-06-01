@@ -724,10 +724,16 @@ const getAbsentDaysForMonth = async (employeeId, month, year, weekOff = []) => {
         }
     }
 
-    // Absent = working day with no clock-in AND no approved leave
-    return workingDates.filter(
-        (d) => !clockedInDates.has(d) && !leaveDates.has(d)
-    ).length
+    // clockInDays = working days that have a clock-in record
+    const clockInDays = workingDates.filter((d) =>  clockedInDates.has(d)).length
+
+    // leaveDays = working days covered by approved leave (no clock-in)
+    const leaveDays   = workingDates.filter((d) => !clockedInDates.has(d) &&  leaveDates.has(d)).length
+
+    // absentDays = working days with no clock-in AND no approved leave
+    const absentDays  = workingDates.filter((d) => !clockedInDates.has(d) && !leaveDates.has(d)).length
+
+    return { clockInDays, leaveDays, absentDays }
 }
 
 // ─── Create Payslip ───────────────────────────────────────────────────────────
@@ -883,14 +889,16 @@ export const getPayslipById = async (req, res) => {
         const lopAmount   = parseFloat(((basicSalary / workingDays) * lopDays).toFixed(2))
         const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
 
-        const [taken, absentDays] = await Promise.all([
+        const [taken, counts] = await Promise.all([
             getTakenLeaveCountsForMonth(employee._id, month, year),
             getAbsentDaysForMonth(employee._id, month, year, weekOff),
         ])
 
-        // presentDays = scheduledDays - absentDays
-        // (absent already excludes days with approved leaves)
-        const presentDays = workingDays - absentDays
+        const { clockInDays, leaveDays, absentDays } = counts
+
+        // presentDays = clock-in days + approved leave days
+        // e.g. 1 clock-in + 4 leaves = 5; absentDays = scheduledDays - presentDays
+        const presentDays = clockInDays + leaveDays
 
         return res.json({
             ...payslip,
@@ -907,7 +915,7 @@ export const getPayslipById = async (req, res) => {
                 earnedLeaves: taken.EARNED,
                 lopLeaves:    lopDays,
                 absentDays,
-                presentDays,    // ✅ now passed directly from backend
+                presentDays,
                 weekOff,
             },
         })

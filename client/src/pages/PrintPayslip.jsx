@@ -273,7 +273,13 @@
 //     )
 // }
 
+
+
+
 // export default PrintPayslip
+
+
+
 
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
@@ -295,7 +301,8 @@ const ATT_COLORS = {
     slate:  { bg: "bg-slate-50",  text: "text-slate-700",  border: "border-slate-200"  },
 }
 
-const fmt = (n) => Number(n ?? 0).toLocaleString("en-IN")
+const fmt    = (n) => Number(n ?? 0).toLocaleString("en-IN")
+const fmtINR = (n) => `₹ ${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
 
 const SectionTitle = ({ children }) => (
     <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">{children}</h3>
@@ -353,14 +360,12 @@ const PrintPayslip = () => {
     const joinDate    = emp.joinDate ? format(new Date(emp.joinDate), "dd MMM yyyy") : "—"
 
     // ── Salary values from API ────────────────────────────────────────────────
-    const basicSalary   = payslip.basicSalary ?? 0
-    const allowances    = payslip.allowances  ?? 0
-    const lopDays       = payslip.lopDays     ?? 0
-    const workingDays   = payslip.workingDays ?? 0
-    const lopAmount     = payslip.lopAmount   ?? 0
-    const grossEarnings = parseFloat((basicSalary + allowances).toFixed(2))
-    const netSalary     = payslip.netSalary   ?? parseFloat((grossEarnings - lopAmount).toFixed(2))
-    const perDaySalary  = workingDays > 0 ? parseFloat((basicSalary / workingDays).toFixed(2)) : 0
+    const basicSalary  = payslip.basicSalary ?? 0
+    const allowances   = payslip.allowances  ?? 0
+    const lopDays      = payslip.lopDays     ?? 0
+    const workingDays  = payslip.workingDays ?? 0
+    const lopAmount    = payslip.lopAmount   ?? 0
+    const netSalary    = payslip.netSalary   ?? 0
 
     // ── Attendance & leave counts from API ────────────────────────────────────
     const casualLeaves = emp.casualLeaves ?? 0
@@ -368,13 +373,16 @@ const PrintPayslip = () => {
     const earnedLeaves = emp.earnedLeaves ?? 0
     const lopLeaves    = emp.lopLeaves    ?? lopDays
     const absentDays   = emp.absentDays   ?? 0
+    const presentDays  = emp.presentDays  ?? 0
     const weekOff      = emp.weekOff      ?? []
     const weekOffLabel = weekOff.length ? weekOff.join(", ") + " off" : "Sun off"
     const totalLeaves  = casualLeaves + sickLeaves + earnedLeaves
 
-    // ✅ presentDays comes directly from backend (scheduledDays - absentDays)
-    // absent already excludes days covered by approved leaves
-    const presentDays = emp.presentDays ?? (workingDays - absentDays)
+    // ── Derived display values ────────────────────────────────────────────────
+    // earnedBasic = prorated basic (basicSalary / workingDays × presentDays)
+    const perDaySalary = workingDays > 0 ? parseFloat((basicSalary / workingDays).toFixed(2)) : 0
+    const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
+    const grossEarnings = parseFloat((earnedBasic + allowances).toFixed(2))
 
     return (
         <div className="min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
@@ -442,7 +450,6 @@ const PrintPayslip = () => {
                                     sub={weekOffLabel}
                                     color="slate"
                                 />
-                                {/* ✅ presentDays = clock-in days + approved leave days */}
                                 <AttBox
                                     label="Present Days"
                                     value={presentDays}
@@ -484,26 +491,50 @@ const PrintPayslip = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {/* ✅ Prorated basic: basicSalary / workingDays × presentDays */}
                                         <EarningsRow
-                                            earning="Basic Salary"
-                                            earningAmt={fmt(basicSalary)}
-                                            deduction={lopDays > 0
-                                                ? <span>Loss of Pay <span className="text-xs text-slate-400">({lopDays}d)</span></span>
+                                            earning={
+                                                <span>
+                                                    Basic Salary
+                                                    <span className="block text-xs text-slate-400 mt-0.5">
+                                                        ₹{fmt(basicSalary)} ÷ {workingDays} × {presentDays} days
+                                                    </span>
+                                                </span>
+                                            }
+                                            earningAmt={fmt(earnedBasic)}
+                                            deduction={absentDays > 0
+                                                ? <span>
+                                                    Absent Deduction
+                                                    <span className="block text-xs text-slate-400 mt-0.5">
+                                                        {absentDays} day{absentDays > 1 ? "s" : ""} unpaid
+                                                    </span>
+                                                  </span>
                                                 : null
                                             }
-                                            deductionAmt={lopDays > 0 ? fmt(lopAmount) : null}
+                                            deductionAmt={absentDays > 0
+                                                ? fmt(parseFloat((perDaySalary * absentDays).toFixed(2)))
+                                                : null
+                                            }
                                         />
                                         <EarningsRow
                                             earning="Allowances"
                                             earningAmt={allowances > 0 ? fmt(allowances) : "—"}
-                                            deduction={null}
-                                            deductionAmt={null}
+                                            deduction={lopDays > 0
+                                                ? <span>
+                                                    Loss of Pay
+                                                    <span className="block text-xs text-slate-400 mt-0.5">
+                                                        {lopDays} day{lopDays > 1 ? "s" : ""} approved LOP
+                                                    </span>
+                                                  </span>
+                                                : null
+                                            }
+                                            deductionAmt={lopDays > 0 ? fmt(lopAmount) : null}
                                         />
                                         <tr className="bg-slate-50 border-t-2 border-slate-200">
                                             <td className="px-5 py-3 text-sm font-semibold text-slate-700">Total Earnings</td>
                                             <td className="px-5 py-3 text-right font-bold text-green-600">{fmt(grossEarnings)}</td>
                                             <td className="px-5 py-3 text-sm font-semibold text-slate-700 bg-rose-50">Total Deductions</td>
-                                            <td className="px-5 py-3 text-right font-bold text-rose-600 bg-rose-50">{fmt(lopAmount)}</td>
+                                            <td className="px-5 py-3 text-right font-bold text-rose-600 bg-rose-50">—</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -514,28 +545,36 @@ const PrintPayslip = () => {
                         <div className="rounded-xl bg-indigo-700 px-6 py-5 flex items-center justify-between">
                             <div>
                                 <p className="text-indigo-200 text-xs uppercase tracking-widest font-medium">Net Salary Payable</p>
-                                <p className="text-white text-3xl font-bold mt-1">
-                                    ₹ {netSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </p>
+                                <p className="text-white text-3xl font-bold mt-1">{fmtINR(netSalary)}</p>
                                 <p className="text-indigo-300 text-xs mt-1">{periodLabel} · Paid via Bank Transfer</p>
                             </div>
                             <div className="text-right hidden sm:block">
-                                <p className="text-indigo-300 text-xs">Gross Earnings</p>
-                                <p className="text-white font-semibold">₹ {fmt(grossEarnings)}</p>
-                                <p className="text-indigo-300 text-xs mt-2">Total Deductions</p>
-                                <p className="text-rose-300 font-semibold">– ₹ {fmt(lopAmount)}</p>
+                                <p className="text-indigo-300 text-xs">Earned Basic</p>
+                                <p className="text-white font-semibold">₹ {fmt(earnedBasic)}</p>
+                                <p className="text-indigo-300 text-xs mt-1">Allowances</p>
+                                <p className="text-white font-semibold">₹ {fmt(allowances)}</p>
+                                <p className="text-indigo-300 text-xs mt-2">Present Days</p>
+                                <p className="text-white font-semibold">{presentDays} / {workingDays} days</p>
                             </div>
+                        </div>
+
+                        {/* ── Salary Note ── */}
+                        <div className="rounded-xl bg-slate-50 border border-slate-200 px-5 py-3 text-xs text-slate-600">
+                            <span className="font-semibold">Salary Calculation:</span>{" "}
+                            ₹{fmt(basicSalary)} (basic) ÷ {workingDays} working days × {presentDays} present days
+                            = ₹{fmt(earnedBasic)} earned basic + ₹{fmt(allowances)} allowances
+                            = <span className="font-semibold text-indigo-600">{fmtINR(netSalary)}</span>
+                            <span className="block text-slate-400 mt-0.5">
+                                Working days = calendar days − {weekOffLabel} − 2 Earned Leaves ({workingDays} days for {periodLabel})
+                            </span>
                         </div>
 
                         {/* ── LOP Note ── */}
                         {lopDays > 0 && (
                             <div className="rounded-xl bg-rose-50 border border-rose-100 px-5 py-3 text-xs text-rose-600">
                                 <span className="font-semibold">Loss of Pay Note:</span>{" "}
-                                {lopDays} LOP day{lopDays > 1 ? "s" : ""} deducted
-                                @ ₹{perDaySalary.toFixed(2)}/day (Basic ÷ {workingDays} working days)
-                                <span className="block text-rose-400 mt-0.5">
-                                    Working days = calendar days − {weekOffLabel} ({workingDays} days for {periodLabel})
-                                </span>
+                                {lopDays} LOP day{lopDays > 1 ? "s" : ""} are included in absent days
+                                and already excluded from present days (₹{perDaySalary.toFixed(2)}/day × {lopDays} days = ₹{fmt(lopAmount)})
                             </div>
                         )}
 
@@ -543,9 +582,9 @@ const PrintPayslip = () => {
                         {absentDays > 0 && (
                             <div className="rounded-xl bg-amber-50 border border-amber-100 px-5 py-3 text-xs text-amber-700">
                                 <span className="font-semibold">Absent Note:</span>{" "}
-                                {absentDays} day{absentDays > 1 ? "s" : ""} with no clock-in and no approved leave recorded for {periodLabel}.
+                                {absentDays} day{absentDays > 1 ? "s" : ""} with no clock-in and no approved leave for {periodLabel}.
                                 <span className="block text-amber-500 mt-0.5">
-                                    Absent = Scheduled days − Clock-in days − Approved leave days
+                                    Absent = Scheduled days ({workingDays}) − Present days ({presentDays}) = {absentDays} days
                                 </span>
                             </div>
                         )}

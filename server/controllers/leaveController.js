@@ -251,8 +251,11 @@
 // };
 
 
-import Employee from "../models/Employee.js";
-import LeaveApplication from "../models/LeaveApplication.js";
+
+
+import Employee         from "../models/Employee.js"
+import LeaveApplication from "../models/LeaveApplication.js"
+import Attendance       from "../models/Attendance.js"
 
 // ─── Leave limits ─────────────────────────────────────────────────────────────
 export const LEAVE_LIMITS = {
@@ -262,7 +265,8 @@ export const LEAVE_LIMITS = {
     EARNED:      Infinity,
 }
 
-const EL_PER_MONTH = 2
+const EL_PER_MONTH   = 2
+const IST_OFFSET_MS  = (5 * 60 + 30) * 60 * 1000
 
 /** Inclusive calendar days between two dates */
 const countDays = (startDate, endDate) =>
@@ -274,23 +278,77 @@ const DAY_INDEX = {
     thursday: 4, friday: 5, saturday: 6,
 }
 
-/**
- * Working days = calendar days in month − employee's week-off days − 2 (Earned Leaves).
- * Uses the employee's actual weekOff schedule stored in workSchedule.weekOff.
- * Falls back to Sunday-only if nothing is stored.
- */
-const getWorkingDays = (month, year, weekOff = []) => {
-    const offIndices  = weekOff.length
-        ? new Set(weekOff.map((d) => DAY_INDEX[d.toLowerCase()]).filter((n) => n !== undefined))
-        : new Set([0])                          // default: Sunday only
+const weekOffIndices = (weekOff = []) => {
+    if (!weekOff.length) return new Set([0])
+    return new Set(weekOff.map((d) => DAY_INDEX[d.toLowerCase()]).filter((n) => n !== undefined))
+}
 
+const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
+    const offDays     = weekOffIndices(weekOff)
     const daysInMonth = new Date(year, month, 0).getDate()
-    let workingDays   = 0
+    const dates       = []
     for (let d = 1; d <= daysInMonth; d++) {
-        const dow = new Date(year, month - 1, d).getDay()
-        if (!offIndices.has(dow)) workingDays++
+        const date = new Date(year, month - 1, d)
+        if (!offDays.has(date.getDay())) {
+            const mm = String(month).padStart(2, "0")
+            const dd = String(d).padStart(2, "0")
+            dates.push(`${year}-${mm}-${dd}`)
+        }
     }
-    return workingDays - 2   // subtract 2 Earned Leaves
+    return dates
+}
+
+const getWorkingDays = (month, year, weekOff = []) =>
+    getWorkingDatesOfMonth(month, year, weekOff).length - 2
+
+const toISTDateStr = (utcDate) =>
+    new Date(new Date(utcDate).getTime() + IST_OFFSET_MS)
+        .toISOString()
+        .slice(0, 10)
+
+/**
+ * Shared helper — returns clockInDays and leaveDays for a given employee/month.
+ * presentDays = clockInDays + leaveDays
+ * absentDays  = workingDays - presentDays  (computed by caller)
+ */
+const getAttendanceCounts = async (employeeId, month, year, weekOff = []) => {
+    const workingDates = getWorkingDatesOfMonth(month, year, weekOff)
+
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd   = new Date(year, month, 0, 23, 59, 59)
+
+    const queryStart = new Date(monthStart.getTime() - IST_OFFSET_MS)
+    const queryEnd   = new Date(monthEnd.getTime()   + IST_OFFSET_MS)
+
+    const records = await Attendance.find({
+        employeeId,
+        date: { $gte: queryStart, $lte: queryEnd },
+    }).lean()
+
+    const clockedInDates = new Set(records.map((r) => toISTDateStr(r.date)))
+
+    const leaves = await LeaveApplication.find({
+        employeeId,
+        status:    "APPROVED",
+        startDate: { $lte: monthEnd },
+        endDate:   { $gte: monthStart },
+    }).lean()
+
+    const leaveDates = new Set()
+    for (const leave of leaves) {
+        const start = new Date(Math.max(new Date(leave.startDate), monthStart))
+        const end   = new Date(Math.min(new Date(leave.endDate),   monthEnd))
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const mm = String(d.getMonth() + 1).padStart(2, "0")
+            const dd = String(d.getDate()).padStart(2, "0")
+            leaveDates.add(`${d.getFullYear()}-${mm}-${dd}`)
+        }
+    }
+
+    const clockInDays = workingDates.filter((d) =>  clockedInDates.has(d)).length
+    const leaveDays   = workingDates.filter((d) => !clockedInDates.has(d) && leaveDates.has(d)).length
+
+    return { clockInDays, leaveDays }
 }
 
 // ─── Earned Leave: 2 per month, resets each month ────────────────────────────
@@ -334,22 +392,22 @@ const getUsedLeaveCounts = async (employeeId) => {
 // ─── Create Leave ─────────────────────────────────────────────────────────────
 export const createLeave = async (req, res) => {
     try {
-        const employee = await Employee.findOne({ userId: req.session.userId });
-        if (!employee)          return res.status(404).json({ error: "Employee not found" });
-        if (employee.isDeleted) return res.status(403).json({ error: "Your account is deactivated." });
+        const employee = await Employee.findOne({ userId: req.session.userId })
+        if (!employee)          return res.status(404).json({ error: "Employee not found" })
+        if (employee.isDeleted) return res.status(403).json({ error: "Your account is deactivated." })
 
-        const { type, startDate, endDate, reason } = req.body;
+        const { type, startDate, endDate, reason } = req.body
 
         if (!type || !startDate || !endDate || !reason)
-            return res.status(400).json({ error: "Missing required fields" });
+            return res.status(400).json({ error: "Missing required fields" })
         if (!["SICK", "CASUAL", "LOSS_OF_PAY", "EARNED"].includes(type))
-            return res.status(400).json({ error: "Invalid leave type" });
+            return res.status(400).json({ error: "Invalid leave type" })
 
         const startDateObj = new Date(startDate)
         const endDateObj   = new Date(endDate)
 
         if (endDateObj < startDateObj)
-            return res.status(400).json({ error: "End date cannot be before start date" });
+            return res.status(400).json({ error: "End date cannot be before start date" })
 
         const requestedDays = countDays(startDateObj, endDateObj)
 
@@ -361,7 +419,7 @@ export const createLeave = async (req, res) => {
                 return res.status(400).json({
                     error: `You only have ${remaining} ${type.replace("_", " ")} day(s) remaining (limit: ${limit}).`,
                     remaining, limit,
-                });
+                })
             }
         }
 
@@ -372,43 +430,43 @@ export const createLeave = async (req, res) => {
                     error: `You only have ${elBalance.remaining} Earned Leave day(s) available this month.`,
                     remaining:   elBalance.remaining,
                     accumulated: elBalance.accumulated,
-                });
+                })
             }
         }
 
         const leave = await LeaveApplication.create({
             employeeId: employee._id,
             type, startDate: startDateObj, endDate: endDateObj, reason, status: "PENDING",
-        });
+        })
 
-        return res.json({ success: true, data: leave });
+        return res.json({ success: true, data: leave })
     } catch (error) {
-        console.error("createLeave error:", error.message);
-        return res.status(500).json({ error: error.message });
+        console.error("createLeave error:", error.message)
+        return res.status(500).json({ error: error.message })
     }
-};
+}
 
 // ─── Get Leaves ───────────────────────────────────────────────────────────────
 export const getLeaves = async (req, res) => {
     try {
-        const isAdmin = req.session.role === "ADMIN";
+        const isAdmin = req.session.role === "ADMIN"
 
         if (isAdmin) {
-            const where  = req.query.status ? { status: req.query.status } : {};
-            const leaves = await LeaveApplication.find(where).populate("employeeId").sort({ createdAt: -1 });
+            const where  = req.query.status ? { status: req.query.status } : {}
+            const leaves = await LeaveApplication.find(where).populate("employeeId").sort({ createdAt: -1 })
             const data   = leaves
                 .filter((l) => l.employeeId && !l.employeeId.isDeleted)
                 .map((l) => {
-                    const obj = l.toObject();
-                    return { ...obj, id: obj._id.toString(), employee: obj.employeeId, employeeId: obj.employeeId?._id?.toString() };
-                });
-            return res.json({ data });
+                    const obj = l.toObject()
+                    return { ...obj, id: obj._id.toString(), employee: obj.employeeId, employeeId: obj.employeeId?._id?.toString() }
+                })
+            return res.json({ data })
         }
 
-        const employee = await Employee.findOne({ userId: req.session.userId }).lean();
-        if (!employee) return res.status(404).json({ error: "Employee not found" });
+        const employee = await Employee.findOne({ userId: req.session.userId }).lean()
+        if (!employee) return res.status(404).json({ error: "Employee not found" })
 
-        const leaves = await LeaveApplication.find({ employeeId: employee._id }).sort({ createdAt: -1 });
+        const leaves = await LeaveApplication.find({ employeeId: employee._id }).sort({ createdAt: -1 })
         const used   = await getUsedLeaveCounts(employee._id)
         const el     = await getEarnedLeaveBalance(employee)
 
@@ -443,54 +501,59 @@ export const getLeaves = async (req, res) => {
             },
         }
 
-        return res.json({ data: leaves, leaveBalance, employee: { ...employee, id: employee._id.toString() } });
+        return res.json({ data: leaves, leaveBalance, employee: { ...employee, id: employee._id.toString() } })
     } catch (error) {
-        console.error("getLeaves error:", error);
-        return res.status(500).json({ error: "Failed to fetch leaves" });
+        console.error("getLeaves error:", error)
+        return res.status(500).json({ error: "Failed to fetch leaves" })
     }
-};
+}
 
 // ─── Update Leave Status ──────────────────────────────────────────────────────
 export const updateLeaveStatus = async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status } = req.body
         if (!["APPROVED", "REJECTED", "PENDING"].includes(status))
-            return res.status(400).json({ error: "Invalid status" });
+            return res.status(400).json({ error: "Invalid status" })
 
-        const leave = await LeaveApplication.findById(req.params.id);
-        if (!leave) return res.status(404).json({ error: "Leave application not found" });
+        const leave = await LeaveApplication.findById(req.params.id)
+        if (!leave) return res.status(404).json({ error: "Leave application not found" })
 
-        leave.status = status;
-        await leave.save();
+        leave.status = status
+        await leave.save()
 
-        return res.json({ success: true, data: leave });
+        return res.json({ success: true, data: leave })
     } catch (error) {
-        console.error("updateLeaveStatus error:", error);
-        return res.status(500).json({ error: "Failed to update leave status" });
+        console.error("updateLeaveStatus error:", error)
+        return res.status(500).json({ error: "Failed to update leave status" })
     }
-};
+}
 
 // ─── LOP Summary (admin — used by payslip form) ───────────────────────────────
 export const getLopSummary = async (req, res) => {
     try {
-        const { employeeId, month, year } = req.query;
+        const { employeeId, month, year } = req.query
         if (!employeeId || !month || !year)
-            return res.status(400).json({ error: "employeeId, month and year are required" });
+            return res.status(400).json({ error: "employeeId, month and year are required" })
 
-        const employee = await Employee.findById(employeeId);
-        if (!employee) return res.status(404).json({ error: "Employee not found" });
+        const employee = await Employee.findById(employeeId)
+        if (!employee) return res.status(404).json({ error: "Employee not found" })
 
         const m          = parseInt(month)
         const y          = parseInt(year)
         const monthStart = new Date(y, m - 1, 1)
         const monthEnd   = new Date(y, m, 0, 23, 59, 59)
 
+        const weekOff      = employee.workSchedule?.weekOff ?? []
+        const workingDays  = getWorkingDays(m, y, weekOff)
+        const weekOffLabel = weekOff.length ? weekOff.join(", ") : "Sunday"
+
+        // ── LOP days ─────────────────────────────────────────────────────────
         const lopLeaves = await LeaveApplication.find({
-            employeeId:  employee._id,
-            type:        "LOSS_OF_PAY",
-            status:      "APPROVED",
-            startDate:   { $lte: monthEnd },
-            endDate:     { $gte: monthStart },
+            employeeId: employee._id,
+            type:       "LOSS_OF_PAY",
+            status:     "APPROVED",
+            startDate:  { $lte: monthEnd },
+            endDate:    { $gte: monthStart },
         })
 
         let totalDays      = 0
@@ -503,25 +566,27 @@ export const getLopSummary = async (req, res) => {
             leaveDetails.push({ id: leave._id.toString(), startDate: leave.startDate, endDate: leave.endDate, days })
         }
 
-        // ✅ Use employee's actual weekOff schedule — not hardcoded -6
-        const weekOff     = employee.workSchedule?.weekOff ?? []
-        const workingDays = getWorkingDays(m, y, weekOff)
-        const weekOffLabel = weekOff.length ? weekOff.join(", ") : "Sunday"
+        // ── Attendance counts ─────────────────────────────────────────────────
+        const { clockInDays, leaveDays } = await getAttendanceCounts(employee._id, m, y, weekOff)
+        const presentDays = clockInDays + leaveDays
+        const absentDays  = Math.max(0, workingDays - presentDays)
 
         const perDayRate = parseFloat((employee.basicSalary / workingDays).toFixed(2))
         const amount     = parseFloat((perDayRate * totalDays).toFixed(2))
 
         return res.json({
-            days: totalDays,
+            days:         totalDays,
             amount,
             basicSalary:  employee.basicSalary,
             workingDays,
-            weekOffLabel,   // ✅ sent to frontend so the banner shows correct text
+            presentDays,      // ✅ used by frontend to compute prorated net salary
+            absentDays,
+            weekOffLabel,
             perDayRate,
             leaveDetails,
-        });
+        })
     } catch (error) {
-        console.error("getLopSummary error:", error);
-        return res.status(500).json({ error: "Failed to get LOP summary" });
+        console.error("getLopSummary error:", error)
+        return res.status(500).json({ error: "Failed to get LOP summary" })
     }
-};
+}

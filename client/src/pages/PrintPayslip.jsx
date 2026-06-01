@@ -275,7 +275,6 @@
 
 // export default PrintPayslip
 
-
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { format } from "date-fns"
@@ -353,7 +352,7 @@ const PrintPayslip = () => {
     const employeeId  = emp.employeeId || `EMP-${payslip._id?.toString().slice(-5).toUpperCase()}`
     const joinDate    = emp.joinDate ? format(new Date(emp.joinDate), "dd MMM yyyy") : "—"
 
-    // ── Trust API-computed values — reflect any admin edits ──
+    // ── Salary values from API ────────────────────────────────────────────────
     const basicSalary   = payslip.basicSalary ?? 0
     const allowances    = payslip.allowances  ?? 0
     const lopDays       = payslip.lopDays     ?? 0
@@ -363,7 +362,7 @@ const PrintPayslip = () => {
     const netSalary     = payslip.netSalary   ?? parseFloat((grossEarnings - lopAmount).toFixed(2))
     const perDaySalary  = workingDays > 0 ? parseFloat((basicSalary / workingDays).toFixed(2)) : 0
 
-    // ── Attendance & leave counts from API (real-time) ──
+    // ── Attendance & leave counts from API ────────────────────────────────────
     const casualLeaves = emp.casualLeaves ?? 0
     const sickLeaves   = emp.sickLeaves   ?? 0
     const earnedLeaves = emp.earnedLeaves ?? 0
@@ -372,6 +371,10 @@ const PrintPayslip = () => {
     const weekOff      = emp.weekOff      ?? []
     const weekOffLabel = weekOff.length ? weekOff.join(", ") + " off" : "Sun off"
     const totalLeaves  = casualLeaves + sickLeaves + earnedLeaves
+
+    // ✅ presentDays comes directly from backend (scheduledDays - absentDays)
+    // absent already excludes days covered by approved leaves
+    const presentDays = emp.presentDays ?? (workingDays - absentDays)
 
     return (
         <div className="min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
@@ -432,18 +435,18 @@ const PrintPayslip = () => {
                         {/* ── Attendance Summary ── */}
                         <div>
                             <SectionTitle>Attendance Summary</SectionTitle>
-                            {/* 4-column grid: Scheduled · Present · Absent · Leaves */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                                 <AttBox
                                     label="Scheduled Days"
                                     value={workingDays}
-                                    sub={`${weekOffLabel} · −2 EL`}
+                                    sub={weekOffLabel}
                                     color="slate"
                                 />
+                                {/* ✅ presentDays = clock-in days + approved leave days */}
                                 <AttBox
                                     label="Present Days"
-                                    value={workingDays - absentDays - totalLeaves - lopLeaves}
-                                    sub="Clock-in recorded"
+                                    value={presentDays}
+                                    sub="Clock-in + approved leaves"
                                     color="green"
                                 />
                                 <AttBox
@@ -531,8 +534,7 @@ const PrintPayslip = () => {
                                 {lopDays} LOP day{lopDays > 1 ? "s" : ""} deducted
                                 @ ₹{perDaySalary.toFixed(2)}/day (Basic ÷ {workingDays} working days)
                                 <span className="block text-rose-400 mt-0.5">
-                                    {`Working days = calendar days − ${weekOffLabel} − 2 EL`}
-                                    ({workingDays} days for {periodLabel})
+                                    Working days = calendar days − {weekOffLabel} ({workingDays} days for {periodLabel})
                                 </span>
                             </div>
                         )}

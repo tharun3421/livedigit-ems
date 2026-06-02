@@ -13,6 +13,7 @@ import dashboardRouter from "./routes/dashboardRoutes.js"
 import announcementRouter from "./routes/announcementRoutes.js"
 import holidayRouter from "./routes/holidayRoutes.js"
 import { serve } from "inngest/express"
+import regularizationRouter from "./routes/regularizationRoutes.js";
 
 import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
 
@@ -49,6 +50,7 @@ app.use("/api/payslips",      payslipRouter)
 app.use("/api/dashboard",     dashboardRouter)
 app.use("/api/announcements", announcementRouter)
 app.use("/api/holidays", holidayRouter)
+app.use("/api/regularization", regularizationRouter);
 
 
 app.get("/", (req, res) => res.send("Server running successfully"))

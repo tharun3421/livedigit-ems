@@ -42,7 +42,7 @@ const findOrCreateEmployee = async (userId) => {
 
 export const getProfile = async (req, res) => {
     try {
-        const userId = req.session.userId  // ✅ your JWT puts userId here
+        const userId = req.session.userId  //  your JWT puts userId here
 
         const employee = await findOrCreateEmployee(userId)
         if (!employee) return res.status(404).json({ error: "User not found" })

@@ -30,7 +30,7 @@ const getISTMonth = () => {
 
 export const getDashboard = async (req, res) => {
   try {
-    await connectDB(); // ✅
+    await connectDB(); // 
 
     const { role, userId } = req.session;
 

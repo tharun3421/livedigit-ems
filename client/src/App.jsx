@@ -14,7 +14,7 @@ import MyProfile from "./pages/MyProfile"
 import Calendar from "./pages/Calender"
 import Announcements from "./pages/Announcements"
 import Letters       from "./pages/Letters"    
-
+import AttendanceRegularization from "./pages/AttendanceRegularization"
 
 
 const App = () => {
@@ -36,6 +36,7 @@ const App = () => {
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/letters"      element={<Letters />} />
+            <Route path="/regularization" element={<AttendanceRegularization />} />
         </Route>
         <Route path="/print/payslips/:id" element={<PrintPayslip/>}/>
         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>

@@ -1,20 +1,22 @@
-import { useEffect, useMemo, useState } from "react"
+
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
     CalendarIcon, ChevronRightIcon, FileTextIcon, IndianRupeeIcon,
     LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon,
-    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon, BellIcon
+    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon, BellIcon, MailIcon,
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
 
 const Sidebar = () => {
     const { pathname } = useLocation()
-    const [profile,      setProfile]      = useState(null)
-    const [imgError,     setImgError]     = useState(false)
-    const [mobileOpen,   setMobileOpen]   = useState(false)
-    const [unreadCount,  setUnreadCount]  = useState(0)
-    const { user, loading, logout }       = useAuth()
+    const [profile,       setProfile]       = useState(null)
+    const [imgError,      setImgError]      = useState(false)
+    const [mobileOpen,    setMobileOpen]    = useState(false)
+    const [unreadAnnounce,setUnreadAnnounce]= useState(0)
+    const [unreadLetters, setUnreadLetters] = useState(0)
+    const { user, loading, logout }         = useAuth()
 
     useEffect(() => {
         api.get("/profile")
@@ -25,20 +27,32 @@ const Sidebar = () => {
     useEffect(() => { setImgError(false) }, [profile?.avatar])
     useEffect(() => { setMobileOpen(false) }, [pathname])
 
-    // ── Poll unread announcements every 2 min (employees only) ────────────────
+    // ── Poll unread announcements ──────────────────────────────────────────────
     useEffect(() => {
         if (!user) return
-
         const fetchUnread = async () => {
             try {
                 const lastSeen = localStorage.getItem("announcementLastSeen") || ""
                 const res = await api.get(`/announcements/unread${lastSeen ? `?since=${lastSeen}` : ""}`)
-                setUnreadCount(res.data.count ?? 0)
+                setUnreadAnnounce(res.data.count ?? 0)
             } catch { /* silent */ }
         }
-
         fetchUnread()
         const interval = setInterval(fetchUnread, 2 * 60 * 1000)
+        return () => clearInterval(interval)
+    }, [user])
+
+    // ── Poll unread letters (employees only) ──────────────────────────────────
+    useEffect(() => {
+        if (!user || user.role === "ADMIN") return
+        const fetchLetters = async () => {
+            try {
+                const res = await api.get("/letters/unread")
+                setUnreadLetters(res.data.count ?? 0)
+            } catch { /* silent */ }
+        }
+        fetchLetters()
+        const interval = setInterval(fetchLetters, 30 * 1000)
         return () => clearInterval(interval)
     }, [user])
 
@@ -57,16 +71,20 @@ const Sidebar = () => {
         { name: "Leave",         href: "/leave",         icon: FileTextIcon    },
         { name: "Payslips",      href: "/payslips",      icon: IndianRupeeIcon },
         { name: "Calendar",      href: "/calendar",      icon: CalendarDaysIcon },
-        { name: "Announcements", href: "/announcements", icon: BellIcon, badge: unreadCount },
+        { name: "Announcements", href: "/announcements", icon: BellIcon,  badge: unreadAnnounce },
+        { name: "Letters",       href: "/letters",       icon: MailIcon,  badge: role !== "ADMIN" ? unreadLetters : 0 },
         { name: "Settings",      href: "/settings",      icon: SettingsIcon    },
-    ], [role, unreadCount])
+    ], [role, unreadAnnounce, unreadLetters])
 
     const handleLogout = () => { logout(); window.location.href = "/login" }
 
     const handleNavClick = (href) => {
         if (href === "/announcements") {
             localStorage.setItem("announcementLastSeen", new Date().toISOString())
-            setUnreadCount(0)
+            setUnreadAnnounce(0)
+        }
+        if (href === "/letters") {
+            setUnreadLetters(0)
         }
     }
 
@@ -95,8 +113,6 @@ const Sidebar = () => {
 
                 .sb-brand { padding:24px 20px 20px; border-bottom:1px solid rgba(255,255,255,0.06); position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; }
                 .sb-logo  { display:flex; align-items:center; gap:10px; }
-                .sb-logo-icon { width:36px; height:36px; border-radius:10px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(99,102,241,0.2); }
-                .sb-logo-icon svg { width:17px; height:17px; stroke:#818cf8; }
                 .sb-logo-name { font-family:'Syne',sans-serif; font-size:13px; font-weight:800; color:#fff; letter-spacing:-0.01em; line-height:1; }
                 .sb-logo-sub  { font-size:10px; font-weight:300; color:rgba(255,255,255,0.25); letter-spacing:0.04em; margin-top:2px; }
                 .sb-close { background:none; border:none; cursor:pointer; color:rgba(255,255,255,0.3); padding:4px; border-radius:6px; transition:color 0.2s,background 0.2s; display:flex; align-items:center; justify-content:center; }
@@ -122,7 +138,6 @@ const Sidebar = () => {
                 .sb-item:hover:not(.active) svg { color:rgba(255,255,255,0.6); }
                 .sb-item-chevron { margin-left:auto; width:12px; height:12px; color:rgba(99,102,241,0.4); }
 
-                /* ── Announcement badge & dot ── */
                 .sb-badge { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#f43f5e; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; animation:sb-pulse 2s ease-in-out infinite; margin-left:auto; }
                 .sb-bell-dot { width:7px; height:7px; border-radius:50%; background:#f43f5e; position:absolute; top:-1px; right:-1px; box-shadow:0 0 6px #f43f5e; animation:sb-pulse 1.5s ease-in-out infinite; }
 
@@ -144,7 +159,6 @@ const Sidebar = () => {
                 {/* Brand */}
                 <div className="sb-brand">
                     <div className="sb-logo">
-                        {/* <div className="sb-logo-icon"><UserIcon /></div> */}
                         <div>
                             <div className="sb-logo-name">LIVEDIGIT</div>
                             <div className="sb-logo-sub">Management System</div>
@@ -187,7 +201,6 @@ const Sidebar = () => {
                                 >
                                     {isActive && <div className="sb-item-bar" />}
 
-                                    {/* Icon wrapper — bell dot sits here */}
                                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                         <item.icon />
                                         {hasUnread && !isActive && (
@@ -197,7 +210,6 @@ const Sidebar = () => {
 
                                     <span style={{ flex: 1 }}>{item.name}</span>
 
-                                    {/* Unread badge or chevron */}
                                     {hasUnread && !isActive
                                         ? <span className="sb-badge">{item.badge > 99 ? "99+" : item.badge}</span>
                                         : isActive
@@ -220,15 +232,14 @@ const Sidebar = () => {
         </>
     )
 
-
     return (
         <>
             <button
                 onClick={() => setMobileOpen(true)}
-                className="lg:hidden fixed top-0 left-0 z-50 p-2 flex items-center justify-start w-full h-12  "
+                className="lg:hidden fixed top-0 left-0 z-50 p-2 flex items-center justify-start w-full h-12"
                 style={{ background: "rgb(10, 13, 26)", border: "1px solid rgba(255,255,255,0.1)" }}
             >
-                <MenuIcon size={18} color="white" className="ml-2"/>
+                <MenuIcon size={18} color="white" className="ml-2" />
             </button>
 
             {mobileOpen && (

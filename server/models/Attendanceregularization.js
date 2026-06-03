@@ -1,42 +1,34 @@
-// server/models/AttendanceRegularization.js
+import mongoose from "mongoose"
 
-import mongoose from "mongoose";
-
-const attendanceRegularizationSchema = new mongoose.Schema(
+const regularizationSchema = new mongoose.Schema(
   {
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
       required: true,
     },
-    date: {
-      type: Date,
-      required: true,
-    },
+    date: { type: Date, required: true },
     reason: {
       type: String,
-      enum: ["FORGOT_TO_PUNCH", "SYSTEM_ISSUE"],
+      enum: ["FORGOT_TO_CHECKIN", "SYSTEM_ERROR", "WORKED_FROM_HOME", "CLIENT_VISIT", "OTHER"],
       required: true,
     },
-    remarks: {
-      type: String,
-      default: "",
-    },
+    remarks: { type: String, default: "" },
     status: {
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],
       default: "PENDING",
     },
-    adminRemarks: {
-      type: String,
-      default: "",
-    },
+    adminRemark: { type: String, default: "" },
   },
   { timestamps: true }
-);
+)
+
+// One regularization per employee per date
+regularizationSchema.index({ employeeId: 1, date: 1 }, { unique: true })
 
 const AttendanceRegularization =
   mongoose.models.AttendanceRegularization ||
-  mongoose.model("AttendanceRegularization", attendanceRegularizationSchema);
+  mongoose.model("AttendanceRegularization", regularizationSchema)
 
-export default AttendanceRegularization;
+export default AttendanceRegularization

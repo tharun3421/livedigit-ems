@@ -14,7 +14,7 @@ import announcementRouter from "./routes/announcementRoutes.js"
 import holidayRouter from "./routes/holidayRoutes.js"
 import { serve } from "inngest/express"
 import regularizationRouter from "./routes/regularizationRoutes.js";
-
+import letterRouter from "./routes/letterRoutes.js";
 import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
 
 
@@ -51,6 +51,7 @@ app.use("/api/dashboard",     dashboardRouter)
 app.use("/api/announcements", announcementRouter)
 app.use("/api/holidays", holidayRouter)
 app.use("/api/regularization", regularizationRouter);
+app.use("/api/letters", letterRouter);
 
 
 app.get("/", (req, res) => res.send("Server running successfully"))

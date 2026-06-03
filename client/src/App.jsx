@@ -13,6 +13,7 @@ import LoginForm from "./components/LoginForm"
 import MyProfile from "./pages/MyProfile"
 import Calendar from "./pages/Calender"
 import Announcements from "./pages/Announcements"
+import Letters       from "./pages/Letters"    
 
 
 
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/my-profile" element={<MyProfile />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/announcements" element={<Announcements />} />
+            <Route path="/letters"      element={<Letters />} />
         </Route>
         <Route path="/print/payslips/:id" element={<PrintPayslip/>}/>
         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>

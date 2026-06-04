@@ -35,7 +35,21 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
     return dates
 }
 
-// Working days = scheduled days (excl. weekoffs) - 2 Earned Leaves per month
+/**
+ * Working days for a month:
+ *   = calendar days
+ *   − actual occurrences of the employee's weekoff day(s) in that month
+ *   − 2 Earned Leaves (fixed per month, regardless of calendar)
+ *
+ * Each employee can have a different weekoff (Sunday, Saturday, etc.).
+ * We count the real occurrences in that specific month, so every month
+ * gives the correct number regardless of how many weeks it spans.
+ *
+ * Examples (weekoff = Sunday):
+ *   June 2026  → 30 cal − 4 Sundays − 2 EL = 24
+ *   March 2026 → 31 cal − 4 Sundays − 2 EL = 25
+ *   Feb  2026  → 28 cal − 4 Sundays − 2 EL = 22
+ */
 const getWorkingDays = (month, year, weekOff = []) =>
     Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length - 2)
 
@@ -105,21 +119,27 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
 }
 
 /**
- * Central salary calculation.
+ * Central salary calculation — single source of truth used by all three endpoints.
  *
- * earnedBasic = (basicSalary / workingDays) × (presentDays + lopDays)
- *   → full basic for every scheduled day including LOP days
- * lopAmount   = perDaySalary × lopDays
- *   → explicit deduction so it appears as a real line on the payslip
- * netSalary   = earnedBasic - lopAmount + allowances
- *   → equivalent to perDaySalary × presentDays + allowances, but makes
- *      the deduction visible and auditable
+ * Formula:
+ *   perDaySalary = basicSalary / workingDays
+ *   earnedBasic  = perDaySalary × (presentDays + lopDays)
+ *                  ↑ gross basic before LOP cut — covers all days employee was
+ *                    scheduled (present + LOP), so the deduction line is real
+ *   lopAmount    = perDaySalary × lopDays        ← explicit visible deduction
+ *   netSalary    = earnedBasic − lopAmount + allowances
+ *                = perDaySalary × presentDays + allowances  (mathematically same)
+ *
+ * Why earnedBasic includes lopDays:
+ *   If we set earnedBasic = perDay × presentDays only, then
+ *   netSalary = earnedBasic + allowances already excludes LOP silently —
+ *   the lopAmount deduction line on the payslip would be cosmetic and wrong.
+ *   Including lopDays in earnedBasic makes the deduction line real and auditable.
  */
 const calcSalary = (basicSalary, allowances, workingDays, presentDays, lopDays) => {
     const perDaySalary = workingDays > 0
         ? parseFloat((basicSalary / workingDays).toFixed(2))
         : 0
-    // earnedBasic covers presentDays + lopDays so the lopAmount subtraction is meaningful
     const earnedBasic = parseFloat((perDaySalary * (presentDays + lopDays)).toFixed(2))
     const lopAmount   = parseFloat((perDaySalary * lopDays).toFixed(2))
     const netSalary   = parseFloat((earnedBasic - lopAmount + allowances).toFixed(2))
@@ -184,6 +204,7 @@ export const createPayslip = async (req, res) => {
             year:       y,
             basicSalary,
             allowances,
+            earnedBasic,
             deductions:  lopAmount,
             lopDays:     lopWorkedDays,
             lopAmount,
@@ -226,6 +247,7 @@ export const updatePayslip = async (req, res) => {
         const { earnedBasic, lopAmount, netSalary } =
             calcSalary(payslip.basicSalary, payslip.allowances, workingDays, presentDays, effectiveLopDays)
 
+        payslip.earnedBasic = earnedBasic
         payslip.lopAmount   = lopAmount
         payslip.deductions  = lopAmount
         payslip.netSalary   = netSalary

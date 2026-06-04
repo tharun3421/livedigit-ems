@@ -1,11 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2, X, InfoIcon } from "lucide-react"
 import api from "../../api/axios"
 import toast from "react-hot-toast"
 
 const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-
-const getWorkingDays = (month, year) => new Date(year, month, 0).getDate() - 6
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -41,9 +39,50 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
     const [lopDays,     setLopDays]     = useState(payslip.lopDays     ?? 0)
     const [loading,     setLoading]     = useState(false)
 
-    const workingDays = payslip.workingDays ?? getWorkingDays(payslip.month, payslip.year)
-    const lopAmount   = parseFloat(((Number(basicSalary) / workingDays) * Number(lopDays)).toFixed(2))
-    const netSalary   = parseFloat((Number(basicSalary) + Number(allowances) - lopAmount).toFixed(2))
+    // Live attendance counts fetched from the payslip detail endpoint
+    const [counts, setCounts] = useState({
+        workingDays: payslip.workingDays ?? 0,
+        presentDays: payslip.presentDays ?? 0,
+        absentDays:  payslip.absentDays  ?? 0,
+        lopWorkedDays: payslip.lopDays   ?? 0,
+    })
+    const [countsLoading, setCountsLoading] = useState(true)
+
+    // Fetch live counts from the existing getPayslipById endpoint
+    // which always recomputes from live attendance data
+    useEffect(() => {
+        const fetchLiveCounts = async () => {
+            try {
+                const id = payslip._id ?? payslip.id
+                const { data } = await api.get(`/payslips/${id}`)
+                setCounts({
+                    workingDays:   data.workingDays              ?? 0,
+                    presentDays:   data.employee?.presentDays    ?? 0,
+                    absentDays:    data.employee?.absentDays     ?? 0,
+                    lopWorkedDays: data.employee?.lopLeaves      ?? 0,
+                })
+            } catch {
+                // Fall back to stored values — not ideal but better than crashing
+            } finally {
+                setCountsLoading(false)
+            }
+        }
+        fetchLiveCounts()
+    }, [payslip._id, payslip.id])
+
+    const { workingDays, presentDays, absentDays, lopWorkedDays } = counts
+
+    // ── Correct salary formula (mirrors payslipController.js exactly) ──
+    // perDaySalary = basicSalary / workingDays
+    // earnedBasic  = perDaySalary × presentDays      ← prorated for attendance
+    // lopAmount    = perDaySalary × lopWorkedDays
+    // netSalary    = earnedBasic + allowances
+    const perDaySalary = workingDays > 0
+        ? parseFloat((Number(basicSalary) / workingDays).toFixed(2))
+        : 0
+    const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
+    const lopAmount    = parseFloat((perDaySalary * Number(lopDays)).toFixed(2))
+    const netSalary    = parseFloat((earnedBasic + Number(allowances)).toFixed(2))
 
     const periodLabel = new Date(payslip.year, payslip.month - 1)
         .toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -52,7 +91,7 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
         .filter(Boolean).join(" ")
 
     const handleSave = async () => {
-        if (loading) return                          // guard against double-click
+        if (loading) return
         setLoading(true)
         try {
             await api.put(`/payslips/${payslip._id ?? payslip.id}`, {
@@ -61,11 +100,11 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
                 lopDays:     Number(lopDays),
             })
             toast.success("Payslip updated successfully")
-            onClose()                               // close modal first
-            onSuccess()                             // then refresh list (outside try/catch)
+            onClose()
+            onSuccess()
         } catch (err) {
             toast.error(err?.response?.data?.error || "Failed to update payslip")
-            setLoading(false)                       // only reset on error; modal stays open
+            setLoading(false)
         }
     }
 
@@ -136,27 +175,53 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
                                 Updated breakdown
                             </span>
                             <span className="ml-auto text-xs text-slate-400">
-                                {workingDays} working days
+                                {countsLoading ? "Loading…" : `${workingDays} working days`}
                             </span>
                         </div>
-                        <div className="divide-y divide-slate-100">
-                            <SalaryRow label="Basic Salary" value={inr(basicSalary)} />
-                            <SalaryRow label="Allowances"   value={inr(allowances)}  color="green" />
-                            {Number(lopDays) > 0 && (
-                                <SalaryRow
-                                    label={`LOP (${lopDays}d × ₹${Number(basicSalary).toLocaleString("en-IN")} ÷ ${workingDays})`}
-                                    value={`– ${inr(lopAmount)}`}
-                                    color="rose"
-                                    bold
-                                />
-                            )}
-                            <div className="flex justify-between items-center px-4 py-3 bg-indigo-50">
-                                <span className="text-sm font-bold text-slate-800">Net Salary</span>
-                                <span className={`text-base font-bold ${netSalary < 0 ? "text-rose-600" : "text-indigo-600"}`}>
-                                    {inr(netSalary)}
-                                </span>
+
+                        {countsLoading ? (
+                            <div className="flex items-center justify-center py-6 gap-2 text-slate-400 text-sm">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Fetching attendance data…
                             </div>
-                        </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+
+                                {/* Attendance summary row */}
+                                <div className="flex justify-between items-center px-4 py-2 bg-slate-50/60">
+                                    <span className="text-xs text-slate-400">
+                                        Present {presentDays}d · Absent {absentDays}d · LOP {lopWorkedDays}d
+                                    </span>
+                                    <span className="text-xs text-slate-400">
+                                        ₹{perDaySalary.toLocaleString("en-IN")}/day
+                                    </span>
+                                </div>
+
+                                {/* Earned basic = prorated for days present */}
+                                <SalaryRow
+                                    label={`Earned Basic (${presentDays}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
+                                    value={inr(earnedBasic)}
+                                />
+
+                                <SalaryRow label="Allowances" value={inr(allowances)} color="green" />
+
+                                {Number(lopDays) > 0 && (
+                                    <SalaryRow
+                                        label={`LOP (${lopDays}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
+                                        value={`– ${inr(lopAmount)}`}
+                                        color="rose"
+                                        bold
+                                    />
+                                )}
+
+                                <div className="flex justify-between items-center px-4 py-3 bg-indigo-50">
+                                    <span className="text-sm font-bold text-slate-800">Net Salary</span>
+                                    <span className={`text-base font-bold ${netSalary < 0 ? "text-rose-600" : "text-indigo-600"}`}>
+                                        {inr(netSalary)}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -168,7 +233,7 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
                     <button
                         type="button"
                         onClick={handleSave}
-                        disabled={loading}
+                        disabled={loading || countsLoading}
                         className="btn-primary flex items-center gap-2 disabled:opacity-50"
                     >
                         {loading && <Loader2 className="w-4 h-4 animate-spin" />}

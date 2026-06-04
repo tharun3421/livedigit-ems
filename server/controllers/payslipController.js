@@ -1,4 +1,3 @@
-
 import Employee         from "../models/Employee.js"
 import Payslip          from "../models/Payslip.js"
 import LeaveApplication from "../models/LeaveApplication.js"
@@ -41,11 +40,9 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
 }
 
 /**
- * Working days = scheduled days in month (excluding weekoffs).
- * No EL subtraction — EL is a leave type, not a calendar deduction.
+ * Working days = scheduled days (excl. weekoffs) - 2 Earned Leaves per month
+ * e.g. typical month: 30 cal days - 4 Sundays - 2 EL = 24 working days
  */
-// Working days = scheduled days (excl. weekoffs) - 2 Earned Leaves per month
-// e.g. typical month: 30 cal days - 4 Sundays - 2 EL = 24 working days
 const getWorkingDays = (month, year, weekOff = []) =>
     Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length - 2)
 
@@ -92,7 +89,7 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
     const clockedInDates = new Set(records.map((r) => toISTDateStr(r.date)))
 
     // Split leaves into LOP vs paid (SL/CL/EL)
-    const lopDates      = new Set()
+    const lopDates       = new Set()
     const paidLeaveDates = new Set()
 
     for (const leave of leaves) {
@@ -221,16 +218,27 @@ export const updatePayslip = async (req, res) => {
 
         if (basicSalary !== undefined) payslip.basicSalary = Number(basicSalary)
         if (allowances  !== undefined) payslip.allowances  = Number(allowances)
-        if (lopDays     !== undefined) payslip.lopDays     = Number(lopDays)
 
-        const employee  = await Employee.findById(payslip.employeeId).lean()
-        const weekOff   = employee?.workSchedule?.weekOff ?? []
-        const counts    = await getMonthCounts(payslip.employeeId, payslip.month, payslip.year, weekOff)
+        const employee = await Employee.findById(payslip.employeeId).lean()
+        const weekOff  = employee?.workSchedule?.weekOff ?? []
+        const counts   = await getMonthCounts(payslip.employeeId, payslip.month, payslip.year, weekOff)
 
-        const { workingDays, presentDays, absentDays } = counts
-        const perDaySalary = workingDays > 0 ? parseFloat((payslip.basicSalary / workingDays).toFixed(2)) : 0
+        const { workingDays, presentDays, absentDays, lopWorkedDays } = counts
+
+        // lopDays: use admin override if provided, otherwise use live attendance count
+        // This allows admin to manually adjust LOP without it being overwritten by attendance
+        const effectiveLopDays = lopDays !== undefined ? Number(lopDays) : lopWorkedDays
+        payslip.lopDays = effectiveLopDays
+
+        // ── Salary formula (identical to createPayslip) ──
+        // earnedBasic is prorated: (basicSalary / workingDays) × presentDays
+        // presentDays already excludes LOP days (they were never clocked in)
+        // effectiveLopDays drives the explicit lopAmount for display/audit only
+        const perDaySalary = workingDays > 0
+            ? parseFloat((payslip.basicSalary / workingDays).toFixed(2))
+            : 0
         const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
-        const lopAmount    = parseFloat((perDaySalary * (payslip.lopDays ?? 0)).toFixed(2))
+        const lopAmount    = parseFloat((perDaySalary * effectiveLopDays).toFixed(2))
         const netSalary    = parseFloat((earnedBasic + payslip.allowances).toFixed(2))
 
         payslip.lopAmount   = lopAmount

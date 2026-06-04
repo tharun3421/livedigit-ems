@@ -5,6 +5,17 @@ import toast from "react-hot-toast"
 
 const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
 
+// Mirrors calcSalary() in payslipController.js exactly
+const calcSalary = (basicSalary, allowances, workingDays, presentDays, lopDays) => {
+    const perDaySalary = workingDays > 0
+        ? parseFloat((basicSalary / workingDays).toFixed(2))
+        : 0
+    const earnedBasic = parseFloat((perDaySalary * (presentDays + lopDays)).toFixed(2))
+    const lopAmount   = parseFloat((perDaySalary * lopDays).toFixed(2))
+    const netSalary   = parseFloat((earnedBasic - lopAmount + allowances).toFixed(2))
+    return { perDaySalary, earnedBasic, lopAmount, netSalary }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const Field = ({ label, hint, children }) => (
@@ -39,30 +50,29 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
     const [lopDays,     setLopDays]     = useState(payslip.lopDays     ?? 0)
     const [loading,     setLoading]     = useState(false)
 
-    // Live attendance counts fetched from the payslip detail endpoint
     const [counts, setCounts] = useState({
-        workingDays: payslip.workingDays ?? 0,
-        presentDays: payslip.presentDays ?? 0,
-        absentDays:  payslip.absentDays  ?? 0,
-        lopWorkedDays: payslip.lopDays   ?? 0,
+        workingDays:   payslip.workingDays ?? 0,
+        presentDays:   payslip.presentDays ?? 0,
+        absentDays:    payslip.absentDays  ?? 0,
+        lopWorkedDays: payslip.lopDays     ?? 0,
     })
     const [countsLoading, setCountsLoading] = useState(true)
 
-    // Fetch live counts from the existing getPayslipById endpoint
-    // which always recomputes from live attendance data
     useEffect(() => {
         const fetchLiveCounts = async () => {
             try {
                 const id = payslip._id ?? payslip.id
                 const { data } = await api.get(`/payslips/${id}`)
                 setCounts({
-                    workingDays:   data.workingDays              ?? 0,
-                    presentDays:   data.employee?.presentDays    ?? 0,
-                    absentDays:    data.employee?.absentDays     ?? 0,
-                    lopWorkedDays: data.employee?.lopLeaves      ?? 0,
+                    workingDays:   data.workingDays           ?? 0,
+                    presentDays:   data.employee?.presentDays ?? 0,
+                    absentDays:    data.employee?.absentDays  ?? 0,
+                    lopWorkedDays: data.employee?.lopLeaves   ?? 0,
                 })
+                // Sync lopDays input to stored/live value
+                setLopDays(data.employee?.lopLeaves ?? payslip.lopDays ?? 0)
             } catch {
-                // Fall back to stored values — not ideal but better than crashing
+                // fall back to stored values
             } finally {
                 setCountsLoading(false)
             }
@@ -70,19 +80,16 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
         fetchLiveCounts()
     }, [payslip._id, payslip.id])
 
-    const { workingDays, presentDays, absentDays, lopWorkedDays } = counts
+    const { workingDays, presentDays, absentDays } = counts
 
-    // ── Correct salary formula (mirrors payslipController.js exactly) ──
-    // perDaySalary = basicSalary / workingDays
-    // earnedBasic  = perDaySalary × presentDays      ← prorated for attendance
-    // lopAmount    = perDaySalary × lopWorkedDays
-    // netSalary    = earnedBasic + allowances
-    const perDaySalary = workingDays > 0
-        ? parseFloat((Number(basicSalary) / workingDays).toFixed(2))
-        : 0
-    const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
-    const lopAmount    = parseFloat((perDaySalary * Number(lopDays)).toFixed(2))
-    const netSalary    = parseFloat((earnedBasic + Number(allowances)).toFixed(2))
+    // Live preview — mirrors controller calcSalary exactly
+    const { perDaySalary, earnedBasic, lopAmount, netSalary } = calcSalary(
+        Number(basicSalary),
+        Number(allowances),
+        workingDays,
+        presentDays,
+        Number(lopDays),
+    )
 
     const periodLabel = new Date(payslip.year, payslip.month - 1)
         .toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -130,38 +137,25 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
 
                 <div className="space-y-4">
 
-                    {/* ── Basic Salary ── */}
                     <Field label="Basic Salary (₹)">
                         <input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="number" min="0" step="0.01"
                             value={basicSalary}
                             onChange={(e) => setBasicSalary(e.target.value)}
                         />
                     </Field>
 
-                    {/* ── Allowances ── */}
                     <Field label="Allowances (₹)">
                         <input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="number" min="0" step="0.01"
                             value={allowances}
                             onChange={(e) => setAllowances(e.target.value)}
                         />
                     </Field>
 
-                    {/* ── LOP Days ── */}
-                    <Field
-                        label="LOP Days"
-                        hint="(auto-pulled from leaves; override if needed)"
-                    >
+                    <Field label="LOP Days" hint="(auto-pulled from leaves; override if needed)">
                         <input
-                            type="number"
-                            min="0"
-                            max={workingDays}
-                            step="1"
+                            type="number" min="0" max={workingDays} step="1"
                             value={lopDays}
                             onChange={(e) => setLopDays(e.target.value)}
                         />
@@ -187,27 +181,28 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
                         ) : (
                             <div className="divide-y divide-slate-100">
 
-                                {/* Attendance summary row */}
+                                {/* Attendance context */}
                                 <div className="flex justify-between items-center px-4 py-2 bg-slate-50/60">
                                     <span className="text-xs text-slate-400">
-                                        Present {presentDays}d · Absent {absentDays}d · LOP {lopWorkedDays}d
+                                        Present {presentDays}d · Absent {absentDays}d · LOP {Number(lopDays)}d
                                     </span>
                                     <span className="text-xs text-slate-400">
                                         ₹{perDaySalary.toLocaleString("en-IN")}/day
                                     </span>
                                 </div>
 
-                                {/* Earned basic = prorated for days present */}
+                                {/* Earned basic covers present + lop days (before deduction) */}
                                 <SalaryRow
-                                    label={`Earned Basic (${presentDays}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
+                                    label={`Earned Basic (${presentDays + Number(lopDays)}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
                                     value={inr(earnedBasic)}
                                 />
 
                                 <SalaryRow label="Allowances" value={inr(allowances)} color="green" />
 
+                                {/* LOP deduction — always shown if lopDays > 0 */}
                                 {Number(lopDays) > 0 && (
                                     <SalaryRow
-                                        label={`LOP (${lopDays}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
+                                        label={`LOP Deduction (${lopDays}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
                                         value={`– ${inr(lopAmount)}`}
                                         color="rose"
                                         bold

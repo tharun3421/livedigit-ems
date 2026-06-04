@@ -9,11 +9,15 @@ import { useAuth } from "../context/authContext";
 
 // ─── Company info ─────────────────────────────────────────────────────────────
 const COMPANY = {
-  name:    "LiveDigit.in",
-  address: "Visakhapatnam & Hyderabad, India",
+  name:    "LiveDigit Technologies Pvt. Ltd.",
+  tagline: "Empowering Digital Futures",
+  address: "3rd Floor, Cyber Towers, HITEC City, Hyderabad – 500081, Telangana, India",
+  address2:"Branch: Siripuram, Visakhapatnam – 530003, Andhra Pradesh, India",
   email:   "hrsupport@livedigit.in",
   website: "www.livedigit.in",
   phone:   "+91 98765 43210",
+  cin:     "U72900TG2020PTC145678",
+  gstin:   "36AABCL1234F1ZS",
   logo:    "/logo.png",
 }
 
@@ -69,53 +73,56 @@ const fmtDateLong = (iso) =>
 // Each returns a full self-contained HTML string suitable for printing / PDF
 
 const buildOfferLetterHTML = (letter, emp) => {
-  const tpl = TEMPLATES[0]
   const date = fmtDateLong(letter.createdAt)
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${letter.subject}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',sans-serif;background:#f8fafc;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;position:relative;overflow:hidden}
-  /* Header accent bar */
-  .accent-bar{height:6px;background:linear-gradient(90deg,#16a34a,#4ade80)}
+  html,body{height:297mm;width:210mm;margin:0 auto}
+  body{font-family:'Inter',sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column}
+  .page{width:100%;flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .accent-bar{height:5px;background:linear-gradient(90deg,#15803d,#4ade80);flex-shrink:0}
   /* Header */
-  .header{padding:32px 48px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0}
-  .logo-wrap{display:flex;align-items:center;gap:14px}
-  .logo{width:48px;height:48px;object-fit:contain}
-  .company-name{font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.5px}
-  .company-sub{font-size:11px;color:#64748b;margin-top:2px}
-  .header-right{text-align:right}
-  .letter-type{display:inline-block;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;letter-spacing:0.5px;text-transform:uppercase}
-  .ref-date{font-size:11px;color:#94a3b8;margin-top:6px}
+  .header{padding:20px 40px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #dcfce7;flex-shrink:0}
+  .logo-wrap{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;object-fit:contain}
+  .co-name{font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.3px}
+  .co-tag{font-size:9px;color:#16a34a;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;margin-top:1px}
+  .co-addr{font-size:9px;color:#64748b;margin-top:2px;line-height:1.4}
+  .hdr-right{text-align:right}
+  .letter-badge{display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:9.5px;font-weight:700;padding:3px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:0.8px}
+  .hdr-meta{font-size:9px;color:#94a3b8;margin-top:5px;line-height:1.6}
   /* Body */
-  .body{padding:40px 48px}
-  .address-block{margin-bottom:32px}
-  .address-block p{font-size:13px;line-height:1.7;color:#334155}
-  .address-block .name{font-size:14px;font-weight:600;color:#0f172a}
-  /* Highlight box */
-  .highlight{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:0 8px 8px 0;padding:16px 20px;margin:24px 0;font-size:13px;color:#166534}
-  .highlight strong{font-size:14px;color:#14532d}
-  /* Content */
-  .content{font-size:13.5px;line-height:1.85;color:#334155}
-  .content p{margin-bottom:16px}
+  .body{padding:20px 40px 16px;flex:1;overflow:hidden}
+  .to-block{margin-bottom:16px;padding:10px 14px;background:#f8fafc;border-left:3px solid #16a34a;border-radius:0 6px 6px 0}
+  .to-label{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px}
+  .to-name{font-size:13px;font-weight:700;color:#0f172a}
+  .to-role{font-size:11px;color:#475569;margin-top:1px}
+  .subject-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;margin-bottom:16px}
+  .subject-label{font-size:9px;color:#16a34a;font-weight:600;text-transform:uppercase;letter-spacing:0.8px}
+  .subject-text{font-size:12.5px;font-weight:700;color:#14532d;margin-top:2px}
+  .content{font-size:12px;line-height:1.75;color:#334155}
+  .content p{margin-bottom:11px}
   /* Signature */
-  .sig-section{margin-top:48px;display:flex;justify-content:space-between;align-items:flex-end}
-  .sig-left .sig-line{width:180px;height:1px;background:#cbd5e1;margin-bottom:6px}
-  .sig-left p{font-size:12px;color:#64748b}
-  .sig-left .sig-name{font-size:14px;font-weight:600;color:#0f172a;margin-bottom:2px}
-  .stamp{width:80px;height:80px;border:3px solid #16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0.25}
-  .stamp span{font-size:10px;font-weight:700;color:#16a34a;text-align:center;transform:rotate(-15deg);letter-spacing:1px}
+  .sig-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0}
+  .sig-block .line{width:140px;height:1px;background:#cbd5e1;margin-bottom:4px}
+  .sig-block .s-name{font-size:11.5px;font-weight:600;color:#0f172a}
+  .sig-block .s-role{font-size:10px;color:#64748b;margin-top:1px}
+  .stamp-wrap{opacity:0.18;width:64px;height:64px;border:2.5px solid #15803d;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .stamp-wrap span{font-size:7.5px;font-weight:700;color:#15803d;text-align:center;letter-spacing:0.8px;line-height:1.4}
   /* Footer */
-  .footer{position:absolute;bottom:0;left:0;right:0;background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 48px;display:flex;align-items:center;justify-content:space-between}
-  .footer p{font-size:10px;color:#94a3b8}
-  .footer-accent{width:40px;height:3px;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:2px}
-  @media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%}button{display:none!important}}
+  .footer{background:#f0fdf4;border-top:2px solid #dcfce7;padding:9px 40px;flex-shrink:0}
+  .footer-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .footer-top p{font-size:9px;color:#166534;font-weight:500}
+  .footer-bottom{display:flex;justify-content:space-between}
+  .footer-bottom p{font-size:8.5px;color:#86a891}
+  .f-bar{height:3px;background:linear-gradient(90deg,#15803d,#4ade80);border-radius:2px;margin:4px 0}
+  @page{size:A4;margin:0}
+  @media print{html,body{height:297mm;width:210mm}button{display:none!important}.page{page-break-after:avoid;page-break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -125,47 +132,68 @@ const buildOfferLetterHTML = (letter, emp) => {
     <div class="logo-wrap">
       <img src="${COMPANY.logo}" class="logo" alt="Logo" onerror="this.style.display='none'"/>
       <div>
-        <div class="company-name">${COMPANY.name}</div>
-        <div class="company-sub">${COMPANY.address}</div>
+        <div class="co-name">${COMPANY.name}</div>
+        <div class="co-tag">${COMPANY.tagline}</div>
+        <div class="co-addr">${COMPANY.address}</div>
       </div>
     </div>
-    <div class="header-right">
-      <div class="letter-type">Offer Letter</div>
-      <div class="ref-date">Date: ${date}</div>
+    <div class="hdr-right">
+      <div class="letter-badge">✦ Offer Letter</div>
+      <div class="hdr-meta">
+        Date: ${date}<br/>
+        CIN: ${COMPANY.cin}<br/>
+        GSTIN: ${COMPANY.gstin}
+      </div>
     </div>
   </div>
 
   <div class="body">
-    <div class="address-block">
-      <p class="name">${emp?.firstName || ""} ${emp?.lastName || ""}</p>
-      <p>${emp?.position || ""}${emp?.department ? " · " + emp.department : ""}</p>
+    <div class="to-block">
+      <div class="to-label">Addressed To</div>
+      <div class="to-name">${emp?.firstName || ""} ${emp?.lastName || ""}</div>
+      <div class="to-role">${emp?.position || ""}${emp?.department ? " · " + emp.department : ""}</div>
     </div>
 
-    <div class="highlight">
-      <strong>Subject: ${letter.subject}</strong>
+    <div class="subject-box">
+      <div class="subject-label">Subject</div>
+      <div class="subject-text">${letter.subject}</div>
     </div>
 
     <div class="content">
       ${letter.renderedBody.split("\n\n").map(p =>
-        p.trim() ? `<p>${p.replace(/\n/g, "<br/>")}</p>` : ""
+        p.trim() ? `<p>${p.replace(/\n/g,"<br/>")}</p>` : ""
       ).join("")}
     </div>
 
-    <div class="sig-section">
-      <div class="sig-left">
-        <div class="sig-line"></div>
-        <p class="sig-name">Authorised Signatory</p>
-        <p>HR Department</p>
-        <p>${COMPANY.name}</p>
+    <div class="sig-row">
+      <div class="sig-block">
+        <div class="line"></div>
+        <div class="s-name">Authorised Signatory</div>
+        <div class="s-role">HR Department · ${COMPANY.name}</div>
       </div>
-      <div class="stamp"><span>OFFICIAL</span></div>
+      <div class="stamp-wrap">
+        <span>OFFICIAL</span>
+        <span>SEAL</span>
+      </div>
+      <div class="sig-block">
+        <div class="line"></div>
+        <div class="s-name">Employee Acknowledgement</div>
+        <div class="s-role">Signature &amp; Date</div>
+      </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>${COMPANY.name} · ${COMPANY.email} · ${COMPANY.phone}</p>
-    <div class="footer-accent"></div>
-    <p>${COMPANY.website}</p>
+    <div class="f-bar"></div>
+    <div class="footer-top">
+      <p>${COMPANY.name} · ${COMPANY.email} · ${COMPANY.phone}</p>
+      <p>${COMPANY.website}</p>
+    </div>
+    <div class="footer-bottom">
+      <p>CIN: ${COMPANY.cin}</p>
+      <p>${COMPANY.address2}</p>
+      <p>GSTIN: ${COMPANY.gstin}</p>
+    </div>
   </div>
 </div>
 </body>
@@ -182,39 +210,49 @@ const buildWarningLetterHTML = (letter, emp) => {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',sans-serif;background:#f8fafc;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;position:relative;overflow:hidden}
-  .accent-bar{height:6px;background:linear-gradient(90deg,#b45309,#fbbf24)}
-  .header{padding:32px 48px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #fef3c7}
-  .logo-wrap{display:flex;align-items:center;gap:14px}
-  .logo{width:48px;height:48px;object-fit:contain}
-  .company-name{font-size:22px;font-weight:700;color:#0f172a}
-  .company-sub{font-size:11px;color:#64748b;margin-top:2px}
-  .header-right{text-align:right}
-  .letter-type{display:inline-block;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px}
-  .ref-date{font-size:11px;color:#94a3b8;margin-top:6px}
+  html,body{height:297mm;width:210mm;margin:0 auto}
+  body{font-family:'Inter',sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column}
+  .page{width:100%;flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .accent-bar{height:5px;background:linear-gradient(90deg,#b45309,#fbbf24);flex-shrink:0}
+  /* Side stripe */
+  .stripe{position:absolute;left:0;top:0;bottom:0;width:4px;background:repeating-linear-gradient(180deg,#f59e0b 0px,#f59e0b 8px,transparent 8px,transparent 16px)}
+  .header{padding:20px 40px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #fef3c7;flex-shrink:0;position:relative}
+  .logo-wrap{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;object-fit:contain}
+  .co-name{font-size:16px;font-weight:700;color:#0f172a}
+  .co-tag{font-size:9px;color:#b45309;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;margin-top:1px}
+  .co-addr{font-size:9px;color:#64748b;margin-top:2px;line-height:1.4}
+  .hdr-right{text-align:right}
+  .letter-badge{display:inline-block;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;font-size:9.5px;font-weight:700;padding:3px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:0.8px}
+  .hdr-meta{font-size:9px;color:#94a3b8;margin-top:5px;line-height:1.6}
   /* Warning banner */
-  .warning-banner{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px 20px;margin:24px 0;display:flex;align-items:center;gap:12px}
-  .warn-icon{width:32px;height:32px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .warn-icon span{color:#fff;font-size:16px;font-weight:700}
-  .warn-text strong{font-size:13px;font-weight:700;color:#92400e;display:block}
-  .warn-text span{font-size:12px;color:#b45309}
-  .body{padding:40px 48px 100px}
-  .address-block{margin-bottom:28px}
-  .address-block p{font-size:13px;line-height:1.7;color:#334155}
-  .address-block .name{font-size:14px;font-weight:600;color:#0f172a}
-  .subject-line{font-size:14px;font-weight:600;color:#92400e;margin-bottom:24px;padding-bottom:12px;border-bottom:1px dashed #fcd34d}
-  .content{font-size:13.5px;line-height:1.85;color:#334155}
-  .content p{margin-bottom:16px}
-  .ack-box{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-top:32px;font-size:12px;color:#92400e}
-  .ack-box strong{display:block;margin-bottom:4px}
-  .sig-section{margin-top:40px;display:flex;justify-content:space-between}
-  .sig-block .sig-line{width:160px;height:1px;background:#cbd5e1;margin-bottom:6px}
-  .sig-block p{font-size:12px;color:#64748b}
-  .sig-block .sig-name{font-size:13px;font-weight:600;color:#0f172a;margin-bottom:2px}
-  .footer{position:absolute;bottom:0;left:0;right:0;background:#fffbeb;border-top:2px solid #fef3c7;padding:14px 48px;display:flex;justify-content:space-between;align-items:center}
-  .footer p{font-size:10px;color:#92400e}
-  @media print{body{background:#fff}.page{box-shadow:none;width:100%}}
+  .warn-banner{background:linear-gradient(90deg,#fffbeb,#fef9ee);border:1px solid #fde68a;border-radius:6px;padding:10px 16px;margin:16px 40px 0;display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .warn-icon{width:28px;height:28px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;font-weight:900;color:#fff}
+  .warn-text strong{font-size:11.5px;font-weight:700;color:#92400e;display:block}
+  .warn-text span{font-size:10px;color:#b45309}
+  .body{padding:14px 40px 12px;flex:1;overflow:hidden}
+  .to-block{margin-bottom:14px;padding:10px 14px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 6px 6px 0}
+  .to-label{font-size:9px;color:#92400e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px}
+  .to-name{font-size:13px;font-weight:700;color:#0f172a}
+  .to-role{font-size:11px;color:#475569;margin-top:1px}
+  .subject-line{font-size:12.5px;font-weight:700;color:#92400e;border-bottom:1px dashed #fcd34d;padding-bottom:10px;margin-bottom:14px}
+  .content{font-size:12px;line-height:1.75;color:#334155}
+  .content p{margin-bottom:11px}
+  .ack-box{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-top:14px;font-size:10.5px;color:#92400e;line-height:1.5}
+  .ack-box strong{display:block;margin-bottom:2px;font-size:11px}
+  .sig-row{display:flex;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:1px solid #fde68a}
+  .sig-block .line{width:130px;height:1px;background:#fcd34d;margin-bottom:4px}
+  .sig-block .s-name{font-size:11px;font-weight:600;color:#0f172a}
+  .sig-block .s-role{font-size:9.5px;color:#64748b;margin-top:1px}
+  .confidential{text-align:center;margin-top:10px;font-size:9px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase}
+  .footer{background:#fffbeb;border-top:2px solid #fef3c7;padding:9px 40px;flex-shrink:0}
+  .footer-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .footer-top p{font-size:9px;color:#92400e;font-weight:500}
+  .footer-bottom{display:flex;justify-content:space-between}
+  .footer-bottom p{font-size:8.5px;color:#a8926a}
+  .f-bar{height:3px;background:linear-gradient(90deg,#b45309,#fbbf24);border-radius:2px;margin:4px 0}
+  @page{size:A4;margin:0}
+  @media print{html,body{height:297mm;width:210mm}button{display:none!important}.page{page-break-after:avoid;page-break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -224,60 +262,75 @@ const buildWarningLetterHTML = (letter, emp) => {
     <div class="logo-wrap">
       <img src="${COMPANY.logo}" class="logo" alt="Logo" onerror="this.style.display='none'"/>
       <div>
-        <div class="company-name">${COMPANY.name}</div>
-        <div class="company-sub">${COMPANY.address}</div>
+        <div class="co-name">${COMPANY.name}</div>
+        <div class="co-tag">${COMPANY.tagline}</div>
+        <div class="co-addr">${COMPANY.address}</div>
       </div>
     </div>
-    <div class="header-right">
-      <div class="letter-type">⚠ Warning Letter</div>
-      <div class="ref-date">Date: ${date}</div>
+    <div class="hdr-right">
+      <div class="letter-badge">⚠ Warning Letter</div>
+      <div class="hdr-meta">
+        Date: ${date}<br/>
+        CIN: ${COMPANY.cin}<br/>
+        GSTIN: ${COMPANY.gstin}
+      </div>
+    </div>
+  </div>
+
+  <div class="warn-banner">
+    <div class="warn-icon">!</div>
+    <div class="warn-text">
+      <strong>Official Warning Notice — Strictly Confidential</strong>
+      <span>This is an official HR document. Please read carefully and acknowledge receipt.</span>
     </div>
   </div>
 
   <div class="body">
-    <div class="address-block">
-      <p class="name">${emp?.firstName || ""} ${emp?.lastName || ""}</p>
-      <p>${emp?.position || ""}${emp?.department ? " · " + emp.department : ""}</p>
-    </div>
-
-    <div class="warning-banner">
-      <div class="warn-icon"><span>!</span></div>
-      <div class="warn-text">
-        <strong>Official Warning Notice</strong>
-        <span>This letter is an official record. Please read carefully.</span>
-      </div>
+    <div class="to-block">
+      <div class="to-label">Addressed To</div>
+      <div class="to-name">${emp?.firstName || ""} ${emp?.lastName || ""}</div>
+      <div class="to-role">${emp?.position || ""}${emp?.department ? " · " + emp.department : ""}</div>
     </div>
 
     <div class="subject-line">Subject: ${letter.subject}</div>
 
     <div class="content">
       ${letter.renderedBody.split("\n\n").map(p =>
-        p.trim() ? `<p>${p.replace(/\n/g, "<br/>")}</p>` : ""
+        p.trim() ? `<p>${p.replace(/\n/g,"<br/>")}</p>` : ""
       ).join("")}
     </div>
 
     <div class="ack-box">
       <strong>Acknowledgement Required</strong>
-      Please sign and return a copy of this letter within 48 hours to confirm receipt.
+      Please sign and return a copy within 48 hours. Failure to acknowledge does not void this notice.
     </div>
 
-    <div class="sig-section">
+    <div class="sig-row">
       <div class="sig-block">
-        <div class="sig-line"></div>
-        <p class="sig-name">Authorised Signatory</p>
-        <p>HR Department · ${COMPANY.name}</p>
+        <div class="line"></div>
+        <div class="s-name">Authorised Signatory</div>
+        <div class="s-role">HR Department · ${COMPANY.name}</div>
       </div>
       <div class="sig-block">
-        <div class="sig-line"></div>
-        <p class="sig-name">Employee Signature</p>
-        <p>Date of Acknowledgement</p>
+        <div class="line"></div>
+        <div class="s-name">Employee Signature</div>
+        <div class="s-role">Name &amp; Date of Acknowledgement</div>
       </div>
     </div>
+    <div class="confidential">— strictly confidential —</div>
   </div>
 
   <div class="footer">
-    <p>${COMPANY.name} · ${COMPANY.email}</p>
-    <p>STRICTLY CONFIDENTIAL · ${COMPANY.website}</p>
+    <div class="f-bar"></div>
+    <div class="footer-top">
+      <p>${COMPANY.name} · ${COMPANY.email} · ${COMPANY.phone}</p>
+      <p>CONFIDENTIAL · ${COMPANY.website}</p>
+    </div>
+    <div class="footer-bottom">
+      <p>CIN: ${COMPANY.cin}</p>
+      <p>${COMPANY.address2}</p>
+      <p>GSTIN: ${COMPANY.gstin}</p>
+    </div>
   </div>
 </div>
 </body>
@@ -292,48 +345,52 @@ const buildAppreciationLetterHTML = (letter, emp) => {
 <meta charset="UTF-8"/>
 <title>${letter.subject}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;900&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',sans-serif;background:#f8fafc;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;position:relative;overflow:hidden}
-  /* Decorative corner */
-  .corner-tl{position:absolute;top:0;left:0;width:120px;height:120px;background:linear-gradient(135deg,#eef2ff 0%,transparent 60%)}
-  .corner-br{position:absolute;bottom:0;right:0;width:120px;height:120px;background:linear-gradient(315deg,#eef2ff 0%,transparent 60%)}
-  .accent-bar{height:6px;background:linear-gradient(90deg,#4338ca,#818cf8,#c7d2fe)}
-  .header{padding:28px 48px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e0e7ff}
-  .logo-wrap{display:flex;align-items:center;gap:14px}
-  .logo{width:48px;height:48px;object-fit:contain}
-  .company-name{font-size:22px;font-weight:700;color:#0f172a}
-  .company-sub{font-size:11px;color:#64748b;margin-top:2px}
-  .header-right{text-align:right}
-  .letter-type{display:inline-block;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px}
-  .ref-date{font-size:11px;color:#94a3b8;margin-top:6px}
-  /* Hero section */
-  .hero{text-align:center;padding:36px 48px 8px;background:linear-gradient(180deg,#eef2ff 0%,#fff 100%)}
-  .hero-icon{font-size:40px;display:block;margin-bottom:8px}
-  .hero-title{font-family:'Playfair Display',serif;font-size:28px;color:#312e81;letter-spacing:-0.5px}
-  .hero-sub{font-size:13px;color:#6366f1;margin-top:4px}
-  .recipient-badge{display:inline-block;background:#4338ca;color:#fff;font-size:13px;font-weight:600;padding:8px 24px;border-radius:32px;margin-top:20px;letter-spacing:0.3px}
-  /* Stars decoration */
-  .stars{color:#fbbf24;font-size:16px;letter-spacing:4px;display:block;margin:16px 0 0}
+  html,body{height:297mm;width:210mm;margin:0 auto}
+  body{font-family:'Inter',sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column}
+  .page{width:100%;flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+  /* Corner ornaments */
+  .corner-tl{position:absolute;top:0;left:0;width:80px;height:80px;background:linear-gradient(135deg,#e0e7ff 0%,transparent 65%);pointer-events:none}
+  .corner-br{position:absolute;bottom:0;right:0;width:80px;height:80px;background:linear-gradient(315deg,#e0e7ff 0%,transparent 65%);pointer-events:none}
+  .accent-bar{height:5px;background:linear-gradient(90deg,#3730a3,#818cf8,#c7d2fe);flex-shrink:0}
+  .header{padding:20px 40px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e0e7ff;flex-shrink:0}
+  .logo-wrap{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;object-fit:contain}
+  .co-name{font-size:16px;font-weight:700;color:#0f172a}
+  .co-tag{font-size:9px;color:#4338ca;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;margin-top:1px}
+  .co-addr{font-size:9px;color:#64748b;margin-top:2px;line-height:1.4}
+  .hdr-right{text-align:right}
+  .letter-badge{display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;font-size:9.5px;font-weight:700;padding:3px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:0.8px}
+  .hdr-meta{font-size:9px;color:#94a3b8;margin-top:5px;line-height:1.6}
+  /* Hero */
+  .hero{background:linear-gradient(135deg,#eef2ff 0%,#f5f3ff 50%,#fff 100%);padding:16px 40px 14px;text-align:center;border-bottom:1px solid #e0e7ff;flex-shrink:0}
+  .trophy{font-size:26px;display:block;margin-bottom:4px}
+  .hero-title{font-family:'Playfair Display',serif;font-size:20px;color:#312e81;letter-spacing:-0.3px}
+  .hero-sub{font-size:10px;color:#6366f1;margin-top:2px;letter-spacing:0.5px}
+  .recipient-pill{display:inline-block;background:linear-gradient(90deg,#4338ca,#6366f1);color:#fff;font-size:11.5px;font-weight:700;padding:5px 20px;border-radius:24px;margin-top:8px;letter-spacing:0.3px}
+  .stars{font-size:13px;color:#fbbf24;letter-spacing:4px;display:block;margin-top:6px}
   /* Body */
-  .body{padding:32px 48px 100px}
-  .content{font-size:13.5px;line-height:1.9;color:#334155}
-  .content p{margin-bottom:16px}
-  /* Quote highlight */
-  .quote{border-left:4px solid #818cf8;padding:16px 24px;margin:24px 0;font-size:15px;font-style:italic;color:#4338ca;background:#eef2ff;border-radius:0 8px 8px 0}
-  /* Signature */
-  .sig-section{margin-top:40px;display:flex;justify-content:space-between;align-items:flex-end}
-  .sig-left .sig-line{width:180px;height:1px;background:#c7d2fe;margin-bottom:6px}
-  .sig-left p{font-size:12px;color:#64748b}
-  .sig-left .sig-name{font-size:14px;font-weight:600;color:#0f172a;margin-bottom:2px}
-  .seal{width:80px;height:80px;border:3px solid #4338ca;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.2}
-  .seal span{font-size:9px;font-weight:700;color:#4338ca;text-align:center;letter-spacing:1px}
-  .seal .star{font-size:16px;color:#4338ca}
+  .body{padding:16px 40px 12px;flex:1;overflow:hidden}
+  .content{font-size:12px;line-height:1.75;color:#334155}
+  .content p{margin-bottom:10px}
+  .quote{border-left:3px solid #818cf8;padding:10px 16px;margin:12px 0;font-size:12.5px;font-style:italic;color:#4338ca;background:#eef2ff;border-radius:0 6px 6px 0}
+  /* Sig */
+  .sig-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e0e7ff}
+  .sig-block .line{width:130px;height:1px;background:#c7d2fe;margin-bottom:4px}
+  .sig-block .s-name{font-size:11px;font-weight:600;color:#0f172a}
+  .sig-block .s-role{font-size:9.5px;color:#64748b;margin-top:1px}
+  .seal{width:58px;height:58px;border:2px solid #4338ca;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.2}
+  .seal .s{font-size:16px;color:#4338ca}
+  .seal span{font-size:7px;font-weight:700;color:#4338ca;letter-spacing:0.8px;text-align:center}
   /* Footer */
-  .footer{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(90deg,#312e81,#4338ca);padding:14px 48px;display:flex;justify-content:space-between;align-items:center}
-  .footer p{font-size:10px;color:rgba(255,255,255,0.7)}
-  @media print{body{background:#fff}.page{box-shadow:none;width:100%}}
+  .footer{background:linear-gradient(90deg,#312e81,#4338ca);padding:9px 40px;flex-shrink:0}
+  .footer-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .footer-top p{font-size:9px;color:rgba(255,255,255,0.8);font-weight:500}
+  .footer-bottom{display:flex;justify-content:space-between}
+  .footer-bottom p{font-size:8.5px;color:rgba(255,255,255,0.45)}
+  @page{size:A4;margin:0}
+  @media print{html,body{height:297mm;width:210mm}button{display:none!important}.page{page-break-after:avoid;page-break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -346,21 +403,26 @@ const buildAppreciationLetterHTML = (letter, emp) => {
     <div class="logo-wrap">
       <img src="${COMPANY.logo}" class="logo" alt="Logo" onerror="this.style.display='none'"/>
       <div>
-        <div class="company-name">${COMPANY.name}</div>
-        <div class="company-sub">${COMPANY.address}</div>
+        <div class="co-name">${COMPANY.name}</div>
+        <div class="co-tag">${COMPANY.tagline}</div>
+        <div class="co-addr">${COMPANY.address}</div>
       </div>
     </div>
-    <div class="header-right">
-      <div class="letter-type">★ Appreciation Letter</div>
-      <div class="ref-date">Date: ${date}</div>
+    <div class="hdr-right">
+      <div class="letter-badge">★ Appreciation Letter</div>
+      <div class="hdr-meta">
+        Date: ${date}<br/>
+        CIN: ${COMPANY.cin}<br/>
+        GSTIN: ${COMPANY.gstin}
+      </div>
     </div>
   </div>
 
   <div class="hero">
-    <span class="hero-icon">🏆</span>
+    <span class="trophy">🏆</span>
     <div class="hero-title">Certificate of Appreciation</div>
-    <div class="hero-sub">In recognition of outstanding performance</div>
-    <div class="recipient-badge">${emp?.firstName || ""} ${emp?.lastName || ""}</div>
+    <div class="hero-sub">In proud recognition of outstanding performance &amp; dedication</div>
+    <div class="recipient-pill">${emp?.firstName || ""} ${emp?.lastName || ""}</div>
     <span class="stars">★ ★ ★ ★ ★</span>
   </div>
 
@@ -369,30 +431,37 @@ const buildAppreciationLetterHTML = (letter, emp) => {
       ${letter.renderedBody.split("\n\n").map((p, i) =>
         p.trim()
           ? i === 1
-            ? `<div class="quote">${p.replace(/\n/g, "<br/>")}</div>`
-            : `<p>${p.replace(/\n/g, "<br/>")}</p>`
+            ? `<div class="quote">${p.replace(/\n/g,"<br/>")}</div>`
+            : `<p>${p.replace(/\n/g,"<br/>")}</p>`
           : ""
       ).join("")}
     </div>
 
-    <div class="sig-section">
-      <div class="sig-left">
-        <div class="sig-line"></div>
-        <p class="sig-name">Authorised Signatory</p>
-        <p>HR Department</p>
-        <p>${COMPANY.name}</p>
+    <div class="sig-row">
+      <div class="sig-block">
+        <div class="line"></div>
+        <div class="s-name">Authorised Signatory</div>
+        <div class="s-role">HR Department · ${COMPANY.name}</div>
       </div>
-      <div class="seal">
-        <span class="star">★</span>
-        <span>LIVEDIGIT</span>
-        <span>OFFICIAL</span>
+      <div class="seal"><span class="s">★</span><span>OFFICIAL</span></div>
+      <div class="sig-block">
+        <div class="line"></div>
+        <div class="s-name">Employee Acknowledgement</div>
+        <div class="s-role">Signature &amp; Date</div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>${COMPANY.name} · ${COMPANY.email}</p>
-    <p>${COMPANY.website} · ${COMPANY.phone}</p>
+    <div class="footer-top">
+      <p>${COMPANY.name} · ${COMPANY.email} · ${COMPANY.phone}</p>
+      <p>${COMPANY.website}</p>
+    </div>
+    <div class="footer-bottom">
+      <p>CIN: ${COMPANY.cin}</p>
+      <p>${COMPANY.address2}</p>
+      <p>GSTIN: ${COMPANY.gstin}</p>
+    </div>
   </div>
 </div>
 </body>

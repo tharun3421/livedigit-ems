@@ -105,8 +105,9 @@ const Sidebar = () => {
                 { name: "Regularization", href: "/regularization", icon: ClipboardListIcon, badge: pendingRegCount   },
               ]
             : [
-                { name: "Attendance", href: "/attendance",  icon: CalendarIcon   },
-                { name: "My Profile", href: "/my-profile",  icon: UserCircleIcon },
+                { name: "Attendance",       href: "/attendance",        icon: CalendarIcon      },
+                { name: "Regularization",   href: "/my-regularization", icon: ClipboardListIcon },
+                { name: "My Profile",       href: "/my-profile",        icon: UserCircleIcon    },
               ]
         ),
         { name: "Leave",         href: "/leave",         icon: FileTextIcon,    badge: role === "ADMIN" ? pendingLeaveCount : 0 },

@@ -2,11 +2,14 @@ import {
   Building2Icon, CalendarIcon, FileTextIcon, UsersIcon,
   ClockIcon, LogInIcon, LogOutIcon, Loader2Icon,
   IndianRupeeIcon, BellIcon, CalendarDaysIcon,
-  ArrowRightIcon, ClipboardListIcon, MailIcon,
+  ArrowRightIcon, ClipboardListIcon, MailIcon,DownloadIcon 
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import ExportReportModal from "./ExportReportModal"
+import NotificationBell from "./NotificationBell";
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (iso) => {
@@ -151,6 +154,7 @@ const AdminDashboard = ({ data }) => {
   const navigate = useNavigate();
   const [todayAttendance, setTodayAttendance] = useState([]);
   const [attLoading,      setAttLoading]      = useState(true);
+  const [exportOpen, setExportOpen] = useState(false)
 
   useEffect(() => {
     api.get("/attendance/today")
@@ -162,14 +166,6 @@ const AdminDashboard = ({ data }) => {
   const stillIn    = todayAttendance.filter((r) => !r.checkOut);
   const checkedOut = todayAttendance.filter((r) =>  r.checkOut);
 
-  // ── Stat cards ──────────────────────────────────────────────────────────────
-  // const stats = [
-  //   { icon: UsersIcon,     value: data.totalEmployees,   label: "Total Employees",       description: "Active workforce",   onClick: () => navigate("/employees")  },
-  //   { icon: Building2Icon, value: data.totalDepartments, label: "Departments",            description: "Organisation units", onClick: undefined                     },
-  //   { icon: CalendarIcon,  value: data.totalAttendance,  label: "Today's Attendance",    description: "Checked in today",   onClick: () => navigate("/attendance") },
-  //   { icon: FileTextIcon,  value: data.pendingLeaves,    label: "Pending Leave Requests", description: "Awaiting approval",  onClick: () => navigate("/leave")      },
-  // ];
-
   // ── Quick nav (all sidebar pages except Settings) ───────────────────────────
   const quickNav = [
     { icon: UsersIcon,          label: "Employees",                    description: "Manage all employee profiles",                      accent: { bg: "bg-indigo-500/10",  icon: "text-indigo-400"  }, onClick: () => navigate("/employees")      },
@@ -177,23 +173,30 @@ const AdminDashboard = ({ data }) => {
     { icon: IndianRupeeIcon,    label: "Payslips",                     description: "Generate and manage monthly payslips",              accent: { bg: "bg-green-500/10",   icon: "text-green-400"   }, onClick: () => navigate("/payslips")       },
     { icon: CalendarDaysIcon,   label: "Calendar",                     description: "Holidays and company events",                       accent: { bg: "bg-cyan-500/10",    icon: "text-cyan-400"    }, onClick: () => navigate("/calendar")       },
     { icon: BellIcon,           label: "Announcements",                description: "Post and manage announcements",                     accent: { bg: "bg-amber-500/10",   icon: "text-amber-400"   }, onClick: () => navigate("/announcements")  },
-    // { icon: CalendarIcon,       label: "Attendance",                   description: "View and manage attendance records",                accent: { bg: "bg-violet-500/10",  icon: "text-violet-400"  }, onClick: () => navigate("/attendance")     },
     { icon: ClipboardListIcon,  label: "Attendance Regularization",    description: "Review employee attendance correction requests",    accent: { bg: "bg-orange-500/10",  icon: "text-orange-400"  }, onClick: () => navigate("/regularization") },
     { icon: MailIcon,           label: "Letters",                      description: "Send offer, warning and appreciation letters",      accent: { bg: "bg-pink-500/10",    icon: "text-pink-400"    }, onClick: () => navigate("/letters")        },
   ];
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">Welcome back, Admin — here's your overview</p>
+      <div className="page-header flex items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Welcome back, Admin — here's your overview</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <NotificationBell />
+          <button
+            onClick={() => setExportOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors"
+          >
+            <DownloadIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Export Report</span>
+          </button>
+        </div>
       </div>
 
-      {/* ── Stat Cards ── */}
-      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-6 sm:mb-8">
-        {stats.map((s) => <StatCard key={s.label} {...s} />)}
-      </div> */}
-
+  
       {/* ── Quick Navigation ── */}
       <div className="mb-6 sm:mb-8">
         <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 px-0.5">Quick Navigation</h2>

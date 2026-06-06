@@ -16,11 +16,11 @@ const LEAVE_TYPES = [
     { value: "LOSS_OF_PAY", label: "Loss of Pay",   note: "Salary deducted per day"    },
 ]
 
-const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance }) => {
+const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance, defaultDate }) => {
     const [loading,   setLoading]   = useState(false)
     const [type,      setType]      = useState("SICK")
-    const [startDate, setStartDate] = useState("")
-    const [endDate,   setEndDate]   = useState("")
+    const [startDate, setStartDate] = useState(defaultDate || "")
+    const [endDate,   setEndDate]   = useState(defaultDate || "")
 
     const selectedBalance = leaveBalance?.[type]
     const isLOP           = type === "LOSS_OF_PAY"

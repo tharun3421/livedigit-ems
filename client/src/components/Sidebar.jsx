@@ -8,6 +8,7 @@ import {
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
 
+
 const Sidebar = () => {
     const { pathname } = useLocation()
     const [profile,      setProfile]      = useState(null)
@@ -272,10 +273,10 @@ const Sidebar = () => {
 
                 {/* Logout */}
                 <div className="sb-footer">
-                    <button onClick={handleLogout} className="sb-logout">
-                        <LogOutIcon /><span>Log out</span>
-                    </button>
-                </div>
+    <button onClick={handleLogout} className="sb-logout">
+        <LogOutIcon /><span>Log out</span>
+    </button>
+</div>
             </div>
         </>
     )
@@ -284,12 +285,12 @@ const Sidebar = () => {
     return (
         <>
             <button
-                onClick={() => setMobileOpen(true)}
-                className="lg:hidden fixed top-0 left-0 z-50 p-2 flex items-center justify-start w-full h-12  "
-                style={{ background: "rgb(10, 13, 26)", border: "1px solid rgba(255,255,255,0.1)" }}
-            >
-                <MenuIcon size={18} color="white" className="ml-2"/>
-            </button>
+    onClick={() => setMobileOpen(true)}
+    className="lg:hidden fixed top-0 left-0 z-50 p-2 flex items-center justify-start w-full h-12"
+    style={{ background: "rgb(10, 13, 26)", border: "1px solid rgba(255,255,255,0.1)" }}
+>
+    <MenuIcon size={18} color="white" className="ml-2"/>
+</button>
 
             {mobileOpen && (
                 <div

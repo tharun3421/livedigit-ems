@@ -90,6 +90,7 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
     ])
 
     const clockedInDates = new Set(records.map((r) => toISTDateStr(r.date)))
+    const lateDates      = new Set(records.filter(r => r.status === "LATE").map(r => toISTDateStr(r.date)))
     const lopDates       = new Set()
     const paidLeaveDates = new Set()
 
@@ -105,17 +106,19 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
         }
     }
 
-    const clockInDays   = workingDates.filter((d) => clockedInDates.has(d)).length
-    const paidLeaveDays = workingDates.filter(
-        (d) => !clockedInDates.has(d) && paidLeaveDates.has(d) && !lopDates.has(d)
-    ).length
-    const lopWorkedDays = workingDates.filter(
-        (d) => !clockedInDates.has(d) && lopDates.has(d)
-    ).length
-    const presentDays   = clockInDays + paidLeaveDays
-    const absentDays    = Math.max(0, workingDays - presentDays - lopWorkedDays)
+    const clockInDays       = workingDates.filter((d) => clockedInDates.has(d)).length
+const lateCount         = workingDates.filter((d) => lateDates.has(d)).length
+const paidLeaveDays     = workingDates.filter(
+    (d) => !clockedInDates.has(d) && paidLeaveDates.has(d) && !lopDates.has(d)
+).length
+const lopWorkedDays     = workingDates.filter(
+    (d) => !clockedInDates.has(d) && lopDates.has(d)
+).length
+const presentDays       = clockInDays + paidLeaveDays
+const absentDays        = Math.max(0, workingDays - presentDays - lopWorkedDays)
+const lateDeductionDays = Math.floor(lateCount / 3)
 
-    return { workingDays, clockInDays, paidLeaveDays, lopWorkedDays, presentDays, absentDays }
+return { workingDays, clockInDays, lateCount, lateDeductionDays, paidLeaveDays, lopWorkedDays, presentDays, absentDays }
 }
 
 /**
@@ -136,14 +139,15 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
  *   the lopAmount deduction line on the payslip would be cosmetic and wrong.
  *   Including lopDays in earnedBasic makes the deduction line real and auditable.
  */
-const calcSalary = (basicSalary, allowances, workingDays, presentDays, lopDays) => {
+const calcSalary = (basicSalary, allowances, workingDays, presentDays, lopDays, lateDeductionDays = 0) => {
     const perDaySalary = workingDays > 0
         ? parseFloat((basicSalary / workingDays).toFixed(2))
         : 0
-    const earnedBasic = parseFloat((perDaySalary * (presentDays + lopDays)).toFixed(2))
-    const lopAmount   = parseFloat((perDaySalary * lopDays).toFixed(2))
-    const netSalary   = parseFloat((earnedBasic - lopAmount + allowances).toFixed(2))
-    return { perDaySalary, earnedBasic, lopAmount, netSalary }
+    const totalLopDays = lopDays + lateDeductionDays
+    const earnedBasic  = parseFloat((perDaySalary * (presentDays + totalLopDays)).toFixed(2))
+    const lopAmount    = parseFloat((perDaySalary * totalLopDays).toFixed(2))
+    const netSalary    = parseFloat((earnedBasic - lopAmount + allowances).toFixed(2))
+    return { perDaySalary, earnedBasic, lopAmount, netSalary, lateDeductionDays, totalLopDays }
 }
 
 /**
@@ -192,11 +196,10 @@ export const createPayslip = async (req, res) => {
             : (employee.allowances || 0)
 
         const weekOff = employee.workSchedule?.weekOff ?? []
-        const counts  = await getMonthCounts(employeeId, m, y, weekOff)
-        const { workingDays, presentDays, absentDays, lopWorkedDays } = counts
+        const { workingDays, presentDays, absentDays, lopWorkedDays, lateDeductionDays } = counts
 
-        const { earnedBasic, lopAmount, netSalary } =
-            calcSalary(basicSalary, allowances, workingDays, presentDays, lopWorkedDays)
+const { earnedBasic, lopAmount, netSalary } =
+    calcSalary(basicSalary, allowances, workingDays, presentDays, lopWorkedDays, lateDeductionDays)
 
         const payslip = await Payslip.create({
             employeeId,
@@ -206,7 +209,7 @@ export const createPayslip = async (req, res) => {
             allowances,
             earnedBasic,
             deductions:  lopAmount,
-            lopDays:     lopWorkedDays,
+            lopDays:     lopWorkedDays + lateDeductionDays,
             lopAmount,
             netSalary,
             workingDays,
@@ -238,10 +241,9 @@ export const updatePayslip = async (req, res) => {
         const employee = await Employee.findById(payslip.employeeId).lean()
         const weekOff  = employee?.workSchedule?.weekOff ?? []
         const counts   = await getMonthCounts(payslip.employeeId, payslip.month, payslip.year, weekOff)
-        const { workingDays, presentDays, absentDays, lopWorkedDays } = counts
+        const { workingDays, presentDays, absentDays, lopWorkedDays, lateDeductionDays } = counts
 
-        // Admin override wins; fall back to live attendance
-        const effectiveLopDays = lopDays !== undefined ? Number(lopDays) : lopWorkedDays
+        const effectiveLopDays = lopDays !== undefined ? Number(lopDays) : (lopWorkedDays + lateDeductionDays)
         payslip.lopDays = effectiveLopDays
 
         const { earnedBasic, lopAmount, netSalary } =
@@ -322,10 +324,9 @@ export const getPayslipById = async (req, res) => {
         // Live attendance for day counts; stored lopDays for the override value
         const counts = await getMonthCounts(employee._id, month, year, weekOff)
         const taken  = await getTakenLeaveCountsForMonth(employee._id, month, year)
-        const { workingDays, presentDays, absentDays, lopWorkedDays } = counts
+        const { workingDays, presentDays, absentDays, lopWorkedDays, lateDeductionDays } = counts
 
-        // Stored lopDays wins (it's the admin-resolved value); fall back to live
-        const effectiveLopDays = payslip.lopDays ?? lopWorkedDays
+        const effectiveLopDays = payslip.lopDays ?? (lopWorkedDays + lateDeductionDays)
 
         const { earnedBasic, lopAmount, netSalary } =
             calcSalary(basicSalary, allowances, workingDays, presentDays, effectiveLopDays)

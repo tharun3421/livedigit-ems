@@ -16,6 +16,9 @@ import { serve } from "inngest/express"
 import regularizationRouter from "./routes/regularizationRoutes.js"
 import letterRouter from "./routes/letterRoutes.js"
 import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
+import notificationRouter from "./routes/notificationRoutes.js"
+import exportRouter       from "./routes/exportRoutes.js"
+
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -55,6 +58,8 @@ app.use("/api/announcements",  announcementRouter)
 app.use("/api/holidays",       holidayRouter)
 app.use("/api/regularization", regularizationRouter)
 app.use("/api/letters",        letterRouter)
+app.use("/api/notifications", notificationRouter)
+app.use("/api/export",        exportRouter)
 
 app.get("/", (req, res) => res.send("Server running successfully"))
 

@@ -1,20 +1,24 @@
 import { Router } from "express"
 import { protect, protectAdmin } from "../middleware/auth.js"
 import {
-  getMonthAttendanceMap,
-  createRegularization,
-  getRegularizations,
-  updateRegularizationStatus,
+    getMonthAttendanceMap,
+    createRegularization,
+    createLateRegularization,
+    getRegularizations,
+    updateRegularizationStatus,
+    updateLateRegularizationStatus,
 } from "../controllers/regularizationController.js"
 
 const regularizationRouter = Router()
 
-// Employee routes
-regularizationRouter.get("/month-map",  protect,              getMonthAttendanceMap)
-regularizationRouter.post("/",          protect,              createRegularization)
+// Employee
+regularizationRouter.get("/month-map", protect,              getMonthAttendanceMap)
+regularizationRouter.post("/",         protect,              createRegularization)
+regularizationRouter.post("/late",     protect,              createLateRegularization)
 
-// Admin routes
-regularizationRouter.get("/",           protect, protectAdmin, getRegularizations)
-regularizationRouter.patch("/:id",      protect, protectAdmin, updateRegularizationStatus)
+// Admin
+regularizationRouter.get("/",          protect, protectAdmin, getRegularizations)
+regularizationRouter.patch("/:id",     protect, protectAdmin, updateRegularizationStatus)
+regularizationRouter.patch("/late/:id",protect, protectAdmin, updateLateRegularizationStatus)
 
 export default regularizationRouter

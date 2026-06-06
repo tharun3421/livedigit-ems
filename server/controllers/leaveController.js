@@ -1,9 +1,8 @@
-
 import Employee         from "../models/Employee.js"
 import LeaveApplication from "../models/LeaveApplication.js"
 import Attendance       from "../models/Attendance.js"
+import { createNotification, getAdminUserIds } from "./notificationController.js"
 
-// ─── Leave limits ─────────────────────────────────────────────────────────────
 export const LEAVE_LIMITS = {
     SICK:        4,
     CASUAL:      2,
@@ -11,14 +10,12 @@ export const LEAVE_LIMITS = {
     EARNED:      Infinity,
 }
 
-const EL_PER_MONTH   = 2
-const IST_OFFSET_MS  = (5 * 60 + 30) * 60 * 1000
+const EL_PER_MONTH  = 2
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
 
-/** Inclusive calendar days between two dates */
 const countDays = (startDate, endDate) =>
     Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
 
-// ─── Day name → JS getDay() index ─────────────────────────────────────────────
 const DAY_INDEX = {
     sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
     thursday: 4, friday: 5, saturday: 6,
@@ -44,8 +41,6 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
     return dates
 }
 
-// Working days = scheduled days (excl. weekoffs) - 2 Earned Leaves per month
-// e.g. typical month: 30 cal days - 4 Sundays - 2 EL = 24 working days
 const getWorkingDays = (month, year, weekOff = []) =>
     Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length - 2)
 
@@ -54,17 +49,11 @@ const toISTDateStr = (utcDate) =>
         .toISOString()
         .slice(0, 10)
 
-/**
- * Shared helper — returns clockInDays and leaveDays for a given employee/month.
- * presentDays = clockInDays + leaveDays
- * absentDays  = workingDays - presentDays  (computed by caller)
- */
-const getAttendanceCounts = async (employeeId, month, year, weekOff = []) => {
+export const getAttendanceCounts = async (employeeId, month, year, weekOff = []) => {
     const workingDates = getWorkingDatesOfMonth(month, year, weekOff)
 
     const monthStart = new Date(year, month - 1, 1)
     const monthEnd   = new Date(year, month, 0, 23, 59, 59)
-
     const queryStart = new Date(monthStart.getTime() - IST_OFFSET_MS)
     const queryEnd   = new Date(monthEnd.getTime()   + IST_OFFSET_MS)
 
@@ -99,7 +88,6 @@ const getAttendanceCounts = async (employeeId, month, year, weekOff = []) => {
     return { clockInDays, leaveDays }
 }
 
-// ─── Earned Leave: 2 per month, resets each month ────────────────────────────
 const getEarnedLeaveBalance = async (employee) => {
     const now        = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -120,10 +108,9 @@ const getEarnedLeaveBalance = async (employee) => {
     return { accumulated, used, remaining, perMonth: EL_PER_MONTH }
 }
 
-// ─── Sick & Casual: resets every new year ────────────────────────────────────
 const getUsedLeaveCounts = async (employeeId) => {
     const startOfYear = new Date(new Date().getFullYear(), 0, 1)
-    const approved = await LeaveApplication.find({
+    const approved    = await LeaveApplication.find({
         employeeId,
         status:    "APPROVED",
         startDate: { $gte: startOfYear },
@@ -137,7 +124,6 @@ const getUsedLeaveCounts = async (employeeId) => {
     return counts
 }
 
-// ─── Create Leave ─────────────────────────────────────────────────────────────
 export const createLeave = async (req, res) => {
     try {
         const employee = await Employee.findOne({ userId: req.session.userId })
@@ -151,8 +137,8 @@ export const createLeave = async (req, res) => {
         if (!["SICK", "CASUAL", "LOSS_OF_PAY", "EARNED"].includes(type))
             return res.status(400).json({ error: "Invalid leave type" })
 
-        const startDateObj = new Date(startDate)
-        const endDateObj   = new Date(endDate)
+        const startDateObj  = new Date(startDate)
+        const endDateObj    = new Date(endDate)
 
         if (endDateObj < startDateObj)
             return res.status(400).json({ error: "End date cannot be before start date" })
@@ -163,29 +149,43 @@ export const createLeave = async (req, res) => {
             const used      = await getUsedLeaveCounts(employee._id)
             const limit     = LEAVE_LIMITS[type]
             const remaining = limit - used[type]
-            if (requestedDays > remaining) {
+            if (requestedDays > remaining)
                 return res.status(400).json({
                     error: `You only have ${remaining} ${type.replace("_", " ")} day(s) remaining (limit: ${limit}).`,
                     remaining, limit,
                 })
-            }
         }
 
         if (type === "EARNED") {
             const elBalance = await getEarnedLeaveBalance(employee)
-            if (requestedDays > elBalance.remaining) {
+            if (requestedDays > elBalance.remaining)
                 return res.status(400).json({
                     error: `You only have ${elBalance.remaining} Earned Leave day(s) available this month.`,
                     remaining:   elBalance.remaining,
                     accumulated: elBalance.accumulated,
                 })
-            }
         }
 
         const leave = await LeaveApplication.create({
             employeeId: employee._id,
             type, startDate: startDateObj, endDate: endDateObj, reason, status: "PENDING",
         })
+
+        // Notify all admins
+        const adminIds = await getAdminUserIds()
+        const empName  = `${employee.firstName} ${employee.lastName}`
+        const dateRange = startDate === endDate ? startDate : `${startDate} to ${endDate}`
+        await Promise.all(adminIds.map(adminId =>
+            createNotification({
+                recipientId:   adminId,
+                recipientRole: "ADMIN",
+                type:          "LEAVE_REQUEST",
+                title:         "New Leave Request",
+                message:       `${empName} applied for ${type.replace(/_/g, " ")} leave (${dateRange})`,
+                refId:         leave._id,
+                refType:       "LeaveApplication",
+            })
+        ))
 
         return res.json({ success: true, data: leave })
     } catch (error) {
@@ -194,7 +194,6 @@ export const createLeave = async (req, res) => {
     }
 }
 
-// ─── Get Leaves ───────────────────────────────────────────────────────────────
 export const getLeaves = async (req, res) => {
     try {
         const isAdmin = req.session.role === "ADMIN"
@@ -256,18 +255,38 @@ export const getLeaves = async (req, res) => {
     }
 }
 
-// ─── Update Leave Status ──────────────────────────────────────────────────────
 export const updateLeaveStatus = async (req, res) => {
     try {
         const { status } = req.body
         if (!["APPROVED", "REJECTED", "PENDING"].includes(status))
             return res.status(400).json({ error: "Invalid status" })
 
-        const leave = await LeaveApplication.findById(req.params.id)
+        const leave = await LeaveApplication.findById(req.params.id).populate("employeeId")
         if (!leave) return res.status(404).json({ error: "Leave application not found" })
 
         leave.status = status
         await leave.save()
+
+        // Notify employee
+        if (leave.employeeId) {
+            const emp     = leave.employeeId
+            const empUser = await Employee.findById(emp._id || emp).select("userId").lean()
+            const userId  = empUser?.userId || emp.userId
+            if (userId) {
+                const dateRange = leave.startDate.toISOString().slice(0,10) === leave.endDate.toISOString().slice(0,10)
+                    ? leave.startDate.toISOString().slice(0,10)
+                    : `${leave.startDate.toISOString().slice(0,10)} to ${leave.endDate.toISOString().slice(0,10)}`
+                await createNotification({
+                    recipientId:   userId,
+                    recipientRole: "EMPLOYEE",
+                    type:          status === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_REJECTED",
+                    title:         `Leave Request ${status === "APPROVED" ? "Approved" : "Rejected"}`,
+                    message:       `Your ${leave.type.replace(/_/g, " ")} leave request (${dateRange}) has been ${status.toLowerCase()}.`,
+                    refId:         leave._id,
+                    refType:       "LeaveApplication",
+                })
+            }
+        }
 
         return res.json({ success: true, data: leave })
     } catch (error) {
@@ -276,7 +295,6 @@ export const updateLeaveStatus = async (req, res) => {
     }
 }
 
-// ─── LOP Summary (admin — used by payslip form) ───────────────────────────────
 export const getLopSummary = async (req, res) => {
     try {
         const { employeeId, month, year } = req.query
@@ -295,7 +313,6 @@ export const getLopSummary = async (req, res) => {
         const workingDays  = getWorkingDays(m, y, weekOff)
         const weekOffLabel = weekOff.length ? weekOff.join(", ") : "Sunday"
 
-        // ── LOP days ─────────────────────────────────────────────────────────
         const lopLeaves = await LeaveApplication.find({
             employeeId: employee._id,
             type:       "LOSS_OF_PAY",
@@ -314,8 +331,6 @@ export const getLopSummary = async (req, res) => {
             leaveDetails.push({ id: leave._id.toString(), startDate: leave.startDate, endDate: leave.endDate, days })
         }
 
-        // ── Attendance counts ─────────────────────────────────────────────────
-        // LOP days are NOT counted as present — they reduce salary like absence.
         const { clockInDays, leaveDays: rawLeaveDays } = await getAttendanceCounts(employee._id, m, y, weekOff)
         const lopWorkedDays = totalDays
         const paidLeaveDays = Math.max(0, rawLeaveDays - lopWorkedDays)

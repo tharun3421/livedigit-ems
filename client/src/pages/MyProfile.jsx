@@ -3,7 +3,7 @@ import {
     UserIcon, MailIcon, PhoneIcon, BriefcaseIcon, BuildingIcon,
     CalendarIcon, ClockIcon, CoffeeIcon, UtensilsIcon, CalendarOffIcon,
     MapPinIcon, BadgeIndianRupeeIcon, ThermometerIcon,
-    UmbrellaIcon, PalmtreeIcon, StarIcon, HashIcon, DropletIcon
+    UmbrellaIcon, PalmtreeIcon, StarIcon, HashIcon, DropletIcon,
 } from "lucide-react"
 import api from "../api/axios"
 import toast from "react-hot-toast"
@@ -17,9 +17,11 @@ const fmt12 = (time24) => {
     return `${hour}:${String(m).padStart(2, "0")} ${ampm}`
 }
 
-// Working days = calendar days − 4 Sundays − 2 Earned Leaves = calendar days − 6
-const getWorkingDays = (month, year) => {
-    return new Date(year, month, 0).getDate() - 6
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
+
+const DAY_INDEX_MAP = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
 }
 
 const Section = ({ title, children }) => (
@@ -52,6 +54,7 @@ const StatCard = ({ label, value, icon: Icon, color }) => {
         purple: "bg-purple-500/10 text-purple-400",
         rose:   "bg-rose-500/10   text-rose-400",
         yellow: "bg-yellow-500/10 text-yellow-400",
+        teal:   "bg-teal-500/10   text-teal-400",
     }
     return (
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50">
@@ -68,83 +71,131 @@ const StatCard = ({ label, value, icon: Icon, color }) => {
 
 const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
 
+// ─── Calculate absent days for current month ──────────────────────────────────
+const calcAbsentDays = (attendanceRecords, profile) => {
+    const now        = new Date()
+    const istNow     = new Date(now.getTime() + IST_OFFSET_MS)
+    const todayStr   = istNow.toISOString().slice(0, 10)
+    const year       = istNow.getUTCFullYear()
+    const month      = istNow.getUTCMonth() // 0-indexed
+    const weekOff    = profile?.workSchedule?.weekOff ?? []
+    const offIndices = weekOff.length
+        ? new Set(weekOff.map(d => DAY_INDEX_MAP[d?.toLowerCase()]).filter(n => n !== undefined))
+        : new Set([0]) // default Sunday off
+
+    // Dates with any clock-in this month
+    const clockedThisMonth = new Set(
+        attendanceRecords.map(r => {
+            const d = new Date(new Date(r.date).getTime() + IST_OFFSET_MS)
+            return d.toISOString().slice(0, 10)
+        })
+    )
+
+    // Count working days this month up to today
+    let workingDayCount = 0
+    const monthStart = new Date(Date.UTC(year, month, 1))
+    for (let d = new Date(monthStart); d.toISOString().slice(0, 10) <= todayStr; d.setUTCDate(d.getUTCDate() + 1)) {
+        const istD = new Date(d.getTime() + IST_OFFSET_MS)
+        if (!offIndices.has(istD.getUTCDay())) workingDayCount++
+    }
+
+    return Math.max(0, workingDayCount - clockedThisMonth.size)
+}
+
+// ─── Monthly leave counts ─────────────────────────────────────────────────────
+const calcMonthlyLeaves = (leaves) => {
+    const now      = new Date()
+    const mthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const mthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    const approved = (leaves || []).filter(l => l.status === "APPROVED")
+
+    const countDays = (start, end) =>
+        Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1
+
+    const sumThisMonth = (type) =>
+        approved
+            .filter(l => l.type === type)
+            .reduce((sum, l) => {
+                const start = new Date(Math.max(new Date(l.startDate), mthStart))
+                const end   = new Date(Math.min(new Date(l.endDate),   mthEnd))
+                if (end < start) return sum
+                return sum + countDays(start, end)
+            }, 0)
+
+    return {
+        SICK:        sumThisMonth("SICK"),
+        CASUAL:      sumThisMonth("CASUAL"),
+        EARNED:      sumThisMonth("EARNED"),
+        LOSS_OF_PAY: sumThisMonth("LOSS_OF_PAY"),
+    }
+}
+
+// ─── Monthly regularization counts ───────────────────────────────────────────
+const calcMonthlyRegularizations = (regMap, lateRegMap) => {
+    const absRegs  = Object.values(regMap     || {})
+    const lateRegs = Object.values(lateRegMap || {})
+    return {
+        absentPending:  absRegs.filter(r => r.status === "PENDING").length,
+        absentApproved: absRegs.filter(r => r.status === "APPROVED").length,
+        latePending:    lateRegs.filter(r => r.status === "PENDING").length,
+        lateApproved:   lateRegs.filter(r => r.status === "APPROVED").length,
+    }
+}
+
 const MyProfile = () => {
-    const [profile,    setProfile]    = useState(null)
-    const [att,        setAtt]        = useState({ PRESENT: 0, LATE: 0, ABSENT: 0 })
-    const [lv,         setLv]         = useState({ SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 })
-    const [lopInfo,    setLopInfo]    = useState(null)   // { days, amount, workingDays, perDayRate }
-    const [loading,    setLoading]    = useState(true)
+    const [profile, setProfile] = useState(null)
+    const [att,     setAtt]     = useState({ PRESENT: 0, LATE: 0, ABSENT: 0 })
+    const [lv,      setLv]      = useState({ SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 })
+    const [regs,    setRegs]    = useState({ absentPending: 0, absentApproved: 0, latePending: 0, lateApproved: 0 })
+    const [lopInfo, setLopInfo] = useState(null)
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                // ── 1. Profile ────────────────────────────────────────────────
+                // 1. Profile
                 const profileRes = await api.get("/profile")
                 const prof = profileRes.data
                 setProfile(prof)
 
-                // ── 2. Attendance (this month) ────────────────────────────────
+                // 2. Attendance — current month (API already filters by month)
                 try {
-                    const attRes  = await api.get("/attendance")
-                    const records = attRes.data.data || []
+                    const attRes   = await api.get("/attendance")
+                    const records  = attRes.data.data || []
+                    const absent   = calcAbsentDays(records, prof)
                     setAtt({
                         PRESENT: records.filter(r => r.status === "PRESENT").length,
                         LATE:    records.filter(r => r.status === "LATE").length,
-                        ABSENT:  records.filter(r => r.status === "ABSENT").length,
+                        ABSENT:  absent,
                     })
-                } catch { /* silent — show zeros */ }
+                } catch { /* show zeros */ }
 
-                // 3. Leaves (approved - sum actual days, not application count)
+                // 3. Leaves — monthly counts
                 try {
                     const leaveRes = await api.get("/leave")
-                    const all      = leaveRes.data.data || []
-                    const approved = all.filter(l => l.status === "APPROVED")
+                    setLv(calcMonthlyLeaves(leaveRes.data.data || []))
+                } catch { /* show zeros */ }
 
-                    const now2       = new Date()
-                    const mthStart   = new Date(now2.getFullYear(), now2.getMonth(), 1)
-                    const mthEnd     = new Date(now2.getFullYear(), now2.getMonth() + 1, 0, 23, 59, 59)
+                // 4. Regularization counts for this month
+                try {
+                    const istNow = new Date(Date.now() + IST_OFFSET_MS)
+                    const y = istNow.getUTCFullYear()
+                    const m = istNow.getUTCMonth() + 1
+                    const regRes  = await api.get(`/regularization/month-map?year=${y}&month=${m}`)
+                    const regData = regRes.data.data || {}
+                    setRegs(calcMonthlyRegularizations(regData.regularizations, regData.lateRegularizations))
+                } catch { /* show zeros */ }
 
-                    // SICK / CASUAL / EARNED: all-time days
-                    const sumDays = (type) =>
-                        approved
-                            .filter(l => l.type === type)
-                            .reduce((sum, l) => {
-                                const days = Math.ceil(
-                                    (new Date(l.endDate) - new Date(l.startDate)) / (1000 * 60 * 60 * 24)
-                                ) + 1
-                                return sum + days
-                            }, 0)
-
-                    // LOP: current month only (resets each month)
-                    const lopThisMonth = approved
-                        .filter(l => l.type === "LOSS_OF_PAY")
-                        .reduce((sum, l) => {
-                            const start = new Date(Math.max(new Date(l.startDate), mthStart))
-                            const end   = new Date(Math.min(new Date(l.endDate),   mthEnd))
-                            if (end < start) return sum
-                            return sum + Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
-                        }, 0)
-
-                    setLv({
-                        SICK:        sumDays("SICK"),
-                        CASUAL:      sumDays("CASUAL"),
-                        EARNED:      sumDays("EARNED"),
-                        LOSS_OF_PAY: lopThisMonth,
-                    })
-                } catch { /* silent - show zeros */ }
-
-                // ── 4. LOP summary for current month ─────────────────────────
+                // 5. LOP summary for salary
                 try {
                     if (prof._id || prof.id) {
-                        const now   = new Date()
-                        const m     = now.getMonth() + 1
-                        const y     = now.getFullYear()
+                        const now    = new Date()
                         const lopRes = await api.get(
-                            `/leave/lop-summary?employeeId=${prof._id ?? prof.id}&month=${m}&year=${y}`
+                            `/leave/lop-summary?employeeId=${prof._id ?? prof.id}&month=${now.getMonth() + 1}&year=${now.getFullYear()}`
                         )
                         setLopInfo(lopRes.data)
                     }
-                } catch { /* silent — LOP defaults to 0 */ }
+                } catch { /* silent */ }
 
             } catch (err) {
                 toast.error(err?.response?.data?.error || err.message)
@@ -166,11 +217,12 @@ const MyProfile = () => {
     const loc = profile.assignedLocation || {}
     const bd  = profile.bankDetails      || {}
 
-    // ── Salary calculations ───────────────────────────────────────────────────
     const now         = new Date()
+    const istNow      = new Date(now.getTime() + IST_OFFSET_MS)
+    const monthName   = istNow.toLocaleString("en-IN", { month: "long", year: "numeric" })
     const basicSalary = profile.basicSalary ?? 0
     const allowances  = profile.allowances  ?? 0
-    const workingDays = lopInfo?.workingDays ?? getWorkingDays(now.getMonth() + 1, now.getFullYear())
+    const workingDays = lopInfo?.workingDays ?? 26
     const lopDays     = lopInfo?.days        ?? 0
     const lopAmount   = lopInfo?.amount      ?? 0
     const netSalary   = parseFloat((basicSalary + allowances - lopAmount).toFixed(2))
@@ -178,16 +230,13 @@ const MyProfile = () => {
     return (
         <div className="animate-fade-in max-w-3xl mx-auto space-y-5 pb-10">
 
-            {/* ── Hero ── */}
+            {/* Hero */}
             <div className="card p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
                 <div className="w-20 h-20 rounded-2xl overflow-hidden bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
                     {profile.avatar ? (
-                        <img
-                            src={profile.avatar}
-                            alt={`${profile.firstName} ${profile.lastName}`}
+                        <img src={profile.avatar} alt={`${profile.firstName} ${profile.lastName}`}
                             className="w-full h-full object-cover"
-                            onError={(e) => { e.currentTarget.style.display = "none" }}
-                        />
+                            onError={(e) => { e.currentTarget.style.display = "none" }} />
                     ) : (
                         <span className="text-3xl font-bold text-indigo-400">
                             {profile.firstName?.[0]}{profile.lastName?.[0]}
@@ -231,7 +280,7 @@ const MyProfile = () => {
                 </div>
             </div>
 
-            {/* ── Personal Info ── */}
+            {/* Personal Info */}
             <Section title="Personal Information">
                 {profile.employeeId && <Row icon={HashIcon}      label="Employee ID"  value={profile.employeeId} />}
                 <Row icon={MailIcon}          label="Email"        value={profile.email} />
@@ -246,27 +295,27 @@ const MyProfile = () => {
                 {profile.bloodGroup && <Row icon={DropletIcon} label="Blood Group" value={profile.bloodGroup} />}
             </Section>
 
-            {/* ── Work Schedule ── */}
+            {/* Work Schedule */}
             {(ws.shiftStart || ws.weekOff?.length > 0) && (
                 <Section title="Work Schedule">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                         {ws.shiftStart && ws.shiftEnd && (
-                            <Row icon={ClockIcon}       label="Shift Timings"  value={`${fmt12(ws.shiftStart)} – ${fmt12(ws.shiftEnd)}`} />
+                            <Row icon={ClockIcon}       label="Shift Timings" value={`${fmt12(ws.shiftStart)} – ${fmt12(ws.shiftEnd)}`} />
                         )}
                         {ws.breakStart && ws.breakEnd && (
-                            <Row icon={CoffeeIcon}      label="Break Timings"  value={`${fmt12(ws.breakStart)} – ${fmt12(ws.breakEnd)}`} />
+                            <Row icon={CoffeeIcon}      label="Break Timings" value={`${fmt12(ws.breakStart)} – ${fmt12(ws.breakEnd)}`} />
                         )}
                         {ws.lunchStart && ws.lunchEnd && (
-                            <Row icon={UtensilsIcon}    label="Lunch Timings"  value={`${fmt12(ws.lunchStart)} – ${fmt12(ws.lunchEnd)}`} />
+                            <Row icon={UtensilsIcon}    label="Lunch Timings" value={`${fmt12(ws.lunchStart)} – ${fmt12(ws.lunchEnd)}`} />
                         )}
                         {ws.weekOff?.length > 0 && (
-                            <Row icon={CalendarOffIcon} label="Week Off"        value={ws.weekOff.join(", ")} />
+                            <Row icon={CalendarOffIcon} label="Week Off"       value={ws.weekOff.join(", ")} />
                         )}
                     </div>
                 </Section>
             )}
 
-            {/* ── Assigned Location ── */}
+            {/* Assigned Location */}
             {loc.latitude && (
                 <Section title="Assigned Work Location">
                     <Row icon={MapPinIcon} label="Office Location"
@@ -275,8 +324,8 @@ const MyProfile = () => {
                 </Section>
             )}
 
-            {/* ── Attendance Summary — this month ── */}
-            <Section title="Attendance Summary (This Month)">
+            {/* Attendance Summary */}
+            <Section title={`Attendance Summary — ${monthName}`}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <StatCard label="Present" value={att.PRESENT} icon={CalendarIcon}    color="green"  />
                     <StatCard label="Late"    value={att.LATE}    icon={ClockIcon}       color="yellow" />
@@ -284,8 +333,8 @@ const MyProfile = () => {
                 </div>
             </Section>
 
-            {/* ── Leave Summary — all approved ── */}
-            <Section title="Approved Leaves (All Time)">
+            {/* Leave Summary */}
+            <Section title={`Leave Summary — ${monthName}`}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <StatCard label="Sick Leave"   value={lv.SICK}        icon={ThermometerIcon} color="blue"   />
                     <StatCard label="Casual Leave" value={lv.CASUAL}      icon={UmbrellaIcon}    color="purple" />
@@ -294,45 +343,34 @@ const MyProfile = () => {
                 </div>
             </Section>
 
-            {/* ── Salary ── */}
-            <Section title={`Salary Details — ${now.toLocaleString("en-IN", { month: "long", year: "numeric" })}`}>
-                <Row
-                    icon={BadgeIndianRupeeIcon}
-                    label="Basic Salary"
-                    value={inr(basicSalary)}
-                />
-                <Row
-                    icon={BadgeIndianRupeeIcon}
-                    label="Allowances"
-                    value={`+ ${inr(allowances)}`}
-                />
-                <Row
-                    icon={CalendarIcon}
-                    label="Working Days This Month"
-                    value={`${workingDays} days (cal days − 6)`}
-                />
+            {/* Regularization Summary */}
+            {(regs.absentPending + regs.absentApproved + regs.latePending + regs.lateApproved > 0) && (
+                <Section title={`Regularization — ${monthName}`}>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {regs.absentPending  > 0 && <StatCard label="Absent Pending"  value={regs.absentPending}  icon={ClockIcon}       color="yellow" />}
+                        {regs.absentApproved > 0 && <StatCard label="Absent Approved" value={regs.absentApproved} icon={CalendarIcon}    color="green"  />}
+                        {regs.latePending    > 0 && <StatCard label="Late Pending"    value={regs.latePending}    icon={ClockIcon}       color="yellow" />}
+                        {regs.lateApproved   > 0 && <StatCard label="Late Approved"   value={regs.lateApproved}   icon={CalendarIcon}    color="teal"   />}
+                    </div>
+                </Section>
+            )}
+
+            {/* Salary */}
+            <Section title={`Salary Details — ${monthName}`}>
+                <Row icon={BadgeIndianRupeeIcon} label="Basic Salary"            value={inr(basicSalary)} />
+                <Row icon={BadgeIndianRupeeIcon} label="Allowances"              value={`+ ${inr(allowances)}`} />
+                <Row icon={CalendarIcon}         label="Working Days This Month" value={`${workingDays} days`} />
                 {lopDays > 0 ? (
-                    <Row
-                        icon={BadgeIndianRupeeIcon}
+                    <Row icon={BadgeIndianRupeeIcon}
                         label={`LOP Deduction (${lopDays} day${lopDays > 1 ? "s" : ""} × ${inr(basicSalary / workingDays)}/day)`}
-                        value={`– ${inr(lopAmount)}`}
-                    />
+                        value={`– ${inr(lopAmount)}`} />
                 ) : (
-                    <Row
-                        icon={BadgeIndianRupeeIcon}
-                        label="LOP Deduction"
-                        value="None"
-                    />
+                    <Row icon={BadgeIndianRupeeIcon} label="LOP Deduction" value="None" />
                 )}
-                <Row
-                    icon={BadgeIndianRupeeIcon}
-                    label="Net Salary"
-                    value={inr(netSalary)}
-                    highlight
-                />
+                <Row icon={BadgeIndianRupeeIcon} label="Net Salary" value={inr(netSalary)} highlight />
             </Section>
 
-            {/* ── Bank Details ── */}
+            {/* Bank Details */}
             {bd.accountNumber && (
                 <Section title="Bank Details">
                     <Row icon={UserIcon}            label="Account Holder" value={bd.accountHolderName} />

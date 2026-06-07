@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
+import NotificationBell from "./NotificationBell"
 
 
 const Sidebar = () => {
@@ -29,10 +30,8 @@ const Sidebar = () => {
     useEffect(() => { setImgError(false) }, [profile?.avatar])
     useEffect(() => { setMobileOpen(false) }, [pathname])
 
-    // ── Poll unread announcements every 2 min ────────────────────────────────
     useEffect(() => {
         if (!user) return
-
         const fetchUnread = async () => {
             try {
                 const lastSeen = localStorage.getItem("announcementLastSeen") || ""
@@ -40,48 +39,39 @@ const Sidebar = () => {
                 setUnreadCount(res.data.count ?? 0)
             } catch { /* silent */ }
         }
-
         fetchUnread()
         const interval = setInterval(fetchUnread, 2 * 60 * 1000)
         return () => clearInterval(interval)
     }, [user])
 
-    // ── Poll pending regularization requests (admin only) every 30s ──────────
     useEffect(() => {
         if (!user || user.role !== "ADMIN") return
-
         const fetchPendingReg = async () => {
             try {
                 const res = await api.get("/regularization?status=PENDING")
                 setPendingRegCount((res.data.data || []).length)
             } catch { /* silent */ }
         }
-
         fetchPendingReg()
         const interval = setInterval(fetchPendingReg, 30_000)
         return () => clearInterval(interval)
     }, [user])
 
-    // ── Poll pending leave requests (admin only) every 30s ───────────────────
     useEffect(() => {
         if (!user || user.role !== "ADMIN") return
-
         const fetchPendingLeave = async () => {
             try {
                 const res = await api.get("/leave?status=PENDING")
                 setPendingLeaveCount((res.data.data || []).length)
             } catch { /* silent */ }
         }
-
         fetchPendingLeave()
         const interval = setInterval(fetchPendingLeave, 30_000)
         return () => clearInterval(interval)
     }, [user])
 
-    // ── Poll unread letters (employees only) every 30s ────────────────────────
     useEffect(() => {
         if (!user || user.role === "ADMIN") return
-
         const fetchUnreadLetters = async () => {
             try {
                 const res = await api.get("/letters")
@@ -89,7 +79,6 @@ const Sidebar = () => {
                 setUnreadLetters(count)
             } catch { /* silent */ }
         }
-
         fetchUnreadLetters()
         const interval = setInterval(fetchUnreadLetters, 30_000)
         return () => clearInterval(interval)
@@ -183,7 +172,6 @@ const Sidebar = () => {
                 .sb-item:hover:not(.active) svg { color:rgba(255,255,255,0.6); }
                 .sb-item-chevron { margin-left:auto; width:12px; height:12px; color:rgba(99,102,241,0.4); }
 
-                /* ── Announcement badge & dot ── */
                 .sb-badge { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#f43f5e; color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; animation:sb-pulse 2s ease-in-out infinite; margin-left:auto; }
                 .sb-bell-dot { width:7px; height:7px; border-radius:50%; background:#f43f5e; position:absolute; top:-1px; right:-1px; box-shadow:0 0 6px #f43f5e; animation:sb-pulse 1.5s ease-in-out infinite; }
 
@@ -205,7 +193,6 @@ const Sidebar = () => {
                 {/* Brand */}
                 <div className="sb-brand">
                     <div className="sb-logo">
-                        {/* <div className="sb-logo-icon"><UserIcon /></div> */}
                         <div>
                             <div className="sb-logo-name">LIVEDIGIT</div>
                             <div className="sb-logo-sub">Management System</div>
@@ -248,7 +235,6 @@ const Sidebar = () => {
                                 >
                                     {isActive && <div className="sb-item-bar" />}
 
-                                    {/* Icon wrapper — bell dot sits here */}
                                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                         <item.icon />
                                         {hasUnread && !isActive && (
@@ -258,7 +244,6 @@ const Sidebar = () => {
 
                                     <span style={{ flex: 1 }}>{item.name}</span>
 
-                                    {/* Unread badge or chevron */}
                                     {hasUnread && !isActive
                                         ? <span className="sb-badge">{item.badge > 99 ? "99+" : item.badge}</span>
                                         : isActive
@@ -273,39 +258,49 @@ const Sidebar = () => {
 
                 {/* Logout */}
                 <div className="sb-footer">
-    <button onClick={handleLogout} className="sb-logout">
-        <LogOutIcon /><span>Log out</span>
-    </button>
-</div>
+                    <button onClick={handleLogout} className="sb-logout">
+                        <LogOutIcon /><span>Log out</span>
+                    </button>
+                </div>
             </div>
         </>
     )
 
-
     return (
         <>
-            <button
-    onClick={() => setMobileOpen(true)}
-    className="lg:hidden fixed top-0 left-0 z-50 p-2 flex items-center justify-start w-full h-12"
-    style={{ background: "rgb(10, 13, 26)", border: "1px solid rgba(255,255,255,0.1)" }}
->
-    <MenuIcon size={18} color="white" className="ml-2"/>
-</button>
+            {/* ── Mobile top bar ── */}
+            <div
+                className="lg:hidden fixed top-0 left-0 z-50 flex items-center w-full h-12"
+                style={{ background: "rgb(10, 13, 26)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+                <button
+                    onClick={() => setMobileOpen(true)}
+                    className="p-2 ml-2 flex items-center justify-center"
+                >
+                    <MenuIcon size={18} color="white" />
+                </button>
+                <div className="ml-auto mr-2">
+                    <NotificationBell />
+                </div>
+            </div>
 
+            {/* ── Mobile overlay ── */}
             {mobileOpen && (
                 <div
                     onClick={() => setMobileOpen(false)}
                     className="lg:hidden"
-                    style={{ position:"fixed", inset:0, zIndex:40, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(4px)" }}
+                    style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
                 />
             )}
 
+            {/* ── Desktop sidebar ── */}
             <aside className="hidden lg:block h-full w-64 shrink-0">{sidebarContent}</aside>
 
+            {/* ── Mobile sidebar drawer ── */}
             <aside
                 className="lg:hidden"
                 style={{
-                    position:"fixed", inset:"0 auto 0 0", width:"272px", zIndex:50,
+                    position: "fixed", inset: "0 auto 0 0", width: "272px", zIndex: 50,
                     transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
                     transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)",
                 }}

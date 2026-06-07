@@ -357,17 +357,16 @@ const MyProfile = () => {
 
             {/* Salary */}
             <Section title={`Salary Details — ${monthName}`}>
-                <Row icon={BadgeIndianRupeeIcon} label="Basic Salary"            value={inr(basicSalary)} />
-                <Row icon={BadgeIndianRupeeIcon} label="Allowances"              value={`+ ${inr(allowances)}`} />
-                <Row icon={CalendarIcon}         label="Working Days This Month" value={`${workingDays} days`} />
-                {lopDays > 0 ? (
+                <Row icon={BadgeIndianRupeeIcon} label="Salary"            value={inr(basicSalary)} />
+                {/* <Row icon={BadgeIndianRupeeIcon} label="Allowances"              value={`+ ${inr(allowances)}`} />
+                <Row icon={CalendarIcon}         label="Working Days This Month" value={`${workingDays} days`} /> */}
+                {/* {lopDays > 0 ? (
                     <Row icon={BadgeIndianRupeeIcon}
                         label={`LOP Deduction (${lopDays} day${lopDays > 1 ? "s" : ""} × ${inr(basicSalary / workingDays)}/day)`}
                         value={`– ${inr(lopAmount)}`} />
                 ) : (
                     <Row icon={BadgeIndianRupeeIcon} label="LOP Deduction" value="None" />
-                )}
-                <Row icon={BadgeIndianRupeeIcon} label="Net Salary" value={inr(netSalary)} highlight />
+                )} */}
             </Section>
 
             {/* Bank Details */}

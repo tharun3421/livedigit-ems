@@ -2,47 +2,42 @@ import {
   Building2Icon, CalendarIcon, FileTextIcon, UsersIcon,
   ClockIcon, LogInIcon, LogOutIcon, Loader2Icon,
   IndianRupeeIcon, BellIcon, CalendarDaysIcon,
-  ArrowRightIcon, ClipboardListIcon, MailIcon,DownloadIcon 
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../api/axios";
+  ArrowRightIcon, ClipboardListIcon, MailIcon, DownloadIcon,
+} from "lucide-react"
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import api from "../api/axios"
 import ExportReportModal from "./ExportReportModal"
-import NotificationBell from "./NotificationBell";
 
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (iso) => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-};
+  if (!iso) return "—"
+  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+}
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const map = {
     PRESENT: "bg-green-500/15 text-green-400",
     LATE:    "bg-yellow-500/15 text-yellow-400",
     ABSENT:  "bg-rose-500/15 text-rose-400",
-  };
+  }
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[status] ?? "bg-slate-700 text-slate-400"}`}>
       {status}
     </span>
-  );
-};
+  )
+}
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
 const Avatar = ({ firstName, lastName }) => (
   <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
     <span className="text-xs font-bold text-indigo-400">{firstName?.[0]}{lastName?.[0]}</span>
   </div>
-);
+)
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, value, label, description, onClick }) => (
   <div
     onClick={onClick}
-    className={`card card-hover p-4 sm:p-5 lg:p-6 relative overflow-hidden group flex items-center justify-between ${onClick ? "cursor-pointer" : ""}`}
+    className={`card card-hover p-4 sm:p-5 relative overflow-hidden group flex items-center justify-between ${onClick ? "cursor-pointer" : ""}`}
   >
     <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full bg-slate-500/70 group-hover:bg-indigo-500/70" />
     <div className="min-w-0">
@@ -52,26 +47,24 @@ const StatCard = ({ icon: Icon, value, label, description, onClick }) => (
     </div>
     <Icon className="size-8 sm:size-10 p-1.5 sm:p-2.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shrink-0 ml-2" />
   </div>
-);
+)
 
-// ─── Quick Nav Card ───────────────────────────────────────────────────────────
 const QuickNavCard = ({ icon: Icon, label, description, accent, onClick }) => (
   <div
     onClick={onClick}
-    className="card card-hover p-4 sm:p-5 cursor-pointer group relative overflow-hidden flex items-center gap-4"
+    className="card card-hover p-4 sm:p-5 cursor-pointer group flex items-center gap-3 sm:gap-4"
   >
     <div className={`p-2.5 rounded-xl ${accent.bg} shrink-0 group-hover:scale-110 transition-transform`}>
-      <Icon className={`w-5 h-5 ${accent.icon}`} />
+      <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${accent.icon}`} />
     </div>
     <div className="min-w-0 flex-1">
       <p className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">{label}</p>
-      <p className="text-xs text-slate-500 mt-0.5 truncate">{description}</p>
+      <p className="text-xs text-slate-500 mt-0.5 truncate hidden sm:block">{description}</p>
     </div>
     <ArrowRightIcon className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all shrink-0" />
   </div>
-);
+)
 
-// ─── Today Attendance Table (desktop) ─────────────────────────────────────────
 const AttendanceTable = ({ records }) => (
   <div className="hidden sm:block overflow-x-auto">
     <table className="w-full text-sm">
@@ -82,7 +75,7 @@ const AttendanceTable = ({ records }) => (
               {h === "Clock In"
                 ? <span className="flex items-center gap-1"><LogInIcon  className="w-3.5 h-3.5 text-green-400" />{h}</span>
                 : h === "Clock Out"
-                  ? <span className="flex items-center gap-1"><LogOutIcon className="w-3.5 h-3.5 text-rose-400" />{h}</span>
+                  ? <span className="flex items-center gap-1"><LogOutIcon className="w-3.5 h-3.5 text-rose-400"  />{h}</span>
                   : h}
             </th>
           ))}
@@ -120,9 +113,8 @@ const AttendanceTable = ({ records }) => (
       </tbody>
     </table>
   </div>
-);
+)
 
-// ─── Today Attendance Cards (mobile) ─────────────────────────────────────────
 const AttendanceCards = ({ records }) => (
   <div className="sm:hidden divide-y divide-slate-800/60">
     {records.map((r) => (
@@ -147,65 +139,83 @@ const AttendanceCards = ({ records }) => (
       </div>
     ))}
   </div>
-);
+)
 
 // ─── Main AdminDashboard ──────────────────────────────────────────────────────
 const AdminDashboard = ({ data }) => {
-  const navigate = useNavigate();
-  const [todayAttendance, setTodayAttendance] = useState([]);
-  const [attLoading,      setAttLoading]      = useState(true);
-  const [exportOpen, setExportOpen] = useState(false)
+  const navigate = useNavigate()
+  const [todayAttendance, setTodayAttendance] = useState([])
+  const [attLoading,      setAttLoading]      = useState(true)
+  const [exportOpen,      setExportOpen]      = useState(false)
 
   useEffect(() => {
     api.get("/attendance/today")
       .then((res) => setTodayAttendance(res.data.data || []))
       .catch(() => setTodayAttendance([]))
-      .finally(() => setAttLoading(false));
-  }, []);
+      .finally(() => setAttLoading(false))
+  }, [])
 
-  const stillIn    = todayAttendance.filter((r) => !r.checkOut);
-  const checkedOut = todayAttendance.filter((r) =>  r.checkOut);
+  const stillIn    = todayAttendance.filter((r) => !r.checkOut)
+  const checkedOut = todayAttendance.filter((r) =>  r.checkOut)
 
-  // ── Quick nav (all sidebar pages except Settings) ───────────────────────────
   const quickNav = [
-    { icon: UsersIcon,          label: "Employees",                    description: "Manage all employee profiles",                      accent: { bg: "bg-indigo-500/10",  icon: "text-indigo-400"  }, onClick: () => navigate("/employees")      },
-    { icon: FileTextIcon,       label: "Leave Requests",               description: "Review and approve leave applications",             accent: { bg: "bg-rose-500/10",    icon: "text-rose-400"    }, onClick: () => navigate("/leave")          },
-    { icon: IndianRupeeIcon,    label: "Payslips",                     description: "Generate and manage monthly payslips",              accent: { bg: "bg-green-500/10",   icon: "text-green-400"   }, onClick: () => navigate("/payslips")       },
-    { icon: CalendarDaysIcon,   label: "Calendar",                     description: "Holidays and company events",                       accent: { bg: "bg-cyan-500/10",    icon: "text-cyan-400"    }, onClick: () => navigate("/calendar")       },
-    { icon: BellIcon,           label: "Announcements",                description: "Post and manage announcements",                     accent: { bg: "bg-amber-500/10",   icon: "text-amber-400"   }, onClick: () => navigate("/announcements")  },
-    { icon: ClipboardListIcon,  label: "Attendance Regularization",    description: "Review employee attendance correction requests",    accent: { bg: "bg-orange-500/10",  icon: "text-orange-400"  }, onClick: () => navigate("/regularization") },
-    { icon: MailIcon,           label: "Letters",                      description: "Send offer, warning and appreciation letters",      accent: { bg: "bg-pink-500/10",    icon: "text-pink-400"    }, onClick: () => navigate("/letters")        },
-  ];
+    { icon: UsersIcon,         label: "Employees",                 description: "Manage all employee profiles",                   accent: { bg: "bg-indigo-500/10", icon: "text-indigo-400" }, onClick: () => navigate("/employees")      },
+    { icon: FileTextIcon,      label: "Leave Requests",            description: "Review and approve leave applications",          accent: { bg: "bg-rose-500/10",   icon: "text-rose-400"   }, onClick: () => navigate("/leave")          },
+    { icon: IndianRupeeIcon,   label: "Payslips",                  description: "Generate and manage monthly payslips",           accent: { bg: "bg-green-500/10",  icon: "text-green-400"  }, onClick: () => navigate("/payslips")       },
+    { icon: CalendarDaysIcon,  label: "Calendar",                  description: "Holidays and company events",                    accent: { bg: "bg-cyan-500/10",   icon: "text-cyan-400"   }, onClick: () => navigate("/calendar")       },
+    { icon: BellIcon,          label: "Announcements",             description: "Post and manage announcements",                  accent: { bg: "bg-amber-500/10",  icon: "text-amber-400"  }, onClick: () => navigate("/announcements")  },
+    { icon: ClipboardListIcon, label: "Attendance Regularization", description: "Review attendance correction requests",          accent: { bg: "bg-orange-500/10", icon: "text-orange-400" }, onClick: () => navigate("/regularization") },
+    { icon: MailIcon,          label: "Letters",                   description: "Send offer, warning and appreciation letters",   accent: { bg: "bg-pink-500/10",   icon: "text-pink-400"   }, onClick: () => navigate("/letters")        },
+  ]
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header flex items-start justify-between gap-4">
-        <div>
+
+      {/* Header */}
+      <div className="page-header flex items-start justify-between gap-3 mb-5">
+        <div className="min-w-0">
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">Welcome back, Admin — here's your overview</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <NotificationBell />
+        <div className="flex items-center gap-2 shrink-0 mt-1">
           <button
             onClick={() => setExportOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs sm:text-sm font-medium hover:bg-cyan-500/20 transition-colors"
           >
-            <DownloadIcon className="w-4 h-4" />
+            <DownloadIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Export Report</span>
           </button>
         </div>
       </div>
 
-  
-      {/* ── Quick Navigation ── */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 px-0.5">Quick Navigation</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {exportOpen && <ExportReportModal onClose={() => setExportOpen(false)} />}
+
+      {/* Late Attendance Policy Banner */}
+      <div className="mb-5 flex items-start gap-3 p-3 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+        <ClockIcon className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-amber-300">Late Attendance Policy</p>
+          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+            Every{" "}
+            <strong className="text-amber-300">3 late check-ins</strong>{" "}
+            in a month results in{" "}
+            <strong className="text-amber-300">1 day salary deduction</strong>{" "}
+            (Loss of Pay). This is automatically applied when generating payslips.
+          </p>
+        </div>
+      </div>
+
+      {/* Quick Navigation */}
+      <div className="mb-5 sm:mb-8">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 px-0.5">
+          Quick Navigation
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {quickNav.map((n) => <QuickNavCard key={n.label} {...n} />)}
         </div>
       </div>
 
-      {/* ── Today's Attendance ── */}
+      {/* Today's Attendance */}
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-slate-800 gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -234,7 +244,8 @@ const AdminDashboard = ({ data }) => {
 
         {attLoading ? (
           <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-            <Loader2Icon className="w-5 h-5 animate-spin" /><span className="text-sm">Loading attendance…</span>
+            <Loader2Icon className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Loading attendance…</span>
           </div>
         ) : todayAttendance.length === 0 ? (
           <div className="text-center py-12">
@@ -249,7 +260,7 @@ const AdminDashboard = ({ data }) => {
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AdminDashboard;
+export default AdminDashboard

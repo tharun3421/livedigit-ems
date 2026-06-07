@@ -368,3 +368,25 @@ export const deleteEmployee = async (req, res) => {
         return res.status(500).json({ error: error.message })
     }
 }
+
+
+// ─── ADMIN RESET EMPLOYEE PASSWORD ───────────────────────────────────────────
+
+export const resetEmployeePassword = async (req, res) => {
+    try {
+        const { newPassword } = req.body
+        if (!newPassword || newPassword.length < 6)
+            return res.status(400).json({ error: "New password must be at least 6 characters" })
+
+        const employee = await Employee.findById(req.params.id).lean()
+        if (!employee) return res.status(404).json({ error: "Employee not found" })
+
+        const hashed = await bcrypt.hash(newPassword, 10)
+        await User.findByIdAndUpdate(employee.userId, { password: hashed })
+
+        return res.json({ success: true, message: "Password reset successfully" })
+    } catch (error) {
+        console.error("resetEmployeePassword error:", error.message)
+        return res.status(500).json({ error: error.message })
+    }
+}

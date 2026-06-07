@@ -1,7 +1,7 @@
 import { Router } from "express"
 import {
     createEmployee, deleteEmployee, getEmployee,
-    getEmployeeDetail, updateEmployee
+    getEmployeeDetail, updateEmployee, resetEmployeePassword
 } from "../controllers/employeeController.js"
 import { protect, protectAdmin } from "../middleware/auth.js"
 
@@ -12,5 +12,6 @@ employeeRouter.get("/:id", protect, protectAdmin, getEmployeeDetail)
 employeeRouter.post("/",   protect, protectAdmin, createEmployee)
 employeeRouter.put("/:id", protect, protectAdmin, updateEmployee)
 employeeRouter.delete("/:id", protect, protectAdmin, deleteEmployee)
+employeeRouter.post("/:id/reset-password", protect, protectAdmin, resetEmployeePassword)
 
 export default employeeRouter

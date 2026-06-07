@@ -1,7 +1,7 @@
-import { PencilIcon, Trash2Icon, X, Loader2Icon, EyeIcon, ClockIcon, CoffeeIcon, UtensilsIcon, CalendarOffIcon, MapPinIcon } from "lucide-react"
 import { useState } from "react"
 import api from "../api/axios"
 import toast from "react-hot-toast"
+import { PencilIcon, Trash2Icon, X, Loader2Icon, EyeIcon, ClockIcon, CoffeeIcon, UtensilsIcon, CalendarOffIcon, MapPinIcon, KeyIcon } from "lucide-react"
 
 const fmt12 = (time24) => {
     if (!time24) return "—"
@@ -37,6 +37,23 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
     const [detail,        setDetail]        = useState(null)
     const [loadingDetail, setLoadingDetail] = useState(false)
     const [detailError,   setDetailError]   = useState(null)
+    const [showResetPwd, setShowResetPwd] = useState(false)
+    const [newPassword,  setNewPassword]  = useState("")
+    const [resetting,    setResetting]    = useState(false)
+
+const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+        toast.error("Password must be at least 6 characters"); return
+    }
+    setResetting(true)
+    try {
+        await api.post(`/employees/${empId}/reset-password`, { newPassword })
+        toast.success("Password reset successfully")
+        setShowResetPwd(false); setNewPassword("")
+    } catch (err) {
+        toast.error(err.response?.data?.error || "Failed to reset password")
+    } finally { setResetting(false) }
+}
 
     const empId = employee.id || employee._id
 
@@ -81,7 +98,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                             textClass="text-2xl text-indigo-400"
                         />
                     ) : (
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-slate-100 flex items-center justify-center">
+                        <div className="w-20 h-20 rounded-full bg-linear-to-br from-indigo-100 to-slate-100 flex items-center justify-center">
                             <span className="text-2xl font-medium text-indigo-400">
                                 {employee.firstName?.[0]}{employee.lastName?.[0]}
                             </span>
@@ -243,13 +260,13 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                                     <Detail label="Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
                                 </Section>
 
-                                <Section title="Attendance Summary">
+                                <Section title="Attendance Summary (This Month)">
                                     <StatBox label="Present" value={detail.attendanceSummary?.PRESENT} color="green"  />
                                     <StatBox label="Late"    value={detail.attendanceSummary?.LATE}    color="yellow" />
                                     <StatBox label="Absent"  value={detail.attendanceSummary?.ABSENT}  color="red"    />
                                 </Section>
 
-                                <Section title="Leave Summary">
+                                <Section title="Leave Summary (This Month)">
                                     <StatBox label="Sick"        value={detail.leaveSummary?.SICK}        color="blue"   />
                                     <StatBox label="Casual"      value={detail.leaveSummary?.CASUAL}      color="purple" />
                                     <StatBox label="Earned"      value={detail.leaveSummary?.EARNED}      color="green"  />
@@ -268,7 +285,31 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
 
                                 {isAdmin && !employee.isDeleted && (
                                     <div className="flex gap-3 pt-2">
-                                        <button onClick={() => { setShowDetail(false); onEdit(employee) }} className="btn-primary flex items-center gap-2 flex-1 justify-center">
+                                                {!showResetPwd ? (
+                    <button onClick={() => setShowResetPwd(true)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium hover:border-indigo-500/50 hover:text-indigo-400 transition-colors">
+                        <KeyIcon className="w-3.5 h-3.5" /> Reset Password
+                    </button>
+                ) : (
+                    <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 space-y-2">
+                        <p className="text-xs font-medium text-slate-300">Set new password for this employee</p>
+                        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                            placeholder="Min 6 characters"
+                            className="w-full text-xs bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500" />
+                        <div className="flex gap-2">
+                            <button onClick={() => { setShowResetPwd(false); setNewPassword("") }}
+                                className="flex-1 text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={handleResetPassword} disabled={resetting || newPassword.length < 6}
+                                className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 flex items-center justify-center gap-1 transition-colors">
+                                {resetting && <Loader2Icon className="w-3 h-3 animate-spin" />}
+                                Confirm Reset
+                            </button>
+                        </div>
+                    </div>
+                )}
+                                                <button onClick={() => { setShowDetail(false); onEdit(employee) }} className="btn-primary flex items-center gap-2 flex-1 justify-center">
                                             <PencilIcon className="w-4 h-4" /> Edit Employee
                                         </button>
                                         <button onClick={() => { setShowDetail(false); handleDelete() }} className="btn-secondary flex items-center gap-2 flex-1 justify-center text-rose-500 hover:text-rose-600">

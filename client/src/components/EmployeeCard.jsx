@@ -313,7 +313,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 )}
 
                 <Section title="Salary Details">
-                  <Detail label="Basic Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
+                  <Detail label="Salary" value={`₹${detail.basicSalary?.toLocaleString("en-IN")}`} />
                 </Section>
 
                 <Section title="Attendance Summary (This Month)">

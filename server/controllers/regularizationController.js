@@ -67,8 +67,16 @@ export const getMonthAttendanceMap = async (req, res) => {
     const leaveDateMap = getLeaveApprovedDates(approvedLeaves, monthStartUTC, monthEndUTC)
 
     return res.json({
-      data: { attendance: attMap, regularizations: regMap, lateRegularizations: lateRegMap, leaveDateMap, year, month }
-    })
+  data: {
+    attendance:          attMap,
+    regularizations:     regMap,
+    lateRegularizations: lateRegMap,
+    leaveDateMap,
+    weekOff:             employee.workSchedule?.weekOff ?? [],  
+    year,
+    month,
+  }
+})
   } catch (err) {
     console.error("getMonthAttendanceMap error:", err)
     return res.status(500).json({ error: "Failed to fetch attendance map" })

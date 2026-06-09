@@ -259,7 +259,7 @@ const AttendanceCalendarModal = ({ onClose }) => {
   const [year,  setYear]  = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [data,  setData]  = useState(null)
-  const [loading, setLoading]         = useState(true)
+  const [loading, setLoading]           = useState(true)
   const [leaveBalance, setLeaveBalance] = useState(null)
 
   const [absentActionDate, setAbsentActionDate] = useState(null)
@@ -289,7 +289,6 @@ const AttendanceCalendarModal = ({ onClose }) => {
     if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1)
   }
   const nextMonth = () => {
-    // Allow 3 months ahead for leave planning
     const limit = new Date(); limit.setMonth(limit.getMonth() + 3)
     if (year > limit.getFullYear() || (year === limit.getFullYear() && month >= limit.getMonth() + 1)) return
     if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1)
@@ -302,12 +301,22 @@ const AttendanceCalendarModal = ({ onClose }) => {
     const todayStr    = istNow.toISOString().slice(0, 10)
     const cells       = []
 
+    // ── Use employee's actual weekOff from API ──────────────────────────────
+    const DAY_INDEX_MAP = {
+      sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+      thursday: 4, friday: 5, saturday: 6,
+    }
+    const rawWeekOff = data?.weekOff ?? []
+    const offIndices = rawWeekOff.length
+      ? new Set(rawWeekOff.map(d => DAY_INDEX_MAP[d?.toLowerCase()]).filter(n => n !== undefined))
+      : new Set([0]) // default: Sunday only
+
     for (let i = 0; i < firstDay; i++) cells.push(null)
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr   = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`
       const dow       = new Date(year, month - 1, d).getDay()
-      const isWeekend = dow === 0
+      const isWeekend = offIndices.has(dow)          // ← fixed: uses employee weekOff
       const isFuture  = dateStr > todayStr
       const attRec    = data?.attendance?.[dateStr]
       const regRec    = data?.regularizations?.[dateStr]
@@ -392,7 +401,7 @@ const AttendanceCalendarModal = ({ onClose }) => {
                 <div className="grid grid-cols-7 gap-1">
                   {cells.map((cell, idx) => {
                     if (!cell) return <div key={`blank-${idx}`} />
-                    let s = cell.status === "LEAVE" ? (cell.leaveStyle || LEAVE_STYLES.SICK) : (DAY_STYLES[cell.status] || DAY_STYLES.FUTURE)
+                    const s         = cell.status === "LEAVE" ? (cell.leaveStyle || LEAVE_STYLES.SICK) : (DAY_STYLES[cell.status] || DAY_STYLES.FUTURE)
                     const canAbsent   = cell.status === "ABSENT"
                     const canLate     = cell.status === "LATE"
                     const canFuture   = cell.isFuture && cell.status === "FUTURE"
@@ -478,5 +487,4 @@ const AttendanceCalendarModal = ({ onClose }) => {
     </>
   )
 }
-
 export default AttendanceCalendarModal

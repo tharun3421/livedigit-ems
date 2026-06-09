@@ -7,7 +7,7 @@ const letterSchema = new mongoose.Schema(
     // Which built-in template was used
     templateType: {
       type:     String,
-      enum:     ["OFFER_LETTER", "WARNING_LETTER", "APPRECIATION_LETTER"],
+      enum: ["OFFER_LETTER", "WARNING_LETTER", "APPRECIATION_LETTER", "TERMINATION_LETTER", "EXPERIENCE_LETTER"],
       required: true,
     },
 

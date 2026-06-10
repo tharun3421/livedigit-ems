@@ -203,7 +203,7 @@ import { OFFICE_LOCATIONS } from "../constants/offices.js"
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const LATE_THRESHOLD = { hour: 10, minute: 30 }
+const LATE_THRESHOLD = { hour: 10, minute: 5 }
 const EXPECTED_HOURS = 9
 const IST_OFFSET_MS  = (5 * 60 + 30) * 60 * 1000
 

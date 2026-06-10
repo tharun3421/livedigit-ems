@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { XIcon, DownloadIcon, FileSpreadsheetIcon, FileTextIcon, Loader2Icon, UsersIcon, UserIcon } from "lucide-react"
+import { XIcon, DownloadIcon, FileSpreadsheetIcon, Loader2Icon, UsersIcon, UserIcon } from "lucide-react"
 import api from "../api/axios"
 import toast from "react-hot-toast"
 
@@ -180,13 +180,7 @@ const ExportReportModal = ({ onClose }) => {
                         disabled={loading || (scope === "specific" && !selectedEmp)}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-medium hover:bg-green-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                         {loading ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <FileSpreadsheetIcon className="w-4 h-4" />}
-                        CSV / Excel
-                    </button>
-                    <button onClick={() => download("json")}
-                        disabled={loading || (scope === "specific" && !selectedEmp)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        {loading ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <FileTextIcon className="w-4 h-4" />}
-                        JSON
+                        Download CSV / Excel
                     </button>
                 </div>
             </div>

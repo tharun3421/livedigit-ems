@@ -51,10 +51,11 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
     const [loading,     setLoading]     = useState(false)
 
     const [counts, setCounts] = useState({
-        workingDays:   payslip.workingDays ?? 0,
-        presentDays:   payslip.presentDays ?? 0,
-        absentDays:    payslip.absentDays  ?? 0,
-        lopWorkedDays: payslip.lopDays     ?? 0,
+        workingDays:      payslip.workingDays ?? 0,
+        presentDays:      payslip.presentDays ?? 0,
+        absentDays:       payslip.absentDays  ?? 0,
+        lopWorkedDays:    payslip.lopDays     ?? 0,
+        lateDeductionDays: 0,
     })
     const [countsLoading, setCountsLoading] = useState(true)
 
@@ -64,10 +65,11 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
                 const id = payslip._id ?? payslip.id
                 const { data } = await api.get(`/payslips/${id}`)
                 setCounts({
-                    workingDays:   data.workingDays           ?? 0,
-                    presentDays:   data.employee?.presentDays ?? 0,
-                    absentDays:    data.employee?.absentDays  ?? 0,
-                    lopWorkedDays: data.employee?.lopLeaves   ?? 0,
+                    workingDays:      data.workingDays           ?? 0,
+                    presentDays:      data.employee?.presentDays ?? 0,
+                    absentDays:       data.employee?.absentDays  ?? 0,
+                    lopWorkedDays:    data.employee?.lopLeaves   ?? 0,
+                    lateDeductionDays: data.employee?.lateDeductionDays ?? 0,
                 })
                 // Sync lopDays input to stored/live value
                 setLopDays(data.employee?.lopLeaves ?? payslip.lopDays ?? 0)
@@ -80,15 +82,16 @@ const EditPayslipModal = ({ payslip, onClose, onSuccess }) => {
         fetchLiveCounts()
     }, [payslip._id, payslip.id])
 
-    const { workingDays, presentDays, absentDays } = counts
+    const { workingDays, presentDays, absentDays, lateDeductionDays } = counts
 
-    // Live preview — mirrors controller calcSalary exactly
+    // Live preview — mirrors controller calcSalary exactly (pass lateDeductionDays)
     const { perDaySalary, earnedBasic, lopAmount, netSalary } = calcSalary(
         Number(basicSalary),
         Number(allowances),
         workingDays,
         presentDays,
         Number(lopDays),
+        lateDeductionDays,
     )
 
     const periodLabel = new Date(payslip.year, payslip.month - 1)

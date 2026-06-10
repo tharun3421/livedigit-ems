@@ -342,16 +342,19 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
     const lopDays     = lopInfo?.days ?? 0
 
     // workingDays and presentDays always come from the API
-    const workingDays  = lopInfo?.workingDays  ?? 0
-    const presentDays  = lopInfo?.presentDays  ?? 0
-    const weekOffLabel = lopInfo?.weekOffLabel ?? "Sunday"
-    const lopAmount    = lopInfo?.amount       ?? 0
+    const workingDays       = lopInfo?.workingDays  ?? 0
+    const presentDays       = lopInfo?.presentDays  ?? 0
+    const weekOffLabel      = lopInfo?.weekOffLabel ?? "Sunday"
+    const lopAmount         = lopInfo?.amount       ?? 0
 
-    // ✅ Prorated: earnedBasic = (basicSalary / workingDays) × presentDays
-    // LOP days are already absent so they're excluded from presentDays — no double deduction
+    // Mirror controller calcSalary exactly:
+    //   earnedBasic = perDay × (presentDays + lopDays)  ← gross before LOP cut
+    //   lopAmount   = perDay × lopDays                  ← explicit deduction line
+    //   netSalary   = earnedBasic − lopAmount + allowances
+    //               = perDay × presentDays + allowances (same result)
     const perDaySalary = workingDays > 0 ? parseFloat((basicSalary / workingDays).toFixed(2)) : 0
-    const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
-    const netSalary    = parseFloat((earnedBasic + allowances).toFixed(2))
+    const earnedBasic  = parseFloat((perDaySalary * (presentDays + lopDays)).toFixed(2))
+    const netSalary    = parseFloat((earnedBasic - lopAmount + allowances).toFixed(2))
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -467,7 +470,7 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                 </div>
                                 <div className="divide-y divide-slate-100">
                                     <SalaryRow
-                                        label={`Basic Salary (₹${basicSalary.toLocaleString("en-IN")} ÷ ${workingDays} × ${presentDays} days)`}
+                                        label={`Earned Basic (₹${basicSalary.toLocaleString("en-IN")} ÷ ${workingDays} × ${presentDays + lopDays} days)`}
                                         value={inr(earnedBasic)}
                                     />
 
@@ -498,6 +501,15 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                                             </button>
                                         </div>
                                     </div>
+
+                                    {lopDays > 0 && (
+                                        <SalaryRow
+                                            label={`LOP Deduction (${lopDays}d × ₹${perDaySalary.toLocaleString("en-IN")})`}
+                                            value={`– ${inr(lopAmount)}`}
+                                            color="rose"
+                                            bold
+                                        />
+                                    )}
 
                                     <div className="flex justify-between items-center px-4 py-3 bg-indigo-50">
                                         <span className="text-sm font-bold text-slate-800">Net Salary</span>

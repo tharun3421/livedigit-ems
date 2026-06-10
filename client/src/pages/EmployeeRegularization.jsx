@@ -208,6 +208,16 @@ const CalendarGrid = ({ year, month, data, loading, onAbsentClick, onLateClick }
   const istNow      = new Date(Date.now() + 5.5 * 60 * 60 * 1000)
   const todayStr    = istNow.toISOString().slice(0, 10)
 
+  // Build weekOff set from API data (same as AttendanceCalendarModal)
+  const DAY_INDEX_MAP = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+  }
+  const rawWeekOff = data?.weekOff ?? []
+  const offIndices = rawWeekOff.length
+    ? new Set(rawWeekOff.map(d => DAY_INDEX_MAP[d?.toLowerCase()]).filter(n => n !== undefined))
+    : new Set([0]) // default: Sunday
+
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) {
@@ -215,7 +225,7 @@ const CalendarGrid = ({ year, month, data, loading, onAbsentClick, onLateClick }
     const dd      = String(d).padStart(2, "0")
     const dateStr = `${year}-${mm}-${dd}`
     const dow       = new Date(year, month - 1, d).getDay()
-    const isWeekend = dow === 0
+    const isWeekend = offIndices.has(dow)
     const isFuture  = dateStr > todayStr
     const attRec    = data?.attendance?.[dateStr]
     const regRec    = data?.regularizations?.[dateStr]
@@ -225,13 +235,13 @@ const CalendarGrid = ({ year, month, data, loading, onAbsentClick, onLateClick }
     if      (isWeekend)                          status = "WEEKEND"
     else if (isFuture)                           status = "FUTURE"
     else if (attRec?.status === "PRESENT")       status = "PRESENT"
+    else if (regRec?.status === "APPROVED")      status = "PRESENT"   // approved reg = attendance granted
     else if (attRec?.status === "LATE") {
       if      (lateReg?.status === "APPROVED")   status = "LATE_APPROVED"
       else if (lateReg?.status === "PENDING")    status = "LATE_PENDING"
       else                                       status = "LATE"
     }
     else if (regRec?.status === "PENDING")       status = "PENDING"
-    else if (regRec?.status === "APPROVED")      status = "APPROVED"
     else if (regRec?.status === "REJECTED")      status = "REJECTED"
     else                                         status = "ABSENT"
 
@@ -363,11 +373,11 @@ const EmployeeRegularization = () => {
 
   const legend = [
     { label: "Present",         dot: "bg-green-400"  },
+    { label: "Reg. Approved",   dot: "bg-green-400"  },
     { label: "Late",            dot: "bg-yellow-400" },
     { label: "Late (Approved)", dot: "bg-teal-400"   },
     { label: "Absent",          dot: "bg-red-400"    },
     { label: "Pending",         dot: "bg-orange-400" },
-    { label: "Approved",        dot: "bg-green-400"  },
     { label: "Weekend",         dot: "bg-slate-600"  },
   ]
 

@@ -10,9 +10,11 @@ const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
 const getLeaveApprovedDates = (leaves, monthStartUTC, monthEndUTC) => {
   const result = {}
   for (const leave of leaves) {
+    // Only show APPROVED and PENDING leaves on the calendar; skip REJECTED
+    if (leave.status === "REJECTED") continue
     const start = new Date(Math.max(new Date(leave.startDate), monthStartUTC))
     const end   = new Date(Math.min(new Date(leave.endDate),   monthEndUTC))
-    for (let d = new Date(start); d < monthEndUTC && d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
       const istDate = new Date(d.getTime() + IST_OFFSET_MS)
       const key     = istDate.toISOString().slice(0, 10)
       result[key] = { type: leave.type, status: leave.status, isPresent: leave.type !== "LOSS_OF_PAY" }

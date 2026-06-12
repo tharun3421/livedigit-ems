@@ -245,12 +245,19 @@ export const createEmployee = async (req, res) => {
         if (!email || !password || !firstName || !lastName)
             return res.status(400).json({ error: "Missing required fields" })
 
-        const hashed = await bcrypt.hash(password, 10)
-        const user   = await User.create({ email, password: hashed, role: role || "EMPLOYEE" })
+        // ── Auto-generate employeeId if not supplied ──────────────────────────
+let finalEmployeeId = (employeeId || "").trim()
+if (!finalEmployeeId) {
+    const count = await Employee.countDocuments()
+    finalEmployeeId = `Ld${String(count + 1).padStart(3, "0")}`
+}
+
+const hashed = await bcrypt.hash(password, 10)
+const user   = await User.create({ email, password: hashed, role: role || "EMPLOYEE" })
 
         const employee = await Employee.create({
             userId:      user._id,
-            employeeId:  employeeId || "",
+            employeeId:  finalEmployeeId,   // ← use resolved ID
             bloodGroup:  bloodGroup || "",
             firstName,   lastName,  email,  phone,
             position,
@@ -274,7 +281,7 @@ export const createEmployee = async (req, res) => {
                 breakEnd:   workSchedule?.breakEnd   || "",
                 lunchStart: workSchedule?.lunchStart || "",
                 lunchEnd:   workSchedule?.lunchEnd   || "",
-                weekOff:    workSchedule?.weekOff    || ["Saturday", "Sunday"],
+                weekOff:    workSchedule?.weekOff    ?? ["Saturday", "Sunday"],
             },
             assignedLocation: resolveAssignedLocation(assignedLocation),
         })

@@ -249,7 +249,7 @@ export const createEmployee = async (req, res) => {
 let finalEmployeeId = (employeeId || "").trim()
 if (!finalEmployeeId) {
     const count = await Employee.countDocuments()
-    finalEmployeeId = `Ld${String(count + 1).padStart(3, "0")}`
+    finalEmployeeId = `LD${String(count + 1).padStart(3, "0")}`
 }
 
 const hashed = await bcrypt.hash(password, 10)

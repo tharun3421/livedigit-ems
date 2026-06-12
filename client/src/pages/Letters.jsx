@@ -376,21 +376,21 @@ const buildLetterHTML = (letter) => {
   </div>
 
   <!-- SIGNATURE -->
-  <div class="sig-section">
-    <div class="sig-rule"></div>
-    <div class="sig-row">
-      <div class="sig-block">
-        <div class="sig-line"></div>
-        <div class="sig-name">Authorised Signatory</div>
-        <div class="sig-role">HR Department · ${COMPANY.name}</div>
-      </div>
-      <div class="sig-block" style="text-align:right">
-        <div class="sig-line" style="margin-left:auto"></div>
-        <div class="sig-name">Employee Acknowledgement</div>
-        <div class="sig-role">Signature &amp; Date</div>
-      </div>
-    </div>
-  </div>
+  // <div class="sig-section">
+  //   <div class="sig-rule"></div>
+  //   <div class="sig-row">
+  //     <div class="sig-block">
+  //       <div class="sig-line"></div>
+  //       <div class="sig-name">Authorised Signatory</div>
+  //       <div class="sig-role">HR Department · ${COMPANY.name}</div>
+  //     </div>
+  //     <div class="sig-block" style="text-align:right">
+  //       <div class="sig-line" style="margin-left:auto"></div>
+  //       <div class="sig-name">Employee Acknowledgement</div>
+  //       <div class="sig-role">Signature &amp; Date</div>
+  //     </div>
+  //   </div>
+  // </div>
 
   <!-- FOOTER -->
   <div class="footer">

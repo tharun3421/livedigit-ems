@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { format } from "date-fns"
@@ -78,34 +77,30 @@ const PrintPayslip = () => {
     const joinDate    = emp.joinDate ? format(new Date(emp.joinDate), "dd MMM yyyy") : "—"
 
     // ── Salary values from API ────────────────────────────────────────────────
-    const basicSalary  = payslip.basicSalary ?? 0
-    const allowances   = payslip.allowances  ?? 0
-    const lopDays      = payslip.lopDays     ?? 0
-    const workingDays  = payslip.workingDays ?? 0
-    const lopAmount    = payslip.lopAmount   ?? 0
-    const netSalary    = payslip.netSalary   ?? 0
+    const basicSalary       = payslip.basicSalary      ?? 0
+    const allowances        = payslip.allowances        ?? 0
+    const workingDays       = payslip.workingDays       ?? 0
+    const netSalary         = payslip.netSalary         ?? 0
+    const earnedBasic       = payslip.earnedBasic       ?? 0
+    const grossEarnings     = parseFloat((earnedBasic + allowances).toFixed(2))
 
     // ── Attendance & leave counts from API ────────────────────────────────────
     const casualLeaves      = emp.casualLeaves      ?? 0
     const sickLeaves        = emp.sickLeaves        ?? 0
     const earnedLeaves      = emp.earnedLeaves      ?? 0
-    const lopLeaves         = emp.lopLeaves         ?? lopDays
+    const lopLeaves         = emp.lopLeaves         ?? 0
     const absentDays        = emp.absentDays        ?? 0
     const presentDays       = emp.presentDays       ?? 0
     const lateCount         = emp.lateCount         ?? 0
     const lateDeductionDays = emp.lateDeductionDays ?? 0
+    const lateAmount        = emp.lateAmount        ?? 0
     const weekOff           = emp.weekOff           ?? []
     const weekOffLabel      = emp.weekOffLabel      ?? (weekOff.length ? weekOff.join(", ") + " off" : "Sun off")
     const totalLeaves       = casualLeaves + sickLeaves + earnedLeaves
 
-    // ── Derived display values — use API values, don't recalculate ──────────
-    // Controller formula: earnedBasic = perDay × (presentDays + totalLopDays)
-    // totalLopDays = lopDays + lateDeductionDays
-    // netSalary    = earnedBasic - lopAmount + allowances
-    // Recalculating here with just presentDays would silently drop the late deduction
-    const perDaySalary  = workingDays > 0 ? parseFloat((basicSalary / workingDays).toFixed(2)) : 0
-    const earnedBasic   = payslip.earnedBasic ?? parseFloat((perDaySalary * presentDays).toFixed(2))
-    const grossEarnings = parseFloat((earnedBasic + allowances).toFixed(2))
+    const perDaySalary = workingDays > 0
+        ? parseFloat((basicSalary / workingDays).toFixed(2))
+        : 0
 
     return (
         <div className="min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
@@ -225,14 +220,13 @@ const PrintPayslip = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {/* ✅ Prorated basic — use stored earnedBasic from API (includes late deduction) */}
+                                        {/* Basic Salary row */}
                                         <EarningsRow
                                             earning={
                                                 <span>
                                                     Basic Salary
                                                     <span className="block text-xs text-slate-400 mt-0.5">
-                                                        ₹{fmt(basicSalary)} ÷ {workingDays} × {presentDays + lopDays + lateDeductionDays} days
-                                                        {lateDeductionDays > 0 && ` (${presentDays} present + ${lopDays + lateDeductionDays} deductions)`}
+                                                        ₹{fmt(basicSalary)} ÷ {workingDays} × {presentDays} days
                                                     </span>
                                                 </span>
                                             }
@@ -251,41 +245,47 @@ const PrintPayslip = () => {
                                                 : null
                                             }
                                         />
+
+                                        {/* Allowances + Late Deduction row */}
                                         <EarningsRow
-                                            earning="Allowances"
-                                            earningAmt={allowances > 0 ? fmt(allowances) : "—"}
-                                            deduction={lopDays > 0
-                                                ? <span>
-                                                    Loss of Pay
-                                                    <span className="block text-xs text-slate-400 mt-0.5">
-                                                        {lopDays} day{lopDays > 1 ? "s" : ""} approved LOP
-                                                    </span>
-                                                  </span>
-                                                : null
-                                            }
-                                            deductionAmt={lopDays > 0 ? fmt(lopAmount) : null}
-                                        />
-                                        {/* Late Deduction row — only if employee hit the 3-late threshold */}
-                                        {lateDeductionDays > 0 && (
-                                            <EarningsRow
-                                                earning=""
-                                                earningAmt=""
-                                                deduction={
-                                                    <span>
-                                                        Late Deduction
-                                                        <span className="block text-xs text-slate-400 mt-0.5">
-                                                            {lateCount} late check-ins ÷ 3 = {lateDeductionDays} day{lateDeductionDays > 1 ? "s" : ""} deducted
-                                                        </span>
-                                                    </span>
-                                                }
-                                                deductionAmt={fmt(parseFloat((perDaySalary * lateDeductionDays).toFixed(2)))}
-                                            />
-                                        )}
+    earning="Allowances"
+    earningAmt={allowances > 0 ? fmt(allowances) : "—"}
+    deduction={lateDeductionDays > 0
+        ? <span>
+            Late Deduction
+            <span className="block text-xs text-slate-400 mt-0.5">
+                {lateCount} late check-ins ÷ 3 = {lateDeductionDays} day{lateDeductionDays > 1 ? "s" : ""} deducted
+            </span>
+          </span>
+        : null
+    }
+    deductionAmt={lateDeductionDays > 0 ? fmt(lateAmount) : null}
+/>
+
+{lopLeaves > 0 && (
+    <EarningsRow
+        earning=""
+        earningAmt=""
+        deduction={
+            <span>
+                Loss of Pay
+                <span className="block text-xs text-slate-400 mt-0.5">
+                    {lopLeaves} day{lopLeaves > 1 ? "s" : ""} — counted as absent, no extra deduction
+                </span>
+            </span>
+        }
+        deductionAmt="—"
+    />
+)}
+
+                                        {/* Totals row */}
                                         <tr className="bg-slate-50 border-t-2 border-slate-200">
                                             <td className="px-5 py-3 text-sm font-semibold text-slate-700">Total Earnings</td>
                                             <td className="px-5 py-3 text-right font-bold text-green-600">{fmt(grossEarnings)}</td>
                                             <td className="px-5 py-3 text-sm font-semibold text-slate-700 bg-rose-50">Total Deductions</td>
-                                            <td className="px-5 py-3 text-right font-bold text-rose-600 bg-rose-50">—</td>
+                                            <td className="px-5 py-3 text-right font-bold text-rose-600 bg-rose-50">
+                                                {lateDeductionDays > 0 ? fmt(lateAmount) : "—"}
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -309,18 +309,19 @@ const PrintPayslip = () => {
                             </div>
                         </div>
 
-                        {/* ── Salary Note ── */}
+                        {/* ── Salary Calculation Note ── */}
                         <div className="rounded-xl bg-slate-50 border border-slate-200 px-5 py-3 text-xs text-slate-600">
                             <span className="font-semibold">Salary Calculation:</span>{" "}
-                            ₹{fmt(basicSalary)} (basic) ÷ {workingDays} working days × {presentDays + lopDays + lateDeductionDays} days
-                            = ₹{fmt(earnedBasic)} earned basic + ₹{fmt(allowances)} allowances − ₹{fmt(lopAmount)} deductions
-                            = <span className="font-semibold text-indigo-600">{fmtINR(netSalary)}</span>
+                            ₹{fmt(basicSalary)} (basic) ÷ {workingDays} working days × {presentDays} present days
+                            = ₹{fmt(earnedBasic)} earned basic + ₹{fmt(allowances)} allowances
+                            {lateDeductionDays > 0 && ` − ₹${fmt(lateAmount)} late deduction`}
+                            {" "}= <span className="font-semibold text-indigo-600">{fmtINR(netSalary)}</span>
                             <span className="block text-slate-400 mt-0.5">
                                 Working days = calendar days − {weekOffLabel} days ({workingDays} working days for {periodLabel})
                             </span>
-                            {lateDeductionDays > 0 && (
-                                <span className="block text-amber-500 mt-0.5">
-                                    Late deduction: {lateCount} late check-ins ÷ 3 = {lateDeductionDays} day{lateDeductionDays > 1 ? "s" : ""} deducted (₹{fmt(parseFloat((perDaySalary * lateDeductionDays).toFixed(2)))})
+                            {lopLeaves > 0 && (
+                                <span className="block text-slate-400 mt-0.5">
+                                    LOP ({lopLeaves} day{lopLeaves > 1 ? "s" : ""}) is counted as absent — already excluded from present days.
                                 </span>
                             )}
                         </div>
@@ -332,16 +333,7 @@ const PrintPayslip = () => {
                                 Every 3 late check-ins = 1 day salary deducted.
                                 You had <strong>{lateCount} late check-in{lateCount > 1 ? "s" : ""}</strong> this month →{" "}
                                 <strong>{lateDeductionDays} day{lateDeductionDays > 1 ? "s" : ""} deducted</strong>{" "}
-                                @ ₹{perDaySalary.toFixed(2)}/day = ₹{fmt(parseFloat((perDaySalary * lateDeductionDays).toFixed(2)))}.
-                            </div>
-                        )}
-
-                        {/* ── LOP Note ── */}
-                        {lopDays > 0 && (
-                            <div className="rounded-xl bg-rose-50 border border-rose-100 px-5 py-3 text-xs text-rose-600">
-                                <span className="font-semibold">Loss of Pay Note:</span>{" "}
-                                {lopDays} LOP day{lopDays > 1 ? "s" : ""} are included in absent days
-                                and already excluded from present days (₹{perDaySalary.toFixed(2)}/day × {lopDays} days = ₹{fmt(lopAmount)})
+                                @ ₹{fmt(perDaySalary)}/day = ₹{fmt(lateAmount)}.
                             </div>
                         )}
 
@@ -351,7 +343,7 @@ const PrintPayslip = () => {
                                 <span className="font-semibold">Absent Note:</span>{" "}
                                 {absentDays} day{absentDays > 1 ? "s" : ""} with no clock-in and no approved leave for {periodLabel}.
                                 <span className="block text-amber-500 mt-0.5">
-                                    Absent = Scheduled days ({workingDays}) − Present days ({presentDays}) = {absentDays} days
+                                    Absent = Scheduled days ({workingDays}) − Present days ({presentDays}) − LOP days ({lopLeaves}) = {absentDays} days
                                 </span>
                             </div>
                         )}

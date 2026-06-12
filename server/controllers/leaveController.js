@@ -308,11 +308,15 @@ export const getLopSummary = async (req, res) => {
         const y          = parseInt(year)
         const monthStart = new Date(y, m - 1, 1)
         const monthEnd   = new Date(y, m, 0, 23, 59, 59)
+        const queryStart = new Date(monthStart.getTime() - IST_OFFSET_MS)
+        const queryEnd   = new Date(monthEnd.getTime()   + IST_OFFSET_MS)
 
         const weekOff      = employee.workSchedule?.weekOff ?? []
+        const workingDates = getWorkingDatesOfMonth(m, y, weekOff)
         const workingDays  = getWorkingDays(m, y, weekOff)
         const weekOffLabel = weekOff.length ? weekOff.join(", ") : "Sunday"
 
+        // ── LOP leaves ────────────────────────────────────────────────────────
         const lopLeaves = await LeaveApplication.find({
             employeeId: employee._id,
             type:       "LOSS_OF_PAY",
@@ -321,37 +325,75 @@ export const getLopSummary = async (req, res) => {
             endDate:    { $gte: monthStart },
         })
 
-        let totalDays      = 0
+        let totalLopDays   = 0
         const leaveDetails = []
         for (const leave of lopLeaves) {
             const start = new Date(Math.max(new Date(leave.startDate), monthStart))
             const end   = new Date(Math.min(new Date(leave.endDate),   monthEnd))
             const days  = countDays(start, end)
-            totalDays  += days
+            totalLopDays += days
             leaveDetails.push({ id: leave._id.toString(), startDate: leave.startDate, endDate: leave.endDate, days })
         }
 
-        const { clockInDays, leaveDays: rawLeaveDays } = await getAttendanceCounts(employee._id, m, y, weekOff)
-        const lopWorkedDays = totalDays
-        const paidLeaveDays = Math.max(0, rawLeaveDays - lopWorkedDays)
+        // ── Attendance records ────────────────────────────────────────────────
+        const [records, allLeaves] = await Promise.all([
+            Attendance.find({ employeeId: employee._id, date: { $gte: queryStart, $lte: queryEnd } }).lean(),
+            LeaveApplication.find({
+                employeeId: employee._id,
+                status:     "APPROVED",
+                startDate:  { $lte: monthEnd },
+                endDate:    { $gte: monthStart },
+            }).lean(),
+        ])
+
+        const clockedInDates = new Set(records.map((r) => toISTDateStr(r.date)))
+        const lateDates      = new Set(records.filter(r => r.status === "LATE").map(r => toISTDateStr(r.date)))
+
+        // ── Late counts ───────────────────────────────────────────────────────
+        const lateCount         = workingDates.filter((d) => lateDates.has(d)).length
+        const lateDeductionDays = Math.floor(lateCount / 3)
+
+        // ── Present days ──────────────────────────────────────────────────────
+        const lopDates       = new Set()
+        const paidLeaveDates = new Set()
+        for (const leave of allLeaves) {
+            const start = new Date(Math.max(new Date(leave.startDate), monthStart))
+            const end   = new Date(Math.min(new Date(leave.endDate),   monthEnd))
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const mm  = String(d.getMonth() + 1).padStart(2, "0")
+                const dd  = String(d.getDate()).padStart(2, "0")
+                const str = `${d.getFullYear()}-${mm}-${dd}`
+                if (leave.type === "LOSS_OF_PAY") lopDates.add(str)
+                else                              paidLeaveDates.add(str)
+            }
+        }
+
+        const clockInDays   = workingDates.filter((d) => clockedInDates.has(d)).length
+        const paidLeaveDays = workingDates.filter(
+            (d) => !clockedInDates.has(d) && paidLeaveDates.has(d) && !lopDates.has(d)
+        ).length
         const presentDays   = clockInDays + paidLeaveDays
-        const absentDays    = Math.max(0, workingDays - presentDays - lopWorkedDays)
+        const absentDays    = Math.max(0, workingDays - presentDays - totalLopDays)
 
         const perDayRate = workingDays > 0
             ? parseFloat((employee.basicSalary / workingDays).toFixed(2))
             : 0
-        const amount     = parseFloat((perDayRate * totalDays).toFixed(2))
+
+        // amount is informational only — no longer used as a deduction
+        const amount = parseFloat((perDayRate * totalLopDays).toFixed(2))
 
         return res.json({
-            days:         totalDays,
+            days:               totalLopDays,
             amount,
-            basicSalary:  employee.basicSalary,
+            basicSalary:        employee.basicSalary,
             workingDays,
             presentDays,
             absentDays,
             weekOffLabel,
             perDayRate,
             leaveDetails,
+            lateCount,              // ← used by GeneratePayslipForm
+            lateDeductionDays,      // ← used by GeneratePayslipForm
         })
     } catch (error) {
         console.error("getLopSummary error:", error)

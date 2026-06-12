@@ -1,6 +1,6 @@
 {
-  "name": "QuickEMS",
-  "short_name": "QuickEMS",
+  "name": "LivedigitEMS",
+  "short_name": "LivedigitEMS",
   "description": "Employee Management System",
   "start_url": "/",
   "display": "standalone",

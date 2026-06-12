@@ -145,7 +145,7 @@ const calcMonthlyRegularizations = (regMap, lateRegMap) => {
 const MyProfile = () => {
     const [profile, setProfile] = useState(null)
     const [att,     setAtt]     = useState({ PRESENT: 0, LATE: 0, ABSENT: 0 })
-    const [lv,      setLv]      = useState({ SICK: 0, CASUAL: 0, EARNED: 0, LOSS_OF_PAY: 0 })
+    const [lv,      setLv]      = useState({ SICK: 0, CASUAL: 0,  LOSS_OF_PAY: 0 })
     const [regs,    setRegs]    = useState({ absentPending: 0, absentApproved: 0, latePending: 0, lateApproved: 0 })
     const [lopInfo, setLopInfo] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -335,10 +335,10 @@ const MyProfile = () => {
 
             {/* Leave Summary */}
             <Section title={`Leave Summary — ${monthName}`}>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <StatCard label="Sick Leave"   value={lv.SICK}        icon={ThermometerIcon} color="blue"   />
                     <StatCard label="Casual Leave" value={lv.CASUAL}      icon={UmbrellaIcon}    color="purple" />
-                    <StatCard label="Earned Leave" value={lv.EARNED}      icon={StarIcon}        color="green"  />
+                    {/* <StatCard label="Earned Leave" value={lv.EARNED}      icon={StarIcon}        color="green"  /> */}
                     <StatCard label="Loss of Pay"  value={lv.LOSS_OF_PAY} icon={PalmtreeIcon}    color="rose"   />
                 </div>
             </Section>

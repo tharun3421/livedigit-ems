@@ -44,7 +44,7 @@ const Leave = () => {
             icon:      ThermometerIcon,
             used:      leaveBalance?.SICK?.used      ?? approvedLeaves.filter((l) => l.type === "SICK").length,
             remaining: leaveBalance?.SICK?.remaining ?? null,
-            limit:     leaveBalance?.SICK?.limit     ?? 4,
+            limit:     leaveBalance?.SICK?.limit     ?? 6,
             unlimited: false,
             badge:     { label: `${leaveBalance?.SICK?.limit ?? 4}/yr` },
             color:     "blue",
@@ -55,25 +55,25 @@ const Leave = () => {
             icon:      UmbrellaIcon,
             used:      leaveBalance?.CASUAL?.used      ?? approvedLeaves.filter((l) => l.type === "CASUAL").length,
             remaining: leaveBalance?.CASUAL?.remaining ?? null,
-            limit:     leaveBalance?.CASUAL?.limit     ?? 2,
+            limit:     leaveBalance?.CASUAL?.limit     ?? 6,
             unlimited: false,
             badge:     { label: `${leaveBalance?.CASUAL?.limit ?? 2}/yr` },
             color:     "indigo",
         },
-        {
-            label:       "Earned Leave",
-            type:        "EARNED",
-            sub:         "company paid leaves",
-            icon:        StarIcon,
-            used:        leaveBalance?.EARNED?.used        ?? approvedLeaves.filter((l) => l.type === "EARNED").length,
-            remaining:   leaveBalance?.EARNED?.remaining   ?? null,
-            accumulated: leaveBalance?.EARNED?.accumulated ?? null,
-            perMonth:    leaveBalance?.EARNED?.perMonth    ?? 2,
-            unlimited:   false,
-            earned:      true,
-            badge:       { label: `${leaveBalance?.EARNED?.perMonth ?? 2}/mo` },
-            color:       "green",
-        },
+        // {
+        //     label:       "Earned Leave",
+        //     type:        "EARNED",
+        //     sub:         "company paid leaves",
+        //     icon:        StarIcon,
+        //     used:        leaveBalance?.EARNED?.used        ?? approvedLeaves.filter((l) => l.type === "EARNED").length,
+        //     remaining:   leaveBalance?.EARNED?.remaining   ?? null,
+        //     accumulated: leaveBalance?.EARNED?.accumulated ?? null,
+        //     perMonth:    leaveBalance?.EARNED?.perMonth    ?? 2,
+        //     unlimited:   false,
+        //     earned:      true,
+        //     badge:       { label: `${leaveBalance?.EARNED?.perMonth ?? 2}/mo` },
+        //     color:       "green",
+        // },
         {
             label:     "Loss of Pay",
             type:      "LOSS_OF_PAY",
@@ -115,7 +115,7 @@ const Leave = () => {
 
             {/* Leave Balance Cards — employee only */}
             {!isAdmin && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-8">
                     {leaveStats.map((s) => {
                         const c           = colorMap[s.color]
                         const pct         = s.limit ? Math.round((s.used / s.limit) * 100) : 0

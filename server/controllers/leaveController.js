@@ -4,10 +4,10 @@ import Attendance       from "../models/Attendance.js"
 import { createNotification, getAdminUserIds } from "./notificationController.js"
 
 export const LEAVE_LIMITS = {
-    SICK:        4,
-    CASUAL:      2,
+    SICK:        6,
+    CASUAL:      6,
     LOSS_OF_PAY: Infinity,
-    EARNED:      Infinity,
+    // EARNED:      Infinity,
 }
 
 const EL_PER_MONTH  = 2
@@ -88,25 +88,25 @@ export const getAttendanceCounts = async (employeeId, month, year, weekOff = [])
     return { clockInDays, leaveDays }
 }
 
-const getEarnedLeaveBalance = async (employee) => {
-    const now        = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+// const getEarnedLeaveBalance = async (employee) => {
+//     const now        = new Date()
+//     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+//     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-    const accumulated = EL_PER_MONTH
+//     const accumulated = EL_PER_MONTH
 
-    const approvedEL = await LeaveApplication.find({
-        employeeId: employee._id,
-        type:       "EARNED",
-        status:     "APPROVED",
-        startDate:  { $gte: monthStart, $lte: monthEnd },
-    })
+//     const approvedEL = await LeaveApplication.find({
+//         employeeId: employee._id,
+//         type:       "EARNED",
+//         status:     "APPROVED",
+//         startDate:  { $gte: monthStart, $lte: monthEnd },
+//     })
 
-    const used      = approvedEL.reduce((sum, l) => sum + countDays(l.startDate, l.endDate), 0)
-    const remaining = Math.max(0, accumulated - used)
+//     const used      = approvedEL.reduce((sum, l) => sum + countDays(l.startDate, l.endDate), 0)
+//     const remaining = Math.max(0, accumulated - used)
 
-    return { accumulated, used, remaining, perMonth: EL_PER_MONTH }
-}
+//     return { accumulated, used, remaining, perMonth: EL_PER_MONTH }
+// }
 
 const getUsedLeaveCounts = async (employeeId) => {
     const startOfYear = new Date(new Date().getFullYear(), 0, 1)
@@ -215,7 +215,6 @@ export const getLeaves = async (req, res) => {
 
         const leaves = await LeaveApplication.find({ employeeId: employee._id }).sort({ createdAt: -1 })
         const used   = await getUsedLeaveCounts(employee._id)
-        const el     = await getEarnedLeaveBalance(employee)
 
         const now        = new Date()
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -239,13 +238,13 @@ export const getLeaves = async (req, res) => {
             SICK:        { used: used.SICK,   remaining: LEAVE_LIMITS.SICK   - used.SICK,   limit: LEAVE_LIMITS.SICK   },
             CASUAL:      { used: used.CASUAL, remaining: LEAVE_LIMITS.CASUAL - used.CASUAL, limit: LEAVE_LIMITS.CASUAL },
             LOSS_OF_PAY: { used: lopUsedDays, remaining: null, limit: null },
-            EARNED:      {
-                used:        el.used,
-                remaining:   el.remaining,
-                accumulated: el.accumulated,
-                perMonth:    el.perMonth,
-                limit:       null,
-            },
+            // EARNED:      {
+            //     used:        el.used,
+            //     remaining:   el.remaining,
+            //     accumulated: el.accumulated,
+            //     perMonth:    el.perMonth,
+            //     limit:       null,
+            // },
         }
 
         return res.json({ data: leaves, leaveBalance, employee: { ...employee, id: employee._id.toString() } })

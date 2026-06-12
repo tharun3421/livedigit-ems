@@ -12,7 +12,7 @@ const countDays = (start, end) => {
 const LEAVE_TYPES = [
     { value: "SICK",        label: "Sick Leave",    note: "Medical / illness"          },
     { value: "CASUAL",      label: "Casual Leave",  note: "Personal / short notice"    },
-    { value: "EARNED",      label: "Earned Leave",  note: "Accrued 2 days/month · no salary deduction" },
+    // { value: "EARNED",      label: "Earned Leave",  note: "Accrued 2 days/month · no salary deduction" },
     { value: "LOSS_OF_PAY", label: "Loss of Pay",   note: "Salary deducted per day"    },
 ]
 

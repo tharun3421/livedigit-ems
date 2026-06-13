@@ -47,6 +47,17 @@ app.options("/{*path}", cors(corsOptions))
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ limit: "10mb", extended: true }))
 
+// ── Ensure DB is connected before every request (critical for Vercel serverless) ──
+app.use(async (req, res, next) => {
+    try {
+        await connectDB()
+        next()
+    } catch (err) {
+        console.error("DB connection failed:", err)
+        res.status(503).json({ error: "Database unavailable. Please try again." })
+    }
+})
+
 app.use("/api/auth",           authRouter)
 app.use("/api/employees",      employeeRouter)
 app.use("/api/profile",        profileRouter)
@@ -64,8 +75,6 @@ app.use("/api/export",        exportRouter)
 app.get("/", (req, res) => res.send("Server running successfully"))
 
 startAutoCheckoutJob()
-
-connectDB().catch((err) => console.error("DB connection failed:", err))
 
 if (process.env.NODE_ENV !== "production") {
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`))

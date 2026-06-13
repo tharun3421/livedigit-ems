@@ -1,17 +1,17 @@
 import mongoose from "mongoose"
 
-const connectDB = async () => {
-  // readyState: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
-  if (mongoose.connection.readyState >= 1) return
+let isConnected = false
 
-  await mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 15000,
-    socketTimeoutMS:          45000,
-    maxPoolSize:              10,
-    bufferCommands:           false,   // fail fast instead of buffering forever
+const connectDB = async () => {
+  if (isConnected) return
+
+  const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
   })
 
-  console.log("MongoDB connected:", mongoose.connection.host)
+  isConnected = conn.connections[0].readyState === 1
+  console.log("MongoDB connected")
 }
 
 export default connectDB

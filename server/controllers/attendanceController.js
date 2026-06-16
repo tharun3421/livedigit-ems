@@ -89,10 +89,6 @@ export const clockInOut = async (req, res) => {
             return await processClockInOut(req, res, employee, coords)
         }
 
-        // No location assigned — allow clock in from anywhere
-        const coords = parseCoords(req.body)
-        return await processClockInOut(req, res, employee, coords || { lat: null, lng: null, accuracy: null })
-
         return res.status(403).json({
             error: "No office location assigned to your account. Please contact your administrator.",
         })
@@ -227,5 +223,38 @@ export const getTodayAttendance = async (req, res) => {
     } catch (err) {
         console.error("getTodayAttendance error:", err)
         return res.status(500).json({ error: "Failed to fetch today's attendance" })
+    }
+}
+
+// ─── Today's Absent Employees (admin) ────────────────────────────────────────
+export const getTodayAbsent = async (req, res) => {
+    try {
+        const now         = new Date()
+        const todayIST    = getISTMidnight(now)
+        const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000)
+
+        // Get IDs of employees who have clocked in today
+        const presentRecords = await Attendance
+            .find({ date: { $gte: todayIST, $lt: tomorrowIST } })
+            .select("employeeId")
+            .lean()
+
+        const presentIds = new Set(presentRecords.map((r) => r.employeeId.toString()))
+
+        // All active employees not in that set
+        const allEmployees = await Employee
+            .find({ isDeleted: { $ne: true } })
+            .select("firstName lastName position department employeeId")
+            .lean()
+
+        const absentEmployees = allEmployees
+            .filter((e) => !presentIds.has(e._id.toString()))
+            .map((e)    => ({ ...e, _id: e._id.toString() }))
+
+        return res.json({ data: absentEmployees, date: todayIST })
+
+    } catch (err) {
+        console.error("getTodayAbsent error:", err)
+        return res.status(500).json({ error: "Failed to fetch absent employees" })
     }
 }

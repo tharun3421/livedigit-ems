@@ -123,11 +123,10 @@ const calcMonthlyLeaves = (leaves) => {
             }, 0)
 
     return {
-        SICK:        sumThisMonth("SICK"),
-        CASUAL:      sumThisMonth("CASUAL"),
-        EARNED:      sumThisMonth("EARNED"),
-        LOSS_OF_PAY: sumThisMonth("LOSS_OF_PAY"),
-    }
+    SICK:        sumThisMonth("SICK"),
+    CASUAL:      sumThisMonth("CASUAL"),
+    LOSS_OF_PAY: sumThisMonth("LOSS_OF_PAY"),
+}
 }
 
 // ─── Monthly regularization counts ───────────────────────────────────────────
@@ -338,7 +337,6 @@ const MyProfile = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <StatCard label="Sick Leave"   value={lv.SICK}        icon={ThermometerIcon} color="blue"   />
                     <StatCard label="Casual Leave" value={lv.CASUAL}      icon={UmbrellaIcon}    color="purple" />
-                    {/* <StatCard label="Earned Leave" value={lv.EARNED}      icon={StarIcon}        color="green"  /> */}
                     <StatCard label="Loss of Pay"  value={lv.LOSS_OF_PAY} icon={PalmtreeIcon}    color="rose"   />
                 </div>
             </Section>

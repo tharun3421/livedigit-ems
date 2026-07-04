@@ -36,10 +36,14 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
 }
 
 /**
- * Working days = calendar days − weekoff occurrences − 2 Earned Leaves (fixed)
+ * Working days = calendar days − weekoff occurrences (varies month to month
+ * depending on how many weekoff days fall in that month). No fixed leave
+ * deduction — this MUST match the same date universe used by getMonthCounts,
+ * otherwise presentDays/absentDays are computed against a different total
+ * than the salary denominator (perDaySalary) and the numbers won't add up.
  */
 const getWorkingDays = (month, year, weekOff = []) =>
-    Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length - 2)
+    Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length)
 
 const toISTDateStr = (utcDate) =>
     new Date(new Date(utcDate).getTime() + IST_OFFSET_MS)
@@ -123,11 +127,15 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
  * A separate lopAmount deduction would double-count the same absent days.
  */
 const calcSalary = (basicSalary, allowances, workingDays, presentDays, lateDeductionDays = 0) => {
-    const perDaySalary = workingDays > 0
-        ? parseFloat((basicSalary / workingDays).toFixed(2))
-        : 0
-    const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
-    const lateAmount   = parseFloat((perDaySalary * lateDeductionDays).toFixed(2))
+    // Use the FULL-PRECISION per-day rate for the actual math — rounding this
+    // first (e.g. to 2 decimals) before multiplying by presentDays compounds
+    // into a few paise/rupees of error over the month. Only round the final
+    // rupee amounts that get stored/displayed.
+    const rawPerDaySalary = workingDays > 0 ? basicSalary / workingDays : 0
+
+    const perDaySalary = parseFloat(rawPerDaySalary.toFixed(2)) // display only
+    const earnedBasic  = parseFloat((rawPerDaySalary * presentDays).toFixed(2))
+    const lateAmount   = parseFloat((rawPerDaySalary * lateDeductionDays).toFixed(2))
     const lopAmount    = 0
     const netSalary    = parseFloat((earnedBasic - lateAmount + allowances).toFixed(2))
     return { perDaySalary, earnedBasic, lateAmount, lopAmount, netSalary }

@@ -325,7 +325,6 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 <Section title="Leave Summary (This Month)">
                   <StatBox label="Sick"        value={detail.leaveSummary?.SICK}        color="blue"   />
                   <StatBox label="Casual"      value={detail.leaveSummary?.CASUAL}      color="purple" />
-                  <StatBox label="Earned"      value={detail.leaveSummary?.EARNED}      color="green"  />
                   <StatBox label="Loss of Pay" value={detail.leaveSummary?.LOSS_OF_PAY} color="red"    />
                 </Section>
 

@@ -1,5 +1,4 @@
-
-import { CalendarDays, FileText, Loader2, Send, X, AlertTriangleIcon, InfoIcon, StarIcon } from 'lucide-react';
+import { CalendarDays, FileText, Loader2, Send, X, AlertTriangleIcon, InfoIcon } from 'lucide-react';
 import { useState } from 'react'
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -12,7 +11,6 @@ const countDays = (start, end) => {
 const LEAVE_TYPES = [
     { value: "SICK",        label: "Sick Leave",    note: "Medical / illness"          },
     { value: "CASUAL",      label: "Casual Leave",  note: "Personal / short notice"    },
-    // { value: "EARNED",      label: "Earned Leave",  note: "Accrued 2 days/month · no salary deduction" },
     { value: "LOSS_OF_PAY", label: "Loss of Pay",   note: "Salary deducted per day"    },
 ]
 
@@ -22,23 +20,35 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance, defaultDate }
     const [startDate, setStartDate] = useState(defaultDate || "")
     const [endDate,   setEndDate]   = useState(defaultDate || "")
 
+    // const selectedBalance = leaveBalance?.[type]
+    // const isLOP           = type === "LOSS_OF_PAY"
+    // const isEarned        = type === "EARNED"
+    // const requestedDays   = countDays(startDate, endDate)
+
+    // // Exhaustion checks
+    // const isExhausted = type === "SICK" || type === "CASUAL"
+    //     ? selectedBalance && selectedBalance.remaining === 0
+    //     : isEarned
+    //         ? selectedBalance && selectedBalance.remaining === 0
+    //         : false
+
+    // const willExceed = (type === "SICK" || type === "CASUAL")
+    //     ? selectedBalance && requestedDays > selectedBalance.remaining
+    //     : isEarned
+    //         ? selectedBalance && requestedDays > selectedBalance.remaining
+    //         : false
+
+
     const selectedBalance = leaveBalance?.[type]
-    const isLOP           = type === "LOSS_OF_PAY"
-    const isEarned        = type === "EARNED"
-    const requestedDays   = countDays(startDate, endDate)
+const isLOP           = type === "LOSS_OF_PAY"
+const requestedDays   = countDays(startDate, endDate)
 
-    // Exhaustion checks
-    const isExhausted = type === "SICK" || type === "CASUAL"
-        ? selectedBalance && selectedBalance.remaining === 0
-        : isEarned
-            ? selectedBalance && selectedBalance.remaining === 0
-            : false
+// Exhaustion checks
+const isExhausted = (type === "SICK" || type === "CASUAL")
+    && selectedBalance && selectedBalance.remaining === 0
 
-    const willExceed = (type === "SICK" || type === "CASUAL")
-        ? selectedBalance && requestedDays > selectedBalance.remaining
-        : isEarned
-            ? selectedBalance && requestedDays > selectedBalance.remaining
-            : false
+const willExceed = (type === "SICK" || type === "CASUAL")
+    && selectedBalance && requestedDays > selectedBalance.remaining
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -97,23 +107,21 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance, defaultDate }
                             className="border-black/30"
                         >
                             {LEAVE_TYPES.map(({ value, label }) => {
-                                const bal       = leaveBalance?.[value]
-                                const exhausted = (value === "SICK" || value === "CASUAL" || value === "EARNED")
-                                    && bal && bal.remaining === 0
+                            const bal       = leaveBalance?.[value]
+                            const exhausted = (value === "SICK" || value === "CASUAL")
+                                && bal && bal.remaining === 0
 
-                                let suffix = ""
-                                if (value === "LOSS_OF_PAY") suffix = " (salary deducted)"
-                                else if (value === "EARNED" && bal)
-                                    suffix = ` — ${bal.remaining ?? 0} of ${bal.accumulated ?? 0} days available`
-                                else if (bal && bal.remaining !== null)
-                                    suffix = ` — ${bal.remaining}/${bal.limit} days left`
+                            let suffix = ""
+                            if (value === "LOSS_OF_PAY") suffix = " (salary deducted)"
+                            else if (bal && bal.remaining !== null)
+                                suffix = ` — ${bal.remaining}/${bal.limit} days left`
 
-                                return (
-                                    <option key={value} value={value} disabled={exhausted}>
-                                        {label}{suffix}{exhausted ? " (exhausted)" : ""}
-                                    </option>
-                                )
-                            })}
+                            return (
+                                <option key={value} value={value} disabled={exhausted}>
+                                    {label}{suffix}{exhausted ? " (exhausted)" : ""}
+                                </option>
+                            )
+                        })}
                         </select>
 
                         {/* Balance / info pill */}
@@ -122,19 +130,6 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance, defaultDate }
                                 <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 font-medium">
                                     <AlertTriangleIcon className="w-3.5 h-3.5" />
                                     Each day is deducted from your salary (basic ÷ 26 × days)
-                                </span>
-                            )}
-                            {isEarned && selectedBalance && (
-                                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
-                                    isExhausted
-                                        ? "bg-rose-500/15 text-rose-400"
-                                        : "bg-green-500/15 text-green-400"
-                                }`}>
-                                    <StarIcon className="w-3.5 h-3.5" />
-                                    {isExhausted
-                                        ? "No earned leaves available"
-                                        : `${selectedBalance.remaining} day${selectedBalance.remaining !== 1 ? "s" : ""} available · accumulated ${selectedBalance.accumulated} · +2/month · no salary deduction`
-                                    }
                                 </span>
                             )}
                             {(type === "SICK" || type === "CASUAL") && selectedBalance && (
@@ -193,9 +188,6 @@ const ApplyLeaveModel = ({ open, onClose, onSuccess, leaveBalance, defaultDate }
                                     </span>
                                     {isLOP && (
                                         <span className="ml-1 text-amber-400">— deduction calculated on approval</span>
-                                    )}
-                                    {isEarned && (
-                                        <span className="ml-1 text-green-400">— no salary deduction</span>
                                     )}
                                 </p>
                                 {willExceed && (

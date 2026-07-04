@@ -75,10 +75,16 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
     //   lateAmount  = perDay × lateDeductionDays  (separate deduction)
     //   LOP is already absent — no extra deduction
     //   netSalary   = earnedBasic − lateAmount + allowances
-    const perDaySalary = workingDays > 0 ? parseFloat((basicSalary / workingDays).toFixed(2)) : 0
-    const earnedBasic  = parseFloat((perDaySalary * presentDays).toFixed(2))
-    const lateAmount   = parseFloat((perDaySalary * lateDeductionDays).toFixed(2))
-    const netSalary    = parseFloat((earnedBasic - lateAmount + allowances).toFixed(2))
+    //
+    // Use the full-precision rate for the math; only round for display —
+    // rounding perDay first before multiplying compounds into paise/rupee
+    // errors (e.g. a perfect-attendance month showing ₹14,999.92 instead of
+    // exactly ₹15,000.00).
+    const rawPerDaySalary = workingDays > 0 ? basicSalary / workingDays : 0
+    const perDaySalary    = parseFloat(rawPerDaySalary.toFixed(2)) // display only
+    const earnedBasic     = parseFloat((rawPerDaySalary * presentDays).toFixed(2))
+    const lateAmount      = parseFloat((rawPerDaySalary * lateDeductionDays).toFixed(2))
+    const netSalary       = parseFloat((earnedBasic - lateAmount + allowances).toFixed(2))
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -106,7 +112,7 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
         </button>
     )
 
-    return (
+    return (    
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 animate-slide-up my-8 shadow-2xl mt-80">
 

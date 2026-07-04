@@ -31,14 +31,13 @@ const DAY_INDEX_MAP = {
   sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6,
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const LEAVE_STYLES = {
   SICK:        { bg:"bg-sky-500/20",     border:"border-sky-500/40",     text:"text-sky-300",     dot:"bg-sky-400",     label:"Sick Leave"    },
   CASUAL:      { bg:"bg-purple-500/20",  border:"border-purple-500/40",  text:"text-purple-300",  dot:"bg-purple-400",  label:"Casual Leave"  },
-  EARNED:      { bg:"bg-emerald-500/20", border:"border-emerald-500/40", text:"text-emerald-300", dot:"bg-emerald-400", label:"Earned Leave"  },
   LOSS_OF_PAY: { bg:"bg-red-500/20",     border:"border-red-500/40",     text:"text-red-300",     dot:"bg-red-400",     label:"LOP (Absent)"  },
   PENDING:     { bg:"bg-orange-500/15",  border:"border-orange-500/35",  text:"text-orange-300",  dot:"bg-orange-400",  label:"Leave Pending" },
 }
+
 const DAY_STYLES = {
   PRESENT:       { bg:"bg-green-500/20",  border:"border-green-500/40",  text:"text-green-300",  dot:"bg-green-400",  label:"Present"       },
   LATE:          { bg:"bg-yellow-500/20", border:"border-yellow-500/40", text:"text-yellow-300", dot:"bg-yellow-400", label:"Late"          },

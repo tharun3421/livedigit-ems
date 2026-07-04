@@ -7,10 +7,8 @@ export const LEAVE_LIMITS = {
     SICK:        6,
     CASUAL:      6,
     LOSS_OF_PAY: Infinity,
-    // EARNED:      Infinity,
 }
 
-const EL_PER_MONTH  = 2
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
 
 const countDays = (startDate, endDate) =>
@@ -42,7 +40,7 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
 }
 
 const getWorkingDays = (month, year, weekOff = []) =>
-    Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length - 2)
+    Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length)
 
 const toISTDateStr = (utcDate) =>
     new Date(new Date(utcDate).getTime() + IST_OFFSET_MS)
@@ -88,25 +86,6 @@ export const getAttendanceCounts = async (employeeId, month, year, weekOff = [])
     return { clockInDays, leaveDays }
 }
 
-// const getEarnedLeaveBalance = async (employee) => {
-//     const now        = new Date()
-//     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-//     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
-
-//     const accumulated = EL_PER_MONTH
-
-//     const approvedEL = await LeaveApplication.find({
-//         employeeId: employee._id,
-//         type:       "EARNED",
-//         status:     "APPROVED",
-//         startDate:  { $gte: monthStart, $lte: monthEnd },
-//     })
-
-//     const used      = approvedEL.reduce((sum, l) => sum + countDays(l.startDate, l.endDate), 0)
-//     const remaining = Math.max(0, accumulated - used)
-
-//     return { accumulated, used, remaining, perMonth: EL_PER_MONTH }
-// }
 
 const getUsedLeaveCounts = async (employeeId) => {
     const startOfYear = new Date(new Date().getFullYear(), 0, 1)
@@ -134,39 +113,29 @@ export const createLeave = async (req, res) => {
 
         if (!type || !startDate || !endDate || !reason)
             return res.status(400).json({ error: "Missing required fields" })
-        if (!["SICK", "CASUAL", "LOSS_OF_PAY", "EARNED"].includes(type))
-            return res.status(400).json({ error: "Invalid leave type" })
+        if (!["SICK", "CASUAL", "LOSS_OF_PAY"].includes(type))
+    return res.status(400).json({ error: "Invalid leave type" })
 
-        const startDateObj  = new Date(startDate)
-        const endDateObj    = new Date(endDate)
+const startDateObj  = new Date(startDate)
+const endDateObj    = new Date(endDate)
 
-        if (endDateObj < startDateObj)
-            return res.status(400).json({ error: "End date cannot be before start date" })
+if (endDateObj < startDateObj)
+    return res.status(400).json({ error: "End date cannot be before start date" })
 
-        const requestedDays = countDays(startDateObj, endDateObj)
+const requestedDays = countDays(startDateObj, endDateObj)
 
-        if (type === "SICK" || type === "CASUAL") {
-            const used      = await getUsedLeaveCounts(employee._id)
-            const limit     = LEAVE_LIMITS[type]
-            const remaining = limit - used[type]
-            if (requestedDays > remaining)
-                return res.status(400).json({
-                    error: `You only have ${remaining} ${type.replace("_", " ")} day(s) remaining (limit: ${limit}).`,
-                    remaining, limit,
-                })
-        }
+if (type === "SICK" || type === "CASUAL") {
+    const used      = await getUsedLeaveCounts(employee._id)
+    const limit     = LEAVE_LIMITS[type]
+    const remaining = limit - used[type]
+    if (requestedDays > remaining)
+        return res.status(400).json({
+            error: `You only have ${remaining} ${type.replace("_", " ")} day(s) remaining (limit: ${limit}).`,
+            remaining, limit,
+        })
+}
 
-        if (type === "EARNED") {
-            const elBalance = await getEarnedLeaveBalance(employee)
-            if (requestedDays > elBalance.remaining)
-                return res.status(400).json({
-                    error: `You only have ${elBalance.remaining} Earned Leave day(s) available this month.`,
-                    remaining:   elBalance.remaining,
-                    accumulated: elBalance.accumulated,
-                })
-        }
-
-        const leave = await LeaveApplication.create({
+const leave = await LeaveApplication.create({
             employeeId: employee._id,
             type, startDate: startDateObj, endDate: endDateObj, reason, status: "PENDING",
         })
@@ -235,17 +204,10 @@ export const getLeaves = async (req, res) => {
         }, 0)
 
         const leaveBalance = {
-            SICK:        { used: used.SICK,   remaining: LEAVE_LIMITS.SICK   - used.SICK,   limit: LEAVE_LIMITS.SICK   },
-            CASUAL:      { used: used.CASUAL, remaining: LEAVE_LIMITS.CASUAL - used.CASUAL, limit: LEAVE_LIMITS.CASUAL },
-            LOSS_OF_PAY: { used: lopUsedDays, remaining: null, limit: null },
-            // EARNED:      {
-            //     used:        el.used,
-            //     remaining:   el.remaining,
-            //     accumulated: el.accumulated,
-            //     perMonth:    el.perMonth,
-            //     limit:       null,
-            // },
-        }
+    SICK:        { used: used.SICK,   remaining: LEAVE_LIMITS.SICK   - used.SICK,   limit: LEAVE_LIMITS.SICK   },
+    CASUAL:      { used: used.CASUAL, remaining: LEAVE_LIMITS.CASUAL - used.CASUAL, limit: LEAVE_LIMITS.CASUAL },
+    LOSS_OF_PAY: { used: lopUsedDays, remaining: null, limit: null },
+}
 
         return res.json({ data: leaves, leaveBalance, employee: { ...employee, id: employee._id.toString() } })
     } catch (error) {
@@ -253,6 +215,46 @@ export const getLeaves = async (req, res) => {
         return res.status(500).json({ error: "Failed to fetch leaves" })
     }
 }
+
+// export const updateLeaveStatus = async (req, res) => {
+//     try {
+//         const { status } = req.body
+//         if (!["APPROVED", "REJECTED", "PENDING"].includes(status))
+//             return res.status(400).json({ error: "Invalid status" })
+
+//         const leave = await LeaveApplication.findById(req.params.id).populate("employeeId")
+//         if (!leave) return res.status(404).json({ error: "Leave application not found" })
+
+//         leave.status = status
+//         await leave.save()
+
+//         // Notify employee
+//         if (leave.employeeId) {
+//             const emp     = leave.employeeId
+//             const empUser = await Employee.findById(emp._id || emp).select("userId").lean()
+//             const userId  = empUser?.userId || emp.userId
+//             if (userId) {
+//                 const dateRange = leave.startDate.toISOString().slice(0,10) === leave.endDate.toISOString().slice(0,10)
+//                     ? leave.startDate.toISOString().slice(0,10)
+//                     : `${leave.startDate.toISOString().slice(0,10)} to ${leave.endDate.toISOString().slice(0,10)}`
+//                 await createNotification({
+//                     recipientId:   userId,
+//                     recipientRole: "EMPLOYEE",
+//                     type:          status === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_REJECTED",
+//                     title:         `Leave Request ${status === "APPROVED" ? "Approved" : "Rejected"}`,
+//                     message:       `Your ${leave.type.replace(/_/g, " ")} leave request (${dateRange}) has been ${status.toLowerCase()}.`,
+//                     refId:         leave._id,
+//                     refType:       "LeaveApplication",
+//                 })
+//             }
+//         }
+
+//         return res.json({ success: true, data: leave })
+//     } catch (error) {
+//         console.error("updateLeaveStatus error:", error)
+//         return res.status(500).json({ error: "Failed to update leave status" })
+//     }
+// }
 
 export const updateLeaveStatus = async (req, res) => {
     try {
@@ -262,6 +264,25 @@ export const updateLeaveStatus = async (req, res) => {
 
         const leave = await LeaveApplication.findById(req.params.id).populate("employeeId")
         if (!leave) return res.status(404).json({ error: "Leave application not found" })
+
+        // Re-check the annual balance at approval time — the check in
+        // createLeave only guards against already-APPROVED usage at the
+        // moment of submission, so multiple PENDING requests (each within
+        // the limit individually) can still add up to more than the annual
+        // limit if an admin approves several of them. This is the actual
+        // point where days get spent, so it's the right place to enforce it.
+        if (status === "APPROVED" && leave.status !== "APPROVED" && (leave.type === "SICK" || leave.type === "CASUAL")) {
+            const limit      = LEAVE_LIMITS[leave.type]
+            const employeeId = leave.employeeId._id || leave.employeeId
+            const used       = await getUsedLeaveCounts(employeeId)
+            const requestedDays = countDays(leave.startDate, leave.endDate)
+            if (used[leave.type] + requestedDays > limit) {
+                return res.status(400).json({
+                    error: `Approving this would exceed the employee's ${limit}-day ${leave.type.replace("_", " ")} limit for the year (already used: ${used[leave.type]} day(s)). Reject or ask them to adjust the request.`,
+                    used: used[leave.type], limit,
+                })
+            }
+        }
 
         leave.status = status
         await leave.save()

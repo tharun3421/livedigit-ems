@@ -244,6 +244,17 @@ export const updateLateRegularizationStatus = async (req, res) => {
 
     reg.status = status; reg.adminRemark = adminRemark || ""; await reg.save()
 
+    // Keep the Attendance record in sync with the decision. Approving must
+    // actually flip that day's status to PRESENT — otherwise the calendar,
+    // late-count, and salary/late-deduction calculations (which all read
+    // Attendance.status directly) still see the day as LATE even though the
+    // admin approved it. Rejecting restores LATE (covers the case where a
+    // previously-approved request gets reversed).
+    await Attendance.updateOne(
+      { employeeId: reg.employeeId, date: reg.date },
+      { $set: { status: status === "APPROVED" ? "PRESENT" : "LATE" } }
+    )
+
     const emp = await Employee.findById(reg.employeeId).select("userId").lean()
     if (emp?.userId) {
       const dateStr = new Date(reg.date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
@@ -262,3 +273,32 @@ export const updateLateRegularizationStatus = async (req, res) => {
     return res.status(500).json({ error: "Failed to update late regularization status" })
   }
 }
+
+// export const updateLateRegularizationStatus = async (req, res) => {
+//   try {
+//     const { status, adminRemark } = req.body
+//     if (!["APPROVED", "REJECTED"].includes(status)) return res.status(400).json({ error: "Invalid status" })
+
+//     const reg = await LateRegularization.findById(req.params.id)
+//     if (!reg) return res.status(404).json({ error: "Request not found" })
+
+//     reg.status = status; reg.adminRemark = adminRemark || ""; await reg.save()
+
+//     const emp = await Employee.findById(reg.employeeId).select("userId").lean()
+//     if (emp?.userId) {
+//       const dateStr = new Date(reg.date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
+//       await createNotification({
+//         recipientId: emp.userId, recipientRole: "EMPLOYEE",
+//         type: status === "APPROVED" ? "LATE_REGULARIZATION_APPROVED" : "LATE_REGULARIZATION_REJECTED",
+//         title: `Late Regularization ${status === "APPROVED" ? "Approved" : "Rejected"}`,
+//         message: `Your late attendance regularization for ${dateStr} has been ${status.toLowerCase()}. It is counted as Present for calculations.${adminRemark ? " Admin note: " + adminRemark : ""}`,
+//         refId: reg._id, refType: "LateRegularization",
+//       })
+//     }
+
+//     return res.json({ success: true, data: reg })
+//   } catch (err) {
+//     console.error("updateLateRegularizationStatus error:", err)
+//     return res.status(500).json({ error: "Failed to update late regularization status" })
+//   }
+// }

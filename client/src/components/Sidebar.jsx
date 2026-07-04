@@ -3,7 +3,8 @@ import { Link, useLocation } from "react-router-dom"
 import {
     CalendarIcon, ChevronRightIcon, FileTextIcon, IndianRupeeIcon,
     LayoutGridIcon, Loader2, LogOutIcon, MenuIcon, SettingsIcon,
-    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon, BellIcon, ClipboardListIcon, MailIcon
+    UserIcon, XIcon, UserCircleIcon, CalendarDaysIcon, BellIcon, ClipboardListIcon, MailIcon,
+    CalendarClockIcon,
 } from "lucide-react"
 import { useAuth } from "../context/authContext"
 import api from "../api/axios"
@@ -93,6 +94,7 @@ const Sidebar = () => {
             ? [
                 { name: "Employees",      href: "/employees",      icon: UserIcon,          },
                 { name: "Regularization", href: "/regularization", icon: ClipboardListIcon, badge: pendingRegCount   },
+                { name: "Attendance Calendar", href: "/attendance-calendar", icon: CalendarClockIcon },
               ]
             : [
                 { name: "Attendance",       href: "/attendance",        icon: CalendarIcon      },

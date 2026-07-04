@@ -2,9 +2,14 @@ import Employee         from "../models/Employee.js"
 import Payslip          from "../models/Payslip.js"
 import LeaveApplication from "../models/LeaveApplication.js"
 import Attendance       from "../models/Attendance.js"
+import { createNotification } from "./notificationController.js"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
+const MONTH_NAMES = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
+]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const countDays = (start, end) =>
@@ -208,6 +213,19 @@ export const createPayslip = async (req, res) => {
             presentDays,
             absentDays,
         })
+
+        // Notify the specific employee this payslip was generated for
+        if (employee.userId) {
+            await createNotification({
+                recipientId:   employee.userId,
+                recipientRole: "EMPLOYEE",
+                type:          "PAYSLIP_GENERATED",
+                title:         "Payslip Generated",
+                message:       `Your payslip for ${MONTH_NAMES[m - 1]} ${y} is now available.`,
+                refId:         payslip._id,
+                refType:       "Payslip",
+            })
+        }
 
         return res.json({ success: true, data: payslip })
 

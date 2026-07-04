@@ -2,6 +2,7 @@ import { Router } from "express"
 import { protect, protectAdmin } from "../middleware/auth.js"
 import {
     getMonthAttendanceMap,
+    getMonthAttendanceMapForAdmin,
     createRegularization,
     createLateRegularization,
     getRegularizations,
@@ -17,6 +18,7 @@ regularizationRouter.post("/",         protect,              createRegularizatio
 regularizationRouter.post("/late",     protect,              createLateRegularization)
 
 // Admin
+regularizationRouter.get("/month-map/:employeeId", protect, protectAdmin, getMonthAttendanceMapForAdmin)
 regularizationRouter.get("/",          protect, protectAdmin, getRegularizations)
 regularizationRouter.patch("/:id",     protect, protectAdmin, updateRegularizationStatus)
 regularizationRouter.patch("/late/:id",protect, protectAdmin, updateLateRegularizationStatus)

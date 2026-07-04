@@ -1,5 +1,6 @@
 import Announcement from "../models/Announcement.js"
 import { v2 as cloudinary } from "cloudinary"
+import { createNotification, getAllUserIds } from "./notificationController.js"
 
 
 
@@ -44,6 +45,22 @@ export const createAnnouncement = async (req, res) => {
             priority: priority || "NORMAL",
             createdBy: req.session.userId,
         })
+
+        // Notify every other user (admins + employees) about the new announcement
+        const allUsers = await getAllUserIds()
+        await Promise.all(allUsers
+            .filter(({ id }) => id.toString() !== req.session.userId)
+            .map(({ id, role }) =>
+                createNotification({
+                    recipientId:   id,
+                    recipientRole: role,
+                    type:          "ANNOUNCEMENT",
+                    title:         "New Announcement",
+                    message:       title,
+                    refId:         announcement._id,
+                    refType:       "Announcement",
+                })
+            ))
 
         return res.status(201).json({ success: true, data: announcement })
     } catch (error) {

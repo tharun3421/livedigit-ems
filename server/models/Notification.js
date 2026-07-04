@@ -15,6 +15,9 @@ const notificationSchema = new mongoose.Schema({
             "LATE_REGULARIZATION_REQUEST",
             "LATE_REGULARIZATION_APPROVED",
             "LATE_REGULARIZATION_REJECTED",
+            "ANNOUNCEMENT",
+            "PAYSLIP_GENERATED",
+            "LETTER_RECEIVED",
         ],
         required: true,
     },
@@ -22,7 +25,7 @@ const notificationSchema = new mongoose.Schema({
     message: { type: String, required: true },
     isRead:  { type: Boolean, default: false },
     refId:   { type: mongoose.Schema.Types.ObjectId, default: null },
-    refType: { type: String, enum: ["LeaveApplication", "AttendanceRegularization", "LateRegularization", null], default: null },
+    refType: { type: String, enum: ["LeaveApplication", "AttendanceRegularization", "LateRegularization", "Announcement", "Payslip", "Letter", null], default: null },
 }, { timestamps: true })
 
 notificationSchema.index({ recipientId: 1, isRead: 1 })

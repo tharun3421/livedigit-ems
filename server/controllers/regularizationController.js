@@ -23,64 +23,101 @@ const getLeaveApprovedDates = (leaves, monthStartUTC, monthEndUTC) => {
   return result
 }
 
+// Shared core: builds the month attendance map for a given employee.
+// Used by both the employee's own "/month-map" route and the admin
+// "/month-map/:employeeId" route so the two views can never drift apart.
+const buildMonthAttendanceMap = async (employee, year, month) => {
+  const monthStartUTC = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0) - IST_OFFSET_MS)
+  const monthEndUTC   = new Date(Date.UTC(year, month,     1, 0, 0, 0) - IST_OFFSET_MS)
+
+  const [attendanceRecords, regularizations, lateRegs, approvedLeaves] = await Promise.all([
+    Attendance.find({ employeeId: employee._id, date: { $gte: monthStartUTC, $lt: monthEndUTC } }).lean(),
+    AttendanceRegularization.find({ employeeId: employee._id, date: { $gte: monthStartUTC, $lt: monthEndUTC } }).lean(),
+    LateRegularization.find({ employeeId: employee._id, date: { $gte: monthStartUTC, $lt: monthEndUTC } }).lean(),
+    LeaveApplication.find({
+      employeeId: employee._id,
+      startDate:  { $lt: monthEndUTC },
+      endDate:    { $gte: monthStartUTC },
+    }).lean(),
+  ])
+
+  const attMap = {}
+  for (const r of attendanceRecords) {
+    const istDate = new Date(r.date.getTime() + IST_OFFSET_MS)
+    const key = istDate.toISOString().slice(0, 10)
+    attMap[key] = { status: r.status, checkIn: r.checkIn, checkOut: r.checkOut, workingHours: r.workingHours, dayType: r.dayType }
+  }
+
+  const regMap = {}
+  for (const r of regularizations) {
+    const key = new Date(r.date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
+    regMap[key] = { _id: r._id.toString(), status: r.status, reason: r.reason, remarks: r.remarks, adminRemark: r.adminRemark }
+  }
+
+  const lateRegMap = {}
+  for (const r of lateRegs) {
+    const key = new Date(r.date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
+    lateRegMap[key] = { _id: r._id.toString(), status: r.status, reason: r.reason, remarks: r.remarks, adminRemark: r.adminRemark }
+  }
+
+  const leaveDateMap = getLeaveApprovedDates(approvedLeaves, monthStartUTC, monthEndUTC)
+
+  return {
+    attendance:          attMap,
+    regularizations:     regMap,
+    lateRegularizations: lateRegMap,
+    leaveDateMap,
+    weekOff: employee.workSchedule?.weekOff ?? [],
+    year,
+    month,
+  }
+}
+
+const resolveYearMonth = (query) => {
+  const now    = new Date()
+  const istNow = new Date(now.getTime() + IST_OFFSET_MS)
+  const year   = parseInt(query.year)  || istNow.getUTCFullYear()
+  const month  = parseInt(query.month) || istNow.getUTCMonth() + 1
+  return { year, month }
+}
+
 export const getMonthAttendanceMap = async (req, res) => {
   try {
     const employee = await Employee.findOne({ userId: req.session.userId })
     if (!employee) return res.status(404).json({ error: "Employee not found" })
 
-    const now    = new Date()
-    const istNow = new Date(now.getTime() + IST_OFFSET_MS)
-    const year   = parseInt(req.query.year)  || istNow.getUTCFullYear()
-    const month  = parseInt(req.query.month) || istNow.getUTCMonth() + 1
+    const { year, month } = resolveYearMonth(req.query)
+    const data = await buildMonthAttendanceMap(employee, year, month)
 
-    const monthStartUTC = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0) - IST_OFFSET_MS)
-    const monthEndUTC   = new Date(Date.UTC(year, month,     1, 0, 0, 0) - IST_OFFSET_MS)
-
-    const [attendanceRecords, regularizations, lateRegs, approvedLeaves] = await Promise.all([
-      Attendance.find({ employeeId: employee._id, date: { $gte: monthStartUTC, $lt: monthEndUTC } }).lean(),
-      AttendanceRegularization.find({ employeeId: employee._id, date: { $gte: monthStartUTC, $lt: monthEndUTC } }).lean(),
-      LateRegularization.find({ employeeId: employee._id, date: { $gte: monthStartUTC, $lt: monthEndUTC } }).lean(),
-      LeaveApplication.find({
-        employeeId: employee._id,
-        startDate:  { $lt: monthEndUTC },
-        endDate:    { $gte: monthStartUTC },
-      }).lean(),
-    ])
-
-    const attMap = {}
-    for (const r of attendanceRecords) {
-      const istDate = new Date(r.date.getTime() + IST_OFFSET_MS)
-      const key = istDate.toISOString().slice(0, 10)
-      attMap[key] = { status: r.status, checkIn: r.checkIn, checkOut: r.checkOut, workingHours: r.workingHours, dayType: r.dayType }
-    }
-
-    const regMap = {}
-    for (const r of regularizations) {
-      const key = new Date(r.date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
-      regMap[key] = { _id: r._id.toString(), status: r.status, reason: r.reason, remarks: r.remarks, adminRemark: r.adminRemark }
-    }
-
-    const lateRegMap = {}
-    for (const r of lateRegs) {
-      const key = new Date(r.date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
-      lateRegMap[key] = { _id: r._id.toString(), status: r.status, reason: r.reason, remarks: r.remarks, adminRemark: r.adminRemark }
-    }
-
-    const leaveDateMap = getLeaveApprovedDates(approvedLeaves, monthStartUTC, monthEndUTC)
-
-    return res.json({
-  data: {
-    attendance:          attMap,
-    regularizations:     regMap,
-    lateRegularizations: lateRegMap,
-    leaveDateMap,
-    weekOff:             employee.workSchedule?.weekOff ?? [],  
-    year,
-    month,
-  }
-})
+    return res.json({ data })
   } catch (err) {
     console.error("getMonthAttendanceMap error:", err)
+    return res.status(500).json({ error: "Failed to fetch attendance map" })
+  }
+}
+
+// Admin, read-only: same shape as getMonthAttendanceMap but for any employee,
+// used by the Attendance Calendar section on the admin Regularization page.
+export const getMonthAttendanceMapForAdmin = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.employeeId).lean()
+    if (!employee) return res.status(404).json({ error: "Employee not found" })
+
+    const { year, month } = resolveYearMonth(req.query)
+    const data = await buildMonthAttendanceMap(employee, year, month)
+
+    return res.json({
+      data,
+      employee: {
+        id: employee._id.toString(),
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        department: employee.department,
+        position: employee.position,
+      },
+    })
+  } catch (err) {
+    console.error("getMonthAttendanceMapForAdmin error:", err)
     return res.status(500).json({ error: "Failed to fetch attendance map" })
   }
 }

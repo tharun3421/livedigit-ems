@@ -327,7 +327,7 @@ const AttendanceRegularization = () => {
                         {search && <p className="text-slate-600 text-xs mt-1">Try clearing your search</p>}
                     </div>
                 ) : (
-                    <div className="divide-y divide-slate-800/60">
+                    <div className="max-h-[70vh] overflow-y-auto divide-y divide-slate-800/60">
                         {filtered.map((req) => (
                             <RequestCard
                                 key={req._id}

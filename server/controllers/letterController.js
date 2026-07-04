@@ -1,5 +1,6 @@
 import Letter   from "../models/Letter.js"
 import Employee from "../models/Employee.js"
+import { createNotification } from "./notificationController.js"
 
 const TEMPLATES = {
   OFFER_LETTER: (emp, customText) => ({
@@ -75,6 +76,14 @@ HR Department`,
   }),
 }
 
+const LETTER_LABELS = {
+  OFFER_LETTER:         "Offer Letter",
+  WARNING_LETTER:       "Warning Letter",
+  APPRECIATION_LETTER:  "Appreciation Letter",
+  TERMINATION_LETTER:   "Termination Letter",
+  EXPERIENCE_LETTER:    "Experience Letter",
+}
+
 export const sendLetter = async (req, res) => {
   try {
     const { templateType, customText, recipientEmployeeId } = req.body
@@ -89,6 +98,20 @@ export const sendLetter = async (req, res) => {
       templateType, customText: customText || "", renderedBody: body,
       subject, sentBy: req.session.userId, recipientEmployeeId: employee._id,
     })
+
+    // Notify the specific employee this letter was sent to
+    if (employee.userId) {
+      await createNotification({
+        recipientId:   employee.userId,
+        recipientRole: "EMPLOYEE",
+        type:          "LETTER_RECEIVED",
+        title:         "New Letter Received",
+        message:       `You have received a ${LETTER_LABELS[templateType] || "letter"}`,
+        refId:         letter._id,
+        refType:       "Letter",
+      })
+    }
+
     return res.status(201).json({ success: true, data: letter })
   } catch (err) {
     console.error("sendLetter error:", err)

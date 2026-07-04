@@ -62,3 +62,10 @@ export const getAdminUserIds = async () => {
     const admins = await User.find({ role: "ADMIN" }).select("_id").lean()
     return admins.map(a => a._id)
 }
+
+// Helper: get every user ID (admins + employees) — used to broadcast
+// announcements to everyone
+export const getAllUserIds = async () => {
+    const users = await User.find({}).select("_id role").lean()
+    return users.map(u => ({ id: u._id, role: u.role }))
+}

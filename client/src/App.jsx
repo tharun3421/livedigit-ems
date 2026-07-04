@@ -16,6 +16,7 @@ import Announcements from "./pages/Announcements"
 import Letters       from "./pages/Letters"    
 import AttendanceRegularization from "./pages/AttendanceRegularization"
 import EmployeeRegularization   from "./pages/EmployeeRegularization"
+import AdminAttendanceCalendar  from "./pages/AdminAttendanceCalendar"
 
 
 const App = () => {
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/letters"      element={<Letters />} />
             <Route path="/regularization" element={<AttendanceRegularization />} />
+            <Route path="/attendance-calendar" element={<AdminAttendanceCalendar />} />
 
         </Route>
         <Route path="/print/payslips/:id" element={<PrintPayslip/>}/>
@@ -49,6 +51,3 @@ const App = () => {
 }
 
 export default App
-
-
-

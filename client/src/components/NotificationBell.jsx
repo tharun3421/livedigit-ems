@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
-import { BellIcon, CheckCheckIcon, XIcon, ClockIcon, FileTextIcon } from "lucide-react"
+import { BellIcon, CheckCheckIcon, XIcon, ClockIcon, FileTextIcon, MegaphoneIcon, IndianRupeeIcon, MailIcon } from "lucide-react"
 import api from "../api/axios"
 
 const TYPE_STYLES = {
@@ -12,6 +12,9 @@ const TYPE_STYLES = {
     LATE_REGULARIZATION_REQUEST:  { icon: ClockIcon,      color: "text-amber-400",  bg: "bg-amber-500/10"  },
     LATE_REGULARIZATION_APPROVED: { icon: CheckCheckIcon, color: "text-teal-400",   bg: "bg-teal-500/10"   },
     LATE_REGULARIZATION_REJECTED: { icon: XIcon,          color: "text-red-400",    bg: "bg-red-500/10"    },
+    ANNOUNCEMENT:                 { icon: MegaphoneIcon,  color: "text-purple-400", bg: "bg-purple-500/10" },
+    PAYSLIP_GENERATED:            { icon: IndianRupeeIcon,color: "text-emerald-400",bg: "bg-emerald-500/10"},
+    LETTER_RECEIVED:              { icon: MailIcon,       color: "text-sky-400",    bg: "bg-sky-500/10"    },
 }
 
 const timeAgo = (dateStr) => {
@@ -36,7 +39,9 @@ const NotificationBell = () => {
             const { data } = await api.get("/notifications")
             setNotifications(data.data || [])
             setUnreadCount(data.unreadCount || 0)
-        } catch { /* silent */ }
+        } catch (err) {
+            console.error("Failed to fetch notifications:", err?.response?.data || err.message)
+        }
     }, [])
 
     useEffect(() => {
@@ -58,7 +63,9 @@ const NotificationBell = () => {
             await api.patch(`/notifications/${id}/read`)
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
             setUnreadCount(prev => Math.max(0, prev - 1))
-        } catch { /* silent */ }
+        } catch (err) {
+            console.error("Failed to mark notification read:", err?.response?.data || err.message)
+        }
     }
 
     const markAllRead = async () => {
@@ -67,7 +74,9 @@ const NotificationBell = () => {
             await api.patch("/notifications/read-all")
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
             setUnreadCount(0)
-        } catch { /* silent */ }
+        } catch (err) {
+            console.error("Failed to mark all notifications read:", err?.response?.data || err.message)
+        }
         finally { setLoading(false) }
     }
 

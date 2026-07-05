@@ -1,6 +1,7 @@
 import Employee         from "../models/Employee.js"
 import LeaveApplication from "../models/LeaveApplication.js"
 import Attendance       from "../models/Attendance.js"
+import LateRegularization from "../models/LateRegularization.js"
 import { createNotification, getAdminUserIds } from "./notificationController.js"
 
 export const LEAVE_LIMITS = {
@@ -356,7 +357,7 @@ export const getLopSummary = async (req, res) => {
         }
 
         // ── Attendance records ────────────────────────────────────────────────
-        const [records, allLeaves] = await Promise.all([
+        const [records, allLeaves, approvedLateRegs] = await Promise.all([
             Attendance.find({ employeeId: employee._id, date: { $gte: queryStart, $lte: queryEnd } }).lean(),
             LeaveApplication.find({
                 employeeId: employee._id,
@@ -364,10 +365,23 @@ export const getLopSummary = async (req, res) => {
                 startDate:  { $lte: monthEnd },
                 endDate:    { $gte: monthStart },
             }).lean(),
+            LateRegularization.find({
+                employeeId: employee._id, status: "APPROVED",
+                date: { $gte: queryStart, $lte: queryEnd },
+            }).lean(),
         ])
 
         const clockedInDates = new Set(records.map((r) => toISTDateStr(r.date)))
-        const lateDates      = new Set(records.filter(r => r.status === "LATE").map(r => toISTDateStr(r.date)))
+
+        // Same rule as payslipController: an approved late regularization
+        // always excludes that day from the late count, regardless of what
+        // Attendance.status currently says.
+        const approvedLateDates = new Set(approvedLateRegs.map(r => toISTDateStr(r.date)))
+        const lateDates         = new Set(
+            records
+                .filter(r => r.status === "LATE" && !approvedLateDates.has(toISTDateStr(r.date)))
+                .map(r => toISTDateStr(r.date))
+        )
 
         // ── Late counts ───────────────────────────────────────────────────────
         const lateCount         = workingDates.filter((d) => lateDates.has(d)).length

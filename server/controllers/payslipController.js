@@ -1,7 +1,8 @@
-import Employee         from "../models/Employee.js"
-import Payslip          from "../models/Payslip.js"
-import LeaveApplication from "../models/LeaveApplication.js"
-import Attendance       from "../models/Attendance.js"
+import Employee            from "../models/Employee.js"
+import Payslip              from "../models/Payslip.js"
+import LeaveApplication     from "../models/LeaveApplication.js"
+import Attendance           from "../models/Attendance.js"
+import LateRegularization   from "../models/LateRegularization.js"
 import { createNotification } from "./notificationController.js"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ const toISTDateStr = (utcDate) =>
  * They are just absent days with a reason — salary is already reduced
  * because presentDays is lower. No separate lopAmount deduction.
  */
-const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
+export const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
     const workingDates = getWorkingDatesOfMonth(month, year, weekOff)
     const workingDays  = getWorkingDays(month, year, weekOff)
 
@@ -76,7 +77,7 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
     const queryStart = new Date(monthStart.getTime() - IST_OFFSET_MS)
     const queryEnd   = new Date(monthEnd.getTime()   + IST_OFFSET_MS)
 
-    const [records, leaves] = await Promise.all([
+    const [records, leaves, approvedLateRegs] = await Promise.all([
         Attendance.find({ employeeId, date: { $gte: queryStart, $lte: queryEnd } }).lean(),
         LeaveApplication.find({
             employeeId,
@@ -84,10 +85,25 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
             startDate: { $lte: monthEnd },
             endDate:   { $gte: monthStart },
         }).lean(),
+        LateRegularization.find({
+            employeeId, status: "APPROVED",
+            date: { $gte: queryStart, $lte: queryEnd },
+        }).lean(),
     ])
 
+    // A late day only counts against the employee if it's still LATE in
+    // Attendance AND has no approved regularization for it. Checking the
+    // LateRegularization collection directly here — rather than trusting
+    // Attendance.status alone — means an approved late can never show up
+    // as a deduction, even if that status sync ever falls out of step.
+    const approvedLateDates = new Set(approvedLateRegs.map(r => toISTDateStr(r.date)))
+
     const clockedInDates = new Set(records.map((r) => toISTDateStr(r.date)))
-    const lateDates      = new Set(records.filter(r => r.status === "LATE").map(r => toISTDateStr(r.date)))
+    const lateDates      = new Set(
+        records
+            .filter(r => r.status === "LATE" && !approvedLateDates.has(toISTDateStr(r.date)))
+            .map(r => toISTDateStr(r.date))
+    )
     const lopDates       = new Set()
     const paidLeaveDates = new Set()
 
@@ -131,7 +147,7 @@ const getMonthCounts = async (employeeId, month, year, weekOff = []) => {
  * LOP days reduce presentDays naturally — absent deduction already covers them.
  * A separate lopAmount deduction would double-count the same absent days.
  */
-const calcSalary = (basicSalary, allowances, workingDays, presentDays, lateDeductionDays = 0) => {
+export const calcSalary = (basicSalary, allowances, workingDays, presentDays, lateDeductionDays = 0) => {
     // Use the FULL-PRECISION per-day rate for the actual math — rounding this
     // first (e.g. to 2 decimals) before multiplying by presentDays compounds
     // into a few paise/rupees of error over the month. Only round the final

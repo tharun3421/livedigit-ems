@@ -3,7 +3,9 @@ import Attendance               from "../models/Attendance.js"
 import AttendanceRegularization from "../models/AttendanceRegularization.js"
 import LateRegularization       from "../models/LateRegularization.js"
 import LeaveApplication         from "../models/LeaveApplication.js"
+import Payslip                  from "../models/Payslip.js"
 import { createNotification, getAdminUserIds } from "./notificationController.js"
+import { getMonthCounts, calcSalary } from "./payslipController.js"
 
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
 
@@ -232,6 +234,48 @@ export const getRegularizations = async (req, res) => {
   }
 }
 
+// A Payslip is a stored snapshot, not a live computation — so if an admin
+// approves/rejects a regularization for a date AFTER that month's payslip
+// was already generated, the stored payslip silently keeps its old numbers
+// (e.g. still deducting for a late day that's now approved as Present).
+// Whenever a decision changes that day's attendance, re-run the exact same
+// calculation the payslip was built with and save the result in place, so
+// the two can never drift apart regardless of the order things happen in.
+const resyncPayslipIfExists = async (employeeId, date) => {
+  try {
+    const istDate = new Date(date.getTime() + IST_OFFSET_MS)
+    const month   = istDate.getUTCMonth() + 1
+    const year    = istDate.getUTCFullYear()
+
+    const payslip = await Payslip.findOne({ employeeId, month, year })
+    if (!payslip) return // nothing generated yet for this month — nothing to fix
+
+    const employee = await Employee.findById(employeeId).lean()
+    if (!employee) return
+
+    const weekOff = employee.workSchedule?.weekOff ?? []
+    const counts  = await getMonthCounts(employeeId, month, year, weekOff)
+    const { workingDays, presentDays, absentDays, lopWorkedDays, lateDeductionDays } = counts
+
+    const { earnedBasic, lateAmount, netSalary } =
+      calcSalary(payslip.basicSalary, payslip.allowances, workingDays, presentDays, lateDeductionDays)
+
+    payslip.workingDays = workingDays
+    payslip.presentDays = presentDays
+    payslip.absentDays  = absentDays
+    payslip.lopDays      = lopWorkedDays
+    payslip.earnedBasic = earnedBasic
+    payslip.deductions   = lateAmount
+    payslip.netSalary    = netSalary
+    await payslip.save()
+
+    console.log(`[Payslip resync] Updated existing payslip for employee ${employeeId} (${month}/${year}) after regularization decision`)
+  } catch (err) {
+    // Never let a payslip resync failure block the approval/rejection itself
+    console.error("resyncPayslipIfExists error:", err)
+  }
+}
+
 export const updateRegularizationStatus = async (req, res) => {
   try {
     const { status, adminRemark } = req.body
@@ -251,6 +295,8 @@ export const updateRegularizationStatus = async (req, res) => {
         })
       }
     }
+
+    await resyncPayslipIfExists(reg.employeeId, reg.date)
 
     const emp = await Employee.findById(reg.employeeId).select("userId").lean()
     if (emp?.userId) {
@@ -291,6 +337,8 @@ export const updateLateRegularizationStatus = async (req, res) => {
       { employeeId: reg.employeeId, date: reg.date },
       { $set: { status: status === "APPROVED" ? "PRESENT" : "LATE" } }
     )
+
+    await resyncPayslipIfExists(reg.employeeId, reg.date)
 
     const emp = await Employee.findById(reg.employeeId).select("userId").lean()
     if (emp?.userId) {

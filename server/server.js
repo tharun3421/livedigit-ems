@@ -16,8 +16,10 @@ import { serve } from "inngest/express"
 import regularizationRouter from "./routes/regularizationRoutes.js"
 import letterRouter from "./routes/letterRoutes.js"
 import { startAutoCheckoutJob } from './jobs/autoCheckout.js'
+import { startBirthdayAnnouncementJob } from './jobs/birthdayAnnouncement.js'
 import notificationRouter from "./routes/notificationRoutes.js"
 import exportRouter       from "./routes/exportRoutes.js"
+import internalRouter     from "./routes/internalRoutes.js"
 
 
 const app = express()
@@ -71,10 +73,20 @@ app.use("/api/regularization", regularizationRouter)
 app.use("/api/letters",        letterRouter)
 app.use("/api/notifications", notificationRouter)
 app.use("/api/export",        exportRouter)
+app.use("/api/internal",      internalRouter)
 
 app.get("/", (req, res) => res.send("Server running successfully"))
 
 startAutoCheckoutJob()
+
+// On Vercel, serverless functions don't keep a Node process running in the
+// background, so an in-process node-cron schedule can't be relied on to
+// fire. There, a Vercel Cron Job (see vercel.json) hits
+// /api/internal/run-birthday-check once a day instead. Locally / on a
+// persistent server, the in-process schedule below still works fine.
+if (!process.env.VERCEL) {
+    startBirthdayAnnouncementJob()
+}
 
 if (process.env.NODE_ENV !== "production") {
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`))

@@ -12,5 +12,11 @@
       "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       "dest": "/server.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/internal/run-birthday-check",
+      "schedule": "30 3 * * *"
+    }
   ]
 }

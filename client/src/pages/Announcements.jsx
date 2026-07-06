@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
     BellIcon, PlusIcon, Trash2Icon, XIcon,
     Loader2Icon, ImageIcon, AlertTriangleIcon,
-    InfoIcon, MegaphoneIcon, ZoomInIcon,
+    InfoIcon, MegaphoneIcon, ZoomInIcon, CakeIcon,
 } from 'lucide-react'
 import { useAuth }              from '../context/authContext'
 import api                      from '../api/axios'
@@ -270,6 +270,11 @@ const AnnouncementCard = ({ item, isAdmin, onDelete, isNew }) => {
                 <div className='p-5'>
                     <div className='flex items-start justify-between gap-3 mb-3'>
                         <div className='flex items-center gap-2 flex-wrap'>
+                            {item.type === 'BIRTHDAY' && (
+                                <span className='inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-pink-500/15 text-pink-400'>
+                                    <CakeIcon className='w-3 h-3' /> Birthday
+                                </span>
+                            )}
                             <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${p.color}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${p.dot} ${item.priority === 'URGENT' ? 'animate-pulse' : ''}`} />
                                 {p.label}

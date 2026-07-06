@@ -1,4 +1,3 @@
-
 import { Loader2Icon, MapPinIcon, MapPinOffIcon } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -122,6 +121,17 @@ const EmployeeForm = ({ initialData, onSuccess, onCancel, isAdmin = false }) => 
                         defaultValue={
                             initialData?.joinDate
                                 ? new Date(initialData.joinDate).toISOString().split("T")[0]
+                                : ""
+                        }
+                    />
+                </div>
+                <div>
+                    <label className="block mb-2">Date of Birth</label>
+                    <input
+                        type="date" name="dateOfBirth"
+                        defaultValue={
+                            initialData?.dateOfBirth
+                                ? new Date(initialData.dateOfBirth).toISOString().split("T")[0]
                                 : ""
                         }
                     />

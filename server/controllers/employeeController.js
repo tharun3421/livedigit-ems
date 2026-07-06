@@ -1,4 +1,3 @@
-
 import bcrypt            from "bcrypt"
 import Attendance        from "../models/Attendance.js"
 import Employee          from "../models/Employee.js"
@@ -237,7 +236,7 @@ export const createEmployee = async (req, res) => {
         const {
             employeeId, bloodGroup,
             firstName, lastName, email, phone, position, department,
-            basicSalary, allowances, deductions, joinDate, password, role, bio,
+            basicSalary, allowances, deductions, joinDate, dateOfBirth, password, role, bio,
             accountHolderName, bankName, accountNumber, ifscCode, accountType,
             workSchedule, assignedLocation,
         } = req.body
@@ -266,6 +265,7 @@ const user   = await User.create({ email, password: hashed, role: role || "EMPLO
             allowances:  Number(allowances)  || 0,
             deductions:  Number(deductions)  || 0,
             joinDate:    new Date(joinDate),
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
             bio:         bio || "",
             bankDetails: {
                 accountHolderName: accountHolderName || "",
@@ -305,7 +305,7 @@ export const updateEmployee = async (req, res) => {
         const {
             employeeId, bloodGroup,
             firstName, lastName, email, phone, position, department,
-            basicSalary, allowances, deductions, employmentStatus, password, role, bio,
+            basicSalary, allowances, deductions, employmentStatus, password, role, bio, dateOfBirth,
             accountHolderName, bankName, accountNumber, ifscCode, accountType,
             workSchedule, assignedLocation,
         } = req.body
@@ -323,6 +323,7 @@ export const updateEmployee = async (req, res) => {
             deductions:       Number(deductions)  || 0,
             employmentStatus: employmentStatus || "ACTIVE",
             bio:              bio              || "",
+            dateOfBirth:      dateOfBirth ? new Date(dateOfBirth) : null,
             bankDetails: {
                 accountHolderName: accountHolderName || "",
                 bankName:          bankName          || "",

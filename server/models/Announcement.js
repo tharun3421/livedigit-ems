@@ -6,6 +6,8 @@ const announcementSchema = new mongoose.Schema({
     imageUrl:  { type: String, default: "" },        // Cloudinary / base64 URL
     priority:  { type: String, enum: ["NORMAL", "IMPORTANT", "URGENT"], default: "NORMAL" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    type:       { type: String, enum: ["GENERAL", "BIRTHDAY"], default: "GENERAL" },
+    employeeId: { type: mongoose.Schema.Types.ObjectId, ref: "Employee", default: null },
 }, { timestamps: true })
 
 const Announcement = mongoose.models.Announcement || mongoose.model("Announcement", announcementSchema)

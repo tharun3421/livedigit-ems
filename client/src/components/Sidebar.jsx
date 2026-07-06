@@ -94,7 +94,7 @@ const Sidebar = () => {
             ? [
                 { name: "Employees",      href: "/employees",      icon: UserIcon,          },
                 { name: "Regularization", href: "/regularization", icon: ClipboardListIcon, badge: pendingRegCount   },
-                { name: "Attendance Calendar", href: "/attendance-calendar", icon: CalendarClockIcon },
+                { name: "Attendance ", href: "/attendance-calendar", icon: CalendarClockIcon },
               ]
             : [
                 { name: "Attendance",       href: "/attendance",        icon: CalendarIcon      },
@@ -105,7 +105,7 @@ const Sidebar = () => {
         { name: "Leave",         href: "/leave",         icon: FileTextIcon,    badge: role === "ADMIN" ? pendingLeaveCount : 0 },
         { name: "Payslips",      href: "/payslips",      icon: IndianRupeeIcon },
         { name: "Letters",       href: "/letters",       icon: MailIcon,        badge: role !== "ADMIN" ? unreadLetters : 0 },
-        { name: "Calendar",      href: "/calendar",      icon: CalendarDaysIcon },
+        { name: "Holiday Calendar",      href: "/calendar",      icon: CalendarDaysIcon },
         { name: "Announcements", href: "/announcements", icon: BellIcon,        badge: unreadCount },
         { name: "Settings",      href: "/settings",      icon: SettingsIcon    },
     ], [role, unreadCount, pendingRegCount, pendingLeaveCount, unreadLetters])

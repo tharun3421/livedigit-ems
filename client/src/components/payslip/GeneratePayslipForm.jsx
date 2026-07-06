@@ -1,5 +1,5 @@
-import { Loader2, Plus, X, UserIcon, AlertCircleIcon, InfoIcon, PencilIcon } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { Loader2, Plus, X, UserIcon, AlertCircleIcon, InfoIcon, PencilIcon, SearchIcon, ChevronDownIcon } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
@@ -26,6 +26,48 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
     const [fetchingEmp,      setFetchingEmp]      = useState(false)
     const [customAllowances, setCustomAllowances] = useState("")
     const [editAllowances,   setEditAllowances]   = useState(false)
+
+    // ── Employee search combobox ────────────────────────────────────────────
+    const [empSearchTerm,   setEmpSearchTerm]   = useState("")
+    const [empDropdownOpen, setEmpDropdownOpen] = useState(false)
+    const empComboRef = useRef(null)
+
+    const empLabel = (e) => `${e.firstName} ${e.lastName} — ${e.position}`
+
+    // Keep the search box showing the selected employee's name whenever
+    // the dropdown isn't actively being used to search
+    useEffect(() => {
+        if (empDropdownOpen) return
+        const selected = employees.find((e) => (e._id ?? e.id) === selectedEmpId)
+        setEmpSearchTerm(selected ? empLabel(selected) : "")
+    }, [selectedEmpId, employees, empDropdownOpen])
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (empComboRef.current && !empComboRef.current.contains(e.target)) {
+                setEmpDropdownOpen(false)
+            }
+        }
+        if (empDropdownOpen) document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [empDropdownOpen])
+
+    const filteredEmployees = employees.filter((e) => {
+        const q = empSearchTerm.trim().toLowerCase()
+        if (!q) return true
+        return (
+            `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) ||
+            e.position?.toLowerCase().includes(q) ||
+            e.department?.toLowerCase().includes(q) ||
+            e.employeeId?.toLowerCase().includes(q)
+        )
+    })
+
+    const selectEmployee = (e) => {
+        setSelectedEmpId(e._id ?? e.id)
+        setEmpSearchTerm(empLabel(e))
+        setEmpDropdownOpen(false)
+    }
 
     const fetchEmployeeDetail = useCallback(async (empId) => {
         if (!empId) return
@@ -127,19 +169,44 @@ const GeneratePayslipForm = ({ employees, onSuccess }) => {
                 <form onSubmit={handleSubmit} className="space-y-5">
 
                     {/* Employee */}
-                    <div>
+                    <div ref={empComboRef} className="relative">
                         <label className="block text-sm font-medium text-slate-800 mb-2">Employee</label>
-                        <select
-                            required
-                            value={selectedEmpId}
-                            onChange={(e) => setSelectedEmpId(e.target.value)}
-                        >
-                            {employees.map((e) => (
-                                <option key={e._id ?? e.id} value={e._id ?? e.id}>
-                                    {e.firstName} {e.lastName} — {e.position}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                required
+                                value={empSearchTerm}
+                                onFocus={(e) => { setEmpDropdownOpen(true); e.target.select() }}
+                                onChange={(e) => { setEmpSearchTerm(e.target.value); setEmpDropdownOpen(true) }}
+                                placeholder="Search by name, position, department…"
+                                className="w-full pl-9 pr-9"
+                                autoComplete="off"
+                            />
+                            <ChevronDownIcon className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 transition-transform ${empDropdownOpen ? "rotate-180" : ""}`} />
+                        </div>
+
+                        {empDropdownOpen && (
+                            <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg divide-y divide-slate-100">
+                                {filteredEmployees.length === 0 ? (
+                                    <p className="text-sm text-slate-400 text-center py-4">No employees found</p>
+                                ) : (
+                                    filteredEmployees.map((e) => (
+                                        <button
+                                            type="button"
+                                            key={e._id ?? e.id}
+                                            onClick={() => selectEmployee(e)}
+                                            className={`w-full text-left px-3.5 py-2.5 hover:bg-indigo-50 transition-colors ${
+                                                (e._id ?? e.id) === selectedEmpId ? "bg-indigo-50" : ""
+                                            }`}
+                                        >
+                                            <p className="text-sm font-medium text-slate-800">{e.firstName} {e.lastName}</p>
+                                            <p className="text-xs text-slate-400">{e.position} · {e.department}</p>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Month & Year */}

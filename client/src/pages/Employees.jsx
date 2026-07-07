@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Search, X } from "lucide-react"
+import { Plus, Search, X, UserXIcon } from "lucide-react"
 import EmployeeCard from "../components/EmployeeCard"
 import EmployeeForm from "../components/EmployeeForm"
 import api from "../api/axios"
@@ -12,18 +12,22 @@ const Employees = () => {
     const [selectedDept, setSelectedDept]   = useState("")
     const [editEmployee, setEditEmployee]   = useState(null)
     const [showCreateModel, setShowCreateModel] = useState(false)
+    const [showDeactivated, setShowDeactivated] = useState(false)
 
     const fetchEmployees = useCallback(async () => {
+        setLoading(true)
         try {
-            const url = selectedDept ? `/employees?department=${selectedDept}` : "/employees"
-            const res = await api.get(url)
+            const params = new URLSearchParams()
+            if (selectedDept)     params.set("department", selectedDept)
+            if (showDeactivated)  params.set("deleted", "true")
+            const res = await api.get(`/employees?${params.toString()}`)
             setEmployees(res.data)
         } catch (error) {
             console.error("Failed to fetch employees")
         } finally {
             setLoading(false)
         }
-    }, [selectedDept])
+    }, [selectedDept, showDeactivated])
 
     useEffect(() => { fetchEmployees() }, [fetchEmployees])
 
@@ -34,13 +38,33 @@ const Employees = () => {
     return (
         <div className="animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <h1 className="text-3xl text-slate-100">Employees</h1>
                     <p className="text-slate-500">Manage your team members</p>
                 </div>
                 <button onClick={() => setShowCreateModel(true)} className="btn-primary flex items-center gap-2 w-full sm:w-auto justify-center">
                     <Plus size={16} /> Add Employee
+                </button>
+            </div>
+
+            {/* Active / Deactivated toggle */}
+            <div className="flex gap-2 mb-6">
+                <button
+                    onClick={() => setShowDeactivated(false)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        !showDeactivated ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-500 hover:text-slate-700"
+                    }`}
+                >
+                    Active
+                </button>
+                <button
+                    onClick={() => setShowDeactivated(true)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        showDeactivated ? "bg-rose-600 text-white" : "bg-white border border-slate-200 text-slate-500 hover:text-slate-700"
+                    }`}
+                >
+                    <UserXIcon className="w-4 h-4" /> Deactivated
                 </button>
             </div>
 
@@ -65,7 +89,7 @@ const Employees = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                     {filtered.length === 0 ? (
                         <p className="col-span-full text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-                            No employees found
+                            {showDeactivated ? "No deactivated employees" : "No employees found"}
                         </p>
                     ) : (
                         filtered.map((emp) => (
@@ -74,6 +98,7 @@ const Employees = () => {
                                 employee={emp}
                                 isAdmin={true}
                                 onDelete={fetchEmployees}
+                                onRestore={fetchEmployees}
                                 onEdit={(e) => setEditEmployee(e)}
                             />
                         ))

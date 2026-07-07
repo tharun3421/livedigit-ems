@@ -3,7 +3,7 @@ import api from "../api/axios"
 import toast from "react-hot-toast"
 import {
   PencilIcon, Trash2Icon, X, Loader2Icon, EyeIcon,
-  ClockIcon, CoffeeIcon, UtensilsIcon, CalendarOffIcon, MapPinIcon, KeyIcon,
+  ClockIcon, CoffeeIcon, UtensilsIcon, CalendarOffIcon, MapPinIcon, KeyIcon, RotateCcwIcon,
 } from "lucide-react"
 
 const fmt12 = (time24) => {
@@ -64,7 +64,7 @@ const StatBox = ({ label, value, color }) => (
 )
 
 // ─── Main EmployeeCard ────────────────────────────────────────────────────────
-const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
+const EmployeeCard = ({ employee, onDelete, onEdit, onRestore, isAdmin = false }) => {
   const [showDetail,    setShowDetail]    = useState(false)
   const [detail,        setDetail]        = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -72,6 +72,7 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
   const [showResetPwd,  setShowResetPwd]  = useState(false)
   const [newPassword,   setNewPassword]   = useState("")
   const [resetting,     setResetting]     = useState(false)
+  const [restoring,     setRestoring]     = useState(false)
 
   const empId = employee.id || employee._id
 
@@ -82,6 +83,20 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
       onDelete()
     } catch (err) {
       toast.error(err.response?.data?.error || err.message)
+    }
+  }
+
+  const handleRestore = async () => {
+    if (!confirm("Restore this employee? Their account and dashboard access will be reactivated.")) return
+    setRestoring(true)
+    try {
+      await api.post(`/employees/${empId}/restore`)
+      toast.success("Employee restored")
+      onRestore?.()
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message)
+    } finally {
+      setRestoring(false)
     }
   }
 
@@ -165,6 +180,14 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
               </button>
             </>
           )}
+          {employee.isDeleted && isAdmin && (
+            <button onClick={(e) => { e.stopPropagation(); handleRestore() }}
+              disabled={restoring}
+              className="p-2.5 bg-white/90 backdrop-blur-sm text-slate-700 hover:text-green-600 rounded-xl shadow-lg transition-all hover:scale-105 disabled:opacity-50"
+              title="Restore Employee">
+              {restoring ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <RotateCcwIcon className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
         {/* Mobile actions */}
@@ -184,6 +207,13 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                 <Trash2Icon className="w-4 h-4" />
               </button>
             </>
+          )}
+          {employee.isDeleted && isAdmin && (
+            <button onClick={(e) => { e.stopPropagation(); handleRestore() }}
+              disabled={restoring}
+              className="p-2 bg-green-600 text-white rounded-xl shadow-lg disabled:opacity-50">
+              {restoring ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <RotateCcwIcon className="w-4 h-4" />}
+            </button>
           )}
         </div>
 
@@ -394,6 +424,25 @@ const EmployeeCard = ({ employee, onDelete, onEdit, isAdmin = false }) => {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Restore (deactivated employee) ── */}
+                {isAdmin && employee.isDeleted && (
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
+                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+                      <p className="text-xs text-rose-600">
+                        This employee is deactivated. They can't log in, clock in, or apply for leave until restored.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setShowDetail(false); handleRestore() }}
+                      disabled={restoring}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      {restoring ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <RotateCcwIcon className="w-4 h-4" />}
+                      Restore Employee
+                    </button>
                   </div>
                 )}
 

@@ -30,7 +30,7 @@ const resolveAssignedLocation = (assignedLocation) => {
 
 export const getEmployee = async (req, res) => {
     try {
-        const where = { isDeleted: false }
+        const where = { isDeleted: req.query.deleted === "true" }
         if (req.query.department) where.department = req.query.department
 
         const employees = await Employee.find(where)
@@ -373,6 +373,24 @@ export const deleteEmployee = async (req, res) => {
         return res.json({ success: true })
     } catch (error) {
         console.error("deleteEmployee error:", error.message)
+        return res.status(500).json({ error: error.message })
+    }
+}
+
+// ─── ADMIN RESTORE EMPLOYEE ───────────────────────────────────────────────────
+
+export const restoreEmployee = async (req, res) => {
+    try {
+        const employee = await Employee.findById(req.params.id)
+        if (!employee) return res.status(404).json({ error: "Employee not found" })
+
+        employee.isDeleted        = false
+        employee.employmentStatus = "ACTIVE"
+        await employee.save()
+
+        return res.json({ success: true })
+    } catch (error) {
+        console.error("restoreEmployee error:", error.message)
         return res.status(500).json({ error: error.message })
     }
 }

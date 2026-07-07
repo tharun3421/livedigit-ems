@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Employee from "../models/Employee.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import connectDB from "../config/db.js";
@@ -29,6 +30,13 @@ export const login = async (req, res) => {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    if (user.role === "EMPLOYEE") {
+      const employee = await Employee.findOne({ userId: user._id }).select("isDeleted").lean();
+      if (employee?.isDeleted) {
+        return res.status(403).json({ error: "Your account has been deactivated. Please contact your administrator." });
+      }
     }
 
     const payload = {

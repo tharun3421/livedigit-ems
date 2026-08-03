@@ -3,7 +3,6 @@ import cors from "cors"
 import "dotenv/config"
 import multer from "multer"
 import helmet from "helmet"
-import mongoSanitize from "express-mongo-sanitize"
 import connectDB from "./config/db.js"
 import authRouter from "./routes/authRoutes.js"
 import employeeRouter from "./routes/employeeRoutes.js"
@@ -22,6 +21,7 @@ import { startBirthdayAnnouncementJob } from './jobs/birthdayAnnouncement.js'
 import notificationRouter from "./routes/notificationRoutes.js"
 import exportRouter       from "./routes/exportRoutes.js"
 import internalRouter     from "./routes/internalRoutes.js"
+import { mongoSanitizeBody } from "./middleware/mongoSanitizeBody.js"
 
 
 const app = express()
@@ -51,7 +51,7 @@ app.options("/{*path}", cors(corsOptions))
 
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ limit: "10mb", extended: true }))
-app.use(mongoSanitize())
+app.use(mongoSanitizeBody)
 
 // ── Ensure DB is connected before every request (critical for Vercel serverless) ──
 app.use(async (req, res, next) => {

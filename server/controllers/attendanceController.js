@@ -1,4 +1,3 @@
-
 import Attendance          from "../models/Attendance.js"
 import Employee            from "../models/Employee.js"
 import { OFFICE_LOCATIONS } from "../constants/offices.js"
@@ -62,12 +61,15 @@ export const clockInOut = async (req, res) => {
         const officeKey = employee.assignedLocation?.office
         const loc       = officeKey ? OFFICE_LOCATIONS[officeKey] : null
 
+        const coords = parseCoords(req.body)
+
+        if (!coords)
+            return res.status(400).json({ error: "Location data is required to clock in/out." })
+
+        // Only enforce geofencing when the employee has an assigned office.
+        // Employees with no assigned location (remote/unassigned) can clock in
+        // from anywhere — their coordinates are still recorded, just not checked.
         if (loc) {
-            const coords = parseCoords(req.body)
-
-            if (!coords)
-                return res.status(400).json({ error: "Location data is required to clock in/out." })
-
             if (coords.accuracy !== null && coords.accuracy > loc.radiusMeters) {
                 return res.status(400).json({
                     error:    `GPS accuracy too low (${Math.round(coords.accuracy)}m). Move to an open area and try again.`,
@@ -85,13 +87,9 @@ export const clockInOut = async (req, res) => {
                     allowed:  loc.radiusMeters,
                 })
             }
-
-            return await processClockInOut(req, res, employee, coords)
         }
 
-        return res.status(403).json({
-            error: "No office location assigned to your account. Please contact your administrator.",
-        })
+        return await processClockInOut(req, res, employee, coords)
 
     } catch (err) {
         console.error("clockInOut error:", err)

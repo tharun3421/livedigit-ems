@@ -208,10 +208,45 @@ export const createLateRegularization = async (req, res) => {
   }
 }
 
+// export const getRegularizations = async (req, res) => {
+//   try {
+//     const { status, type } = req.query
+//     const where = status ? { status } : {}
+
+//     if (type === "LATE") {
+//       const regs = await LateRegularization.find(where)
+//         .populate("employeeId", "firstName lastName department position avatar")
+//         .sort({ createdAt: -1 }).lean()
+//       const data = regs.filter(r => r.employeeId && !r.employeeId.isDeleted)
+//         .map(r => ({ ...r, _id: r._id.toString(), employee: r.employeeId, regType: "LATE" }))
+//       return res.json({ data })
+//     }
+
+//     const regs = await AttendanceRegularization.find(where)
+//       .populate("employeeId", "firstName lastName department position avatar")
+//       .sort({ createdAt: -1 }).lean()
+//     const data = regs.filter(r => r.employeeId && !r.employeeId.isDeleted)
+//       .map(r => ({ ...r, _id: r._id.toString(), employee: r.employeeId, regType: "ABSENT" }))
+//     return res.json({ data })
+//   } catch (err) {
+//     console.error("getRegularizations error:", err)
+//     return res.status(500).json({ error: "Failed to fetch regularizations" })
+//   }
+// }
+
+// A Payslip is a stored snapshot, not a live computation — so if an admin
+// approves/rejects a regularization for a date AFTER that month's payslip
+// was already generated, the stored payslip silently keeps its old numbers
+// (e.g. still deducting for a late day that's now approved as Present).
+// Whenever a decision changes that day's attendance, re-run the exact same
+// calculation the payslip was built with and save the result in place, so
+// the two can never drift apart regardless of the order things happen in.
+
 export const getRegularizations = async (req, res) => {
   try {
-    const { status, type } = req.query
+    const { status, type, employeeId } = req.query
     const where = status ? { status } : {}
+    if (employeeId) where.employeeId = employeeId
 
     if (type === "LATE") {
       const regs = await LateRegularization.find(where)
@@ -234,13 +269,7 @@ export const getRegularizations = async (req, res) => {
   }
 }
 
-// A Payslip is a stored snapshot, not a live computation — so if an admin
-// approves/rejects a regularization for a date AFTER that month's payslip
-// was already generated, the stored payslip silently keeps its old numbers
-// (e.g. still deducting for a late day that's now approved as Present).
-// Whenever a decision changes that day's attendance, re-run the exact same
-// calculation the payslip was built with and save the result in place, so
-// the two can never drift apart regardless of the order things happen in.
+
 const resyncPayslipIfExists = async (employeeId, date) => {
   try {
     const istDate = new Date(date.getTime() + IST_OFFSET_MS)

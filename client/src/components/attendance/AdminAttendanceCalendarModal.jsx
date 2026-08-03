@@ -5,6 +5,7 @@ import {
 } from "lucide-react"
 import api from "../../api/axios"
 import toast from "react-hot-toast"
+import AdminEmployeeRequestsPanel from "./AdminEmployeeRequestsPanel"
 
 const MONTH_NAMES = [
   "January","February","March","April","May","June",
@@ -233,6 +234,13 @@ const AdminAttendanceCalendarModal = ({ employeeId, employeeName, onClose }) => 
           )}
         </div>
       </div>
+      
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl ml-6 p-2 w-100 max-h-[75vh] overflow-y-auto">
+                <AdminEmployeeRequestsPanel
+                employeeId={employeeId}
+                onActioned={() => load(year, month, { silent: true })}
+              />
+            </div>
     </div>
   )
 }

@@ -32,9 +32,12 @@ const getWorkingDatesOfMonth = (month, year, weekOff = []) => {
     return dates
 }
 
-// workingDays = working calendar days − 2 EL per month
+// Working days = calendar days − weekoff occurrences. No fixed leave
+// deduction — must match the same date universe payslipController uses,
+// otherwise this report's presentDays/absentDays won't match the actual
+// payslip for the same employee/month.
 const getWorkingDays = (month, year, weekOff = []) =>
-    Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length - 2)
+    Math.max(1, getWorkingDatesOfMonth(month, year, weekOff).length)
 
 const toISTDateStr = (utcDate) =>
     new Date(new Date(utcDate).getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)

@@ -10,10 +10,47 @@ export const LEAVE_LIMITS = {
     LOSS_OF_PAY: Infinity,
 }
 
+// Per-calendar-month caps. CASUAL_WHEN_SICK_EXHAUSTED applies instead of
+// CASUAL once the employee has used all 6 Sick Leaves for the leave year.
+const MONTHLY_LIMITS = {
+    SICK:                     2,
+    CASUAL:                   1,
+    CASUAL_WHEN_SICK_EXHAUSTED: 2,
+    TOTAL:                    2,
+}
+
+// Casual Leave only unlocks after this many months of tenure
+const CASUAL_ELIGIBILITY_MONTHS = 3
+
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000
 
 const countDays = (startDate, endDate) =>
     Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
+
+const addMonths = (date, months) => {
+    const d = new Date(date)
+    d.setMonth(d.getMonth() + months)
+    return d
+}
+
+// The employee's "leave year" runs from work-anniversary to work-anniversary,
+// not the calendar year — e.g. joined 2024-03-15 → leave year always starts
+// March 15. Balances reset on that date every year, regardless of usage.
+const getLeaveYearStart = (joinDate, referenceDate) => {
+    const join  = new Date(joinDate)
+    const ref   = new Date(referenceDate)
+    const start = new Date(ref.getFullYear(), join.getMonth(), join.getDate())
+    start.setHours(0, 0, 0, 0)
+    if (start > ref) start.setFullYear(start.getFullYear() - 1)
+    return start
+}
+
+const getLeaveYearEnd = (leaveYearStart) => {
+    const end = new Date(leaveYearStart)
+    end.setFullYear(end.getFullYear() + 1)
+    end.setMilliseconds(end.getMilliseconds() - 1) // one ms before next anniversary
+    return end
+}
 
 const DAY_INDEX = {
     sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
@@ -88,12 +125,35 @@ export const getAttendanceCounts = async (employeeId, month, year, weekOff = [])
 }
 
 
-const getUsedLeaveCounts = async (employeeId) => {
-    const startOfYear = new Date(new Date().getFullYear(), 0, 1)
-    const approved    = await LeaveApplication.find({
+// Annual usage — window is the employee's current work-anniversary year,
+// not the calendar year.
+const getUsedLeaveCounts = async (employeeId, joinDate, referenceDate = new Date()) => {
+    const yearStart = getLeaveYearStart(joinDate, referenceDate)
+    const yearEnd   = getLeaveYearEnd(yearStart)
+
+    const approved = await LeaveApplication.find({
         employeeId,
         status:    "APPROVED",
-        startDate: { $gte: startOfYear },
+        startDate: { $gte: yearStart, $lte: yearEnd },
+        type:      { $in: ["SICK", "CASUAL"] },
+    })
+    const counts = { SICK: 0, CASUAL: 0 }
+    for (const leave of approved) {
+        const days = countDays(leave.startDate, leave.endDate)
+        if (counts[leave.type] !== undefined) counts[leave.type] += days
+    }
+    return { counts, yearStart, yearEnd }
+}
+
+// Monthly usage — plain calendar month.
+const getMonthlyLeaveCounts = async (employeeId, year, month) => {
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd   = new Date(year, month, 0, 23, 59, 59, 999)
+
+    const approved = await LeaveApplication.find({
+        employeeId,
+        status:    "APPROVED",
+        startDate: { $gte: monthStart, $lte: monthEnd },
         type:      { $in: ["SICK", "CASUAL"] },
     })
     const counts = { SICK: 0, CASUAL: 0 }
@@ -102,6 +162,72 @@ const getUsedLeaveCounts = async (employeeId) => {
         if (counts[leave.type] !== undefined) counts[leave.type] += days
     }
     return counts
+}
+
+/**
+ * Shared SICK/CASUAL policy check — used at both submission (createLeave)
+ * and approval (updateLeaveStatus) time, so the two can never enforce
+ * different rules. Returns an error string, or null if the request is fine.
+ *
+ * Rules:
+ *  - Casual Leave requires 3 months of tenure. Sick Leave has no such gate.
+ *  - 6 SL + 6 CL per leave year, where the year resets on the work anniversary.
+ *  - Per calendar month: max 2 SL, max 1 CL, max 2 total (SL + CL combined).
+ *  - Exception: once the annual SL balance is fully used, the monthly CL cap
+ *    becomes 2 instead of 1 (still bounded by the annual CL balance).
+ */
+const validateLeaveLimits = async (employee, type, startDateObj, endDateObj, requestedDays) => {
+    if (type !== "SICK" && type !== "CASUAL") return null
+
+    // Monthly/annual limits are enforced per bucket, so a single request must
+    // fit inside one calendar month and one leave year.
+    if (startDateObj.getMonth() !== endDateObj.getMonth() || startDateObj.getFullYear() !== endDateObj.getFullYear())
+        return `${type === "SICK" ? "Sick" : "Casual"} Leave requests cannot span more than one calendar month. Please split into separate requests.`
+
+    const yearStartAtBegin = getLeaveYearStart(employee.joinDate, startDateObj)
+    const yearStartAtEnd   = getLeaveYearStart(employee.joinDate, endDateObj)
+    if (yearStartAtBegin.getTime() !== yearStartAtEnd.getTime())
+        return `This request spans your work-anniversary leave reset. Please split it into separate requests.`
+
+    // ── 3-month tenure requirement — Casual Leave only ─────────────────────
+    if (type === "CASUAL") {
+        const eligibleFrom = addMonths(employee.joinDate, CASUAL_ELIGIBILITY_MONTHS)
+        if (startDateObj < eligibleFrom) {
+            return `Casual Leave is available only after completing 3 months from your joining date (eligible from ${eligibleFrom.toISOString().slice(0, 10)}).`
+        }
+    }
+
+    // ── Annual limit (resets on work anniversary) ──────────────────────────
+    const { counts: used, yearEnd } = await getUsedLeaveCounts(employee._id, employee.joinDate, startDateObj)
+    const limit     = LEAVE_LIMITS[type]
+    const remaining = limit - used[type]
+    if (requestedDays > remaining) {
+        const resetDate = new Date(yearEnd.getTime() + 1).toISOString().slice(0, 10)
+        return `You only have ${remaining} ${type === "SICK" ? "Sick" : "Casual"} Leave day(s) remaining for this leave year (limit: ${limit}, resets ${resetDate}).`
+    }
+
+    // ── Monthly limits ──────────────────────────────────────────────────────
+    const m       = startDateObj.getMonth() + 1
+    const y       = startDateObj.getFullYear()
+    const monthly = await getMonthlyLeaveCounts(employee._id, y, m)
+
+    const sickExhaustedForYear = used.SICK >= LEAVE_LIMITS.SICK
+    const monthlySickCap   = MONTHLY_LIMITS.SICK
+    const monthlyCasualCap = sickExhaustedForYear
+        ? MONTHLY_LIMITS.CASUAL_WHEN_SICK_EXHAUSTED
+        : MONTHLY_LIMITS.CASUAL
+    const monthlyTotalCap  = MONTHLY_LIMITS.TOTAL
+
+    if (type === "SICK" && monthly.SICK + requestedDays > monthlySickCap)
+        return `You can take a maximum of ${monthlySickCap} Sick Leave day(s) per month. Already taken this month: ${monthly.SICK}.`
+
+    if (type === "CASUAL" && monthly.CASUAL + requestedDays > monthlyCasualCap)
+        return `You can take a maximum of ${monthlyCasualCap} Casual Leave day(s) per month. Already taken this month: ${monthly.CASUAL}.`
+
+    if (monthly.SICK + monthly.CASUAL + requestedDays > monthlyTotalCap)
+        return `You can take a maximum of ${monthlyTotalCap} leave day(s) (Sick + Casual combined) per month. Already taken this month: ${monthly.SICK + monthly.CASUAL}.`
+
+    return null
 }
 
 export const createLeave = async (req, res) => {
@@ -126,14 +252,8 @@ if (endDateObj < startDateObj)
 const requestedDays = countDays(startDateObj, endDateObj)
 
 if (type === "SICK" || type === "CASUAL") {
-    const used      = await getUsedLeaveCounts(employee._id)
-    const limit     = LEAVE_LIMITS[type]
-    const remaining = limit - used[type]
-    if (requestedDays > remaining)
-        return res.status(400).json({
-            error: `You only have ${remaining} ${type.replace("_", " ")} day(s) remaining (limit: ${limit}).`,
-            remaining, limit,
-        })
+    const errorMsg = await validateLeaveLimits(employee, type, startDateObj, endDateObj, requestedDays)
+    if (errorMsg) return res.status(400).json({ error: errorMsg })
 }
 
 const leave = await LeaveApplication.create({
@@ -184,7 +304,8 @@ export const getLeaves = async (req, res) => {
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 
         const leaves = await LeaveApplication.find({ employeeId: employee._id }).sort({ createdAt: -1 })
-        const used   = await getUsedLeaveCounts(employee._id)
+        const { counts: used, yearStart, yearEnd } = await getUsedLeaveCounts(employee._id, employee.joinDate)
+        const casualEligibleFrom = addMonths(employee.joinDate, CASUAL_ELIGIBILITY_MONTHS)
 
         const now        = new Date()
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -206,8 +327,9 @@ export const getLeaves = async (req, res) => {
 
         const leaveBalance = {
     SICK:        { used: used.SICK,   remaining: LEAVE_LIMITS.SICK   - used.SICK,   limit: LEAVE_LIMITS.SICK   },
-    CASUAL:      { used: used.CASUAL, remaining: LEAVE_LIMITS.CASUAL - used.CASUAL, limit: LEAVE_LIMITS.CASUAL },
+    CASUAL:      { used: used.CASUAL, remaining: LEAVE_LIMITS.CASUAL - used.CASUAL, limit: LEAVE_LIMITS.CASUAL, eligibleFrom: casualEligibleFrom },
     LOSS_OF_PAY: { used: lopUsedDays, remaining: null, limit: null },
+    leaveYear:   { start: yearStart, end: yearEnd },
 }
 
         return res.json({ data: leaves, leaveBalance, employee: { ...employee, id: employee._id.toString() } })
@@ -266,22 +388,22 @@ export const updateLeaveStatus = async (req, res) => {
         const leave = await LeaveApplication.findById(req.params.id).populate("employeeId")
         if (!leave) return res.status(404).json({ error: "Leave application not found" })
 
-        // Re-check the annual balance at approval time — the check in
-        // createLeave only guards against already-APPROVED usage at the
-        // moment of submission, so multiple PENDING requests (each within
-        // the limit individually) can still add up to more than the annual
-        // limit if an admin approves several of them. This is the actual
+        // Re-check the full policy at approval time — the check in createLeave
+        // only guards against already-APPROVED usage at the moment of
+        // submission, so multiple PENDING requests (each within the limits
+        // individually) can still add up to more than the monthly/annual
+        // limits if an admin approves several of them. This is the actual
         // point where days get spent, so it's the right place to enforce it.
         if (status === "APPROVED" && leave.status !== "APPROVED" && (leave.type === "SICK" || leave.type === "CASUAL")) {
-            const limit      = LEAVE_LIMITS[leave.type]
-            const employeeId = leave.employeeId._id || leave.employeeId
-            const used       = await getUsedLeaveCounts(employeeId)
+            const employee = leave.employeeId && leave.employeeId.joinDate
+                ? leave.employeeId
+                : await Employee.findById(leave.employeeId._id || leave.employeeId).lean()
             const requestedDays = countDays(leave.startDate, leave.endDate)
-            if (used[leave.type] + requestedDays > limit) {
-                return res.status(400).json({
-                    error: `Approving this would exceed the employee's ${limit}-day ${leave.type.replace("_", " ")} limit for the year (already used: ${used[leave.type]} day(s)). Reject or ask them to adjust the request.`,
-                    used: used[leave.type], limit,
-                })
+            const errorMsg = await validateLeaveLimits(
+                employee, leave.type, new Date(leave.startDate), new Date(leave.endDate), requestedDays
+            )
+            if (errorMsg) {
+                return res.status(400).json({ error: `Cannot approve: ${errorMsg}` })
             }
         }
 

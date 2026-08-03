@@ -254,37 +254,48 @@ if (!finalEmployeeId) {
 const hashed = await bcrypt.hash(password, 10)
 const user   = await User.create({ email, password: hashed, role: role || "EMPLOYEE" })
 
-        const employee = await Employee.create({
-            userId:      user._id,
-            employeeId:  finalEmployeeId,   // ← use resolved ID
-            bloodGroup:  bloodGroup || "",
-            firstName,   lastName,  email,  phone,
-            position,
-            department:  department  || "Technical",
-            basicSalary: Number(basicSalary) || 0,
-            allowances:  Number(allowances)  || 0,
-            deductions:  Number(deductions)  || 0,
-            joinDate:    new Date(joinDate),
-            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-            bio:         bio || "",
-            bankDetails: {
-                accountHolderName: accountHolderName || "",
-                bankName:          bankName          || "",
-                accountNumber:     accountNumber     || "",
-                ifscCode:          ifscCode          || "",
-                accountType:       accountType       || "",
-            },
-            workSchedule: {
-                shiftStart: workSchedule?.shiftStart || "",
-                shiftEnd:   workSchedule?.shiftEnd   || "",
-                breakStart: workSchedule?.breakStart || "",
-                breakEnd:   workSchedule?.breakEnd   || "",
-                lunchStart: workSchedule?.lunchStart || "",
-                lunchEnd:   workSchedule?.lunchEnd   || "",
-                weekOff:    workSchedule?.weekOff    ?? ["Saturday", "Sunday"],
-            },
-            assignedLocation: resolveAssignedLocation(assignedLocation),
-        })
+        let employee
+        try {
+            employee = await Employee.create({
+                userId:      user._id,
+                employeeId:  finalEmployeeId,   // ← use resolved ID
+                bloodGroup:  bloodGroup || "",
+                firstName,   lastName,  email,  phone,
+                position,
+                department:  department  || "Technical",
+                basicSalary: Number(basicSalary) || 0,
+                allowances:  Number(allowances)  || 0,
+                deductions:  Number(deductions)  || 0,
+                joinDate:    new Date(joinDate),
+                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+                bio:         bio || "",
+                bankDetails: {
+                    accountHolderName: accountHolderName || "",
+                    bankName:          bankName          || "",
+                    accountNumber:     accountNumber     || "",
+                    ifscCode:          ifscCode          || "",
+                    accountType:       accountType       || "",
+                },
+                workSchedule: {
+                    shiftStart: workSchedule?.shiftStart || "",
+                    shiftEnd:   workSchedule?.shiftEnd   || "",
+                    breakStart: workSchedule?.breakStart || "",
+                    breakEnd:   workSchedule?.breakEnd   || "",
+                    lunchStart: workSchedule?.lunchStart || "",
+                    lunchEnd:   workSchedule?.lunchEnd   || "",
+                    weekOff:    workSchedule?.weekOff    ?? ["Saturday", "Sunday"],
+                },
+                assignedLocation: resolveAssignedLocation(assignedLocation),
+            })
+        } catch (employeeError) {
+            // Employee.create failed (e.g. duplicate employeeId) — the User
+            // document above was already persisted. Without this rollback it
+            // becomes an orphan that permanently locks this email, since
+            // User.email is unique and there's no Employee record left to
+            // show why. Roll it back so the admin can simply retry.
+            await User.findByIdAndDelete(user._id)
+            throw employeeError
+        }
 
         return res.status(201).json({ success: true, employee: employee.toObject() })
     } catch (error) {

@@ -335,6 +335,13 @@ export const getPayslipById = async (req, res) => {
         const payslip = await Payslip.findById(req.params.id).lean()
         if (!payslip) return res.status(404).json({ error: "Payslip not found" })
 
+        if (req.session.role !== "ADMIN") {
+            const requester = await Employee.findOne({ userId: req.session.userId }).lean()
+            if (!requester || String(payslip.employeeId) !== String(requester._id)) {
+                return res.status(403).json({ error: "Not authorized to view this payslip" })
+            }
+        }
+
         const employee = await Employee.findById(payslip.employeeId).lean()
         if (!employee) return res.status(404).json({ error: "Employee not found" })
 

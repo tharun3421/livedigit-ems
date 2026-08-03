@@ -2,6 +2,8 @@ import express from "express"
 import cors from "cors"
 import "dotenv/config"
 import multer from "multer"
+import helmet from "helmet"
+import mongoSanitize from "express-mongo-sanitize"
 import connectDB from "./config/db.js"
 import authRouter from "./routes/authRoutes.js"
 import employeeRouter from "./routes/employeeRoutes.js"
@@ -43,11 +45,13 @@ const corsOptions = {
     allowedHeaders: ["Content-Type", "Authorization"],
 }
 
+app.use(helmet())
 app.use(cors(corsOptions))
 app.options("/{*path}", cors(corsOptions))
 
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ limit: "10mb", extended: true }))
+app.use(mongoSanitize())
 
 // ── Ensure DB is connected before every request (critical for Vercel serverless) ──
 app.use(async (req, res, next) => {
@@ -79,11 +83,6 @@ app.get("/", (req, res) => res.send("Server running successfully"))
 
 startAutoCheckoutJob()
 
-// On Vercel, serverless functions don't keep a Node process running in the
-// background, so an in-process node-cron schedule can't be relied on to
-// fire. There, a Vercel Cron Job (see vercel.json) hits
-// /api/internal/run-birthday-check once a day instead. Locally / on a
-// persistent server, the in-process schedule below still works fine.
 if (!process.env.VERCEL) {
     startBirthdayAnnouncementJob()
 }
